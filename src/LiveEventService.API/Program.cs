@@ -6,11 +6,17 @@ using LiveEventService.Core.Common;
 using LiveEventService.Infrastructure;
 using LiveEventService.Infrastructure.Data;
 using Serilog;
-using LiveEventService.Infrastructure.Events.EventRegistrationNotifications;
 using LiveEventService.API.GraphQL.Types;
+using Amazon.XRay.Recorder.Core;
+using Amazon.XRay.Recorder.Handlers.AwsSdk;
+using Serilog.Context;
 
 var builder = WebApplication.CreateBuilder(args);
 var isTesting = builder.Environment.IsEnvironment("Testing");
+
+// Configure AWS X-Ray
+AWSXRayRecorder.InitializeInstance(configuration: builder.Configuration);
+AWSSDKHandler.RegisterXRayForAllServices();
 
 // Configure Serilog with CloudWatch
 builder.Host.UseSerilog((context, configuration) =>
@@ -26,9 +32,15 @@ Log.Information("Starting web application");
 // Add services to the container.
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration, isTesting);
-builder.Services.AddScoped<IEventRegistrationNotifier, LiveEventService.API.Events.EventRegistrationNotifier>();
 
-// Add GraphQL
+// Add API-specific services
+builder.Services.AddScoped<IEventRegistrationNotifier, EventRegistrationNotifier>();
+
+// Add Swagger services
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// Add GraphQL services
 builder.Services
     .AddGraphQLServer()
     .AddQueryType(d => d.Name("Query"))
@@ -77,6 +89,41 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Add correlation ID middleware
+app.Use(async (context, next) =>
+{
+    // Add correlation ID to the request if not present
+    var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault() ?? Guid.NewGuid().ToString();
+    context.Items["CorrelationId"] = correlationId;
+    
+    // Add correlation ID to the response headers
+    context.Response.Headers.Append("X-Correlation-ID", correlationId);
+    
+    // Add correlation ID to all logs in this request
+    using (LogContext.PushProperty("CorrelationId", correlationId))
+    {
+        await next(context);
+    }
+});
+
+// Add enhanced request logging
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+        diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+        diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
+        diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
+        
+        // Add correlation ID if available
+        if (httpContext.Request.Headers.TryGetValue("X-Correlation-ID", out var correlationId))
+        {
+            diagnosticContext.Set("CorrelationId", correlationId);
+        }
+    };
+});
+
 // Add global exception handling middleware (excluding GraphQL)
 app.UseWhen(context => !context.Request.Path.StartsWithSegments("/graphql"), 
     appBuilder => appBuilder.UseMiddleware<GlobalExceptionMiddleware>());
@@ -99,13 +146,18 @@ app.MapHealthChecks("/health", new()
         var result = System.Text.Json.JsonSerializer.Serialize(new
         {
             status = report.Status.ToString(),
-            checks = report.Entries.Select(entry => new
-            {
-                name = entry.Key,
-                status = entry.Value.Status.ToString(),
-                description = entry.Value.Description,
-                duration = entry.Value.Duration
-            })
+            totalDuration = report.TotalDuration,
+            entries = report.Entries.ToDictionary(
+                entry => entry.Key,
+                entry => new
+                {
+                    status = entry.Value.Status.ToString(),
+                    duration = entry.Value.Duration,
+                    data = entry.Value.Data,
+                    description = entry.Value.Description,
+                    exception = entry.Value.Exception?.Message,
+                    tags = entry.Value.Tags
+                })
         });
         await context.Response.WriteAsync(result);
     }

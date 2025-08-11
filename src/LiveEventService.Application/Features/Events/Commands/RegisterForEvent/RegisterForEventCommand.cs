@@ -40,7 +40,9 @@ public class CancelEventRegistrationCommandHandler : ICommandHandler<CancelEvent
     {
         var registration = await _registrationRepository.GetByIdAsync(request.RegistrationId, cancellationToken);
         if (registration == null)
+        {
             return BaseResponse<bool>.Failed("Registration not found");
+        }
 
         // Only the user or an admin can cancel
         if (!request.IsAdmin)

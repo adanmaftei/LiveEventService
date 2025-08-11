@@ -80,7 +80,7 @@ dotnet run --project src/LiveEventService.API
 | **Live Event API** | ✅ Running | http://localhost:5000 | Main API with all endpoints |
 | **Swagger UI** | ✅ Running | http://localhost:5000/swagger | API documentation |
 | **GraphQL** | ✅ Running | http://localhost:5000/graphql | GraphQL playground |
-| **PostgreSQL** | ✅ Running | localhost:5432 | Database with test data |
+| **PostgreSQL** | ✅ Running | http://localhost:5432 | Database with test data |
 | **pgAdmin** | ✅ Running | http://localhost:5050 | Database management |
 | **LocalStack** | ✅ Running | http://localhost:4566 | AWS services mocking |
 

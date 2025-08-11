@@ -28,7 +28,7 @@ public static class DependencyInjection
             if (isTesting == false)
             {
                 services.AddDbContext<LiveEventDbContext>(options =>
-                    options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+                        options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
             }
         }
 
@@ -43,18 +43,10 @@ public static class DependencyInjection
         // Register domain event dispatcher
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
 
-        // Register domain event handlers (moved from Application layer)
-        services.AddScoped<EventRegistrationCreatedDomainEventHandler>();
-        services.AddScoped<EventRegistrationPromotedDomainEventHandler>();
-        services.AddScoped<EventRegistrationCancelledDomainEventHandler>();
-
-        // Register domain event handlers
+        // Register domain event handlers (only register once)
         services.AddScoped<INotificationHandler<EventRegistrationCreatedNotification>, EventRegistrationCreatedDomainEventHandler>();
         services.AddScoped<INotificationHandler<EventRegistrationPromotedNotification>, EventRegistrationPromotedDomainEventHandler>();
         services.AddScoped<INotificationHandler<EventRegistrationCancelledNotification>, EventRegistrationCancelledDomainEventHandler>();
-
-        // Register notifier interface
-        services.AddScoped<IEventRegistrationNotifier, EventRegistrationNotifier>();
 
         // Add AWS Cognito authentication
         services.AddAuthentication(options =>
@@ -87,6 +79,19 @@ public static class DependencyInjection
         // Add basic health checks
         var healthChecksBuilder = services.AddHealthChecks();
         
+        // Add PostgreSQL health check only if not in testing mode and connection string is available
+        if (!isTesting)
+        {
+            var connectionString = configuration.GetConnectionString("DefaultConnection");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                healthChecksBuilder.AddNpgSql(
+                    connectionString,
+                    name: "PostgreSQL (RDS)",
+                    tags: new[] { "db", "rds", "postgresql" });
+            }
+        }
+        
         healthChecksBuilder.AddCheck("AWS Cognito", () =>
             {
                 // Simple check for Cognito config presence
@@ -96,6 +101,9 @@ public static class DependencyInjection
                     ? HealthCheckResult.Healthy()
                     : HealthCheckResult.Unhealthy("Cognito config missing");
             }, tags: new[] { "aws", "cognito" });
+
+        // Note: S3 health check is not implemented due to missing package
+        // For production, consider adding AspNetCore.HealthChecks.Aws.S3 package
 
         // Add CORS policy
         services.AddCors(options =>
