@@ -353,6 +353,11 @@ public class LiveEventServiceStack : Stack
             TaskImageOptions = new ApplicationLoadBalancedTaskImageOptions
             {
                 EnableLogging = true,
+                LogDriver = LogDriver.AwsLogs(new AwsLogDriverProps
+                {
+                    LogRetention = RetentionDays.ONE_MONTH, // Reduced from ONE_YEAR for cost optimization
+                    StreamPrefix = "LiveEventService"
+                }),
                 ContainerPort = 80,
                 Environment = new Dictionary<string, string>
                 {
@@ -369,11 +374,11 @@ public class LiveEventServiceStack : Stack
             }
         });
 
-        // Configure auto scaling
+        // Configure auto scaling with cost optimization
         var scaling = service.Service.AutoScaleTaskCount(new EnableScalingProps
         {
-            MinCapacity = 2,
-            MaxCapacity = 10
+            MinCapacity = 1,  // Reduced from 2 for cost optimization
+            MaxCapacity = 5   // Reduced from 10 for cost optimization
         });
 
         scaling.ScaleOnCpuUtilization("CpuScaling", new Amazon.CDK.AWS.ECS.CpuUtilizationScalingProps
