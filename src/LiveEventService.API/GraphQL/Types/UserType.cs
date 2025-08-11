@@ -1,6 +1,7 @@
+using HotChocolate.Types;
 using LiveEventService.Application.Features.Users.User;
 
-namespace LiveEventService.API.Users;
+namespace LiveEventService.API.GraphQL.Types;
 
 public class UserType : ObjectType<UserDto>
 {

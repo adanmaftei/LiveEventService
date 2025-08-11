@@ -2,7 +2,6 @@ using Ardalis.GuardClauses;
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Events;
 using User = LiveEventService.Core.Users.User.User;
-using MediatR;
 
 namespace LiveEventService.Core.Registrations.EventRegistration;
 
@@ -49,30 +48,27 @@ public class EventRegistration : Entity
 
     public void Confirm()
     {
-        var wasWaitlisted = Status == RegistrationStatus.Waitlisted;
         if (Status == RegistrationStatus.Confirmed)
-            return;
-        
+            return; // Already confirmed, do nothing
+            
         if (Status != RegistrationStatus.Pending && Status != RegistrationStatus.Waitlisted)
             throw new InvalidOperationException("Only pending or waitlisted registrations can be confirmed");
-        
+            
         Status = RegistrationStatus.Confirmed;
-        PositionInQueue = null;
+        PositionInQueue = null; // No longer in queue
         UpdatedAt = DateTime.UtcNow;
-        if (wasWaitlisted)
-        {
-            AddDomainEvent(new EventRegistrationPromotedDomainEvent(this));
-        }
+        
+        AddDomainEvent(new EventRegistrationPromotedDomainEvent(this));
     }
 
     public void Cancel()
     {
         if (Status == RegistrationStatus.Cancelled)
-            return;
-        
+            return; // Already cancelled, do nothing
+            
         Status = RegistrationStatus.Cancelled;
-        PositionInQueue = null;
         UpdatedAt = DateTime.UtcNow;
+        
         AddDomainEvent(new EventRegistrationCancelledDomainEvent(this));
     }
 
@@ -97,7 +93,7 @@ public class EventRegistration : Entity
     private void AddToWaitlist()
     {
         Status = RegistrationStatus.Waitlisted;
-        // Position will be updated by the event aggregate when processed
+        PositionInQueue = null; // Position will be set later by the service layer
     }
 
     public void UpdateWaitlistPosition(int position)
@@ -123,7 +119,7 @@ public enum RegistrationStatus
     NoShow      // User didn't attend the event
 } 
 
-public class EventRegistrationCreatedDomainEvent : DomainEvent, INotification
+public class EventRegistrationCreatedDomainEvent : DomainEvent
 {
     public EventRegistration Registration { get; }
     public EventRegistrationCreatedDomainEvent(EventRegistration registration)
@@ -132,7 +128,7 @@ public class EventRegistrationCreatedDomainEvent : DomainEvent, INotification
     }
 }
 
-public class EventRegistrationPromotedDomainEvent : DomainEvent, INotification
+public class EventRegistrationPromotedDomainEvent : DomainEvent
 {
     public EventRegistration Registration { get; }
     public EventRegistrationPromotedDomainEvent(EventRegistration registration)
@@ -141,7 +137,7 @@ public class EventRegistrationPromotedDomainEvent : DomainEvent, INotification
     }
 }
 
-public class EventRegistrationCancelledDomainEvent : DomainEvent, INotification
+public class EventRegistrationCancelledDomainEvent : DomainEvent
 {
     public EventRegistration Registration { get; }
     public EventRegistrationCancelledDomainEvent(EventRegistration registration)

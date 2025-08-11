@@ -2,7 +2,7 @@ using LiveEventService.Core.Events;
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Registrations.EventRegistration;
 using Microsoft.EntityFrameworkCore;
-using LiveEventService.Application.Common.Interfaces;
+using IUserRepository = LiveEventService.Core.Users.User.IUserRepository;
 using UserEntity = LiveEventService.Core.Users.User.User;
 using EventRegistrationEntity = LiveEventService.Core.Registrations.EventRegistration.EventRegistration;
 using EventRegistrationConfiguration = LiveEventService.Infrastructure.Registrations.EventRegistrationConfiguration;

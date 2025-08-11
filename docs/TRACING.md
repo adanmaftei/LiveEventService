@@ -1,34 +1,21 @@
 # Distributed Tracing with AWS X-Ray
 
-This document outlines how distributed tracing is implemented in the Live Event Service using AWS X-Ray.
-
-## ✅ Current Status: Fully Operational
-
-AWS X-Ray distributed tracing is **completely working** with:
-- ✅ X-Ray properly integrated with .NET 8 ASP.NET Core
-- ✅ LocalStack integration for development environment
-- ✅ Automatic trace generation for all HTTP requests
-- ✅ SQL query tracing with Entity Framework
-- ✅ AWS service call tracing
-- ✅ Correlation with Serilog logging via correlation IDs
-- ✅ Trace and span IDs visible in application logs
+This document describes the distributed tracing implementation using AWS X-Ray in the Live Event Service.
 
 ## Overview
 
-AWS X-Ray helps developers analyze and debug distributed applications. It provides an end-to-end view of requests as they travel through your application, and shows a map of your application's underlying components.
+The Live Event Service implements comprehensive distributed tracing using AWS X-Ray to provide visibility into request flows, performance bottlenecks, and system dependencies.
 
-## Features
+## Current Status
 
-- **Distributed Request Tracing**: Track requests as they travel through your application
-- **Service Map**: Visualize your application architecture
-- **Performance Analysis**: Identify performance bottlenecks
-- **Error Detection**: Quickly find and debug errors
-- **AWS Integration**: Built-in support for AWS services
-- **LocalStack Support**: Full development environment support
+- ✅ X-Ray properly integrated with .NET 9 ASP.NET Core
+- ✅ Automatic instrumentation for HTTP requests
+- ✅ Database query tracing with Entity Framework
+- ✅ AWS SDK integration for service calls
+- ✅ Custom subsegments for business logic
+- ✅ LocalStack integration for development
 
-## Current Working Configuration
-
-### Program.cs Integration
+## Program.cs Integration
 
 X-Ray is properly configured in the application startup:
 
@@ -41,7 +28,7 @@ AWSSDKHandler.RegisterXRayForAllServices();
 app.UseXRay(builder.Configuration.GetValue<string>("AWS:XRay:ServiceName") ?? "LiveEventService.API");
 ```
 
-### Configuration Settings
+## Configuration Settings
 
 X-Ray is configured in `appsettings.Development.json`:
 
@@ -59,26 +46,6 @@ X-Ray is configured in `appsettings.Development.json`:
     }
   }
 }
-```
-
-### LocalStack Integration
-
-In development, X-Ray traces are sent to LocalStack:
-
-```yaml
-# docker-compose.yml configuration
-localstack:
-  image: localstack/localstack:latest
-  container_name: localstack
-  environment:
-    - SERVICES=cognito-idp,s3,xray,logs,cloudwatch
-    - DEBUG=1
-    - LAMBDA_EXECUTOR=docker
-    - DOCKER_HOST=unix:///var/run/docker.sock
-  ports:
-    - "4566:4566"
-  volumes:
-    - "/var/run/docker.sock:/var/run/docker.sock"
 ```
 
 ## Required IAM Permissions

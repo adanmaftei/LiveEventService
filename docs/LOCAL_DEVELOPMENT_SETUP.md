@@ -5,7 +5,7 @@ This guide explains how to run the Live Event Service locally using Docker Compo
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) installed and **running**
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) installed
+- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) installed
 - [AWS CLI](https://aws.amazon.com/cli/) installed (optional, for LocalStack resource management)
 
 ## Pre-flight Checks
@@ -272,35 +272,18 @@ docker logs localstack --tail 20
 docker-compose logs --tail 20
 ```
 
-## Architecture Overview
+## Service Architecture
 
-### Technology Stack
-- **API**: .NET 8 Web API with ASP.NET Core
-- **Database**: PostgreSQL 14 with Entity Framework Core
-- **Caching**: In-memory (development)
-- **Logging**: Serilog with structured logging
-- **Monitoring**: AWS X-Ray for distributed tracing
-- **Authentication**: AWS Cognito (mocked via LocalStack)
-- **Storage**: AWS S3 (mocked via LocalStack)
-- **API Documentation**: Swagger/OpenAPI
-- **GraphQL**: HotChocolate integration
-
-### Clean Architecture Layers
-- **Core**: Domain entities and business logic
-- **Application**: Use cases, commands, queries (CQRS with MediatR)
-- **Infrastructure**: Data access, external services, AWS integrations
-- **API**: Controllers, GraphQL, middleware, configuration
-
-### Features Implemented
-- ✅ Event management (CRUD operations)
-- ✅ User registration and management
-- ✅ Event registration with waitlist support
-- ✅ Real-time updates (SignalR ready)
-- ✅ Health monitoring
-- ✅ Distributed tracing
-- ✅ Structured logging
-- ✅ API documentation
-- ✅ CORS support for frontend integration
+| Component | Technology | Version | Purpose |
+|-----------|------------|---------|---------|
+| **API**: .NET 9 Web API with ASP.NET Core | C# | .NET 9 | REST and GraphQL endpoints |
+| **Database**: PostgreSQL | SQL | 14 | Primary data store |
+| **ORM**: Entity Framework Core | C# | 9.0.7 | Database access layer |
+| **GraphQL**: HotChocolate | C# | 15.1.8 | GraphQL server implementation |
+| **Authentication**: AWS Cognito | JWT | Latest | User authentication |
+| **Logging**: Serilog | C# | 4.3.0 | Structured logging |
+| **Tracing**: AWS X-Ray | C# | 2.12.0 | Distributed tracing |
+| **Testing**: xUnit + Testcontainers | C# | Latest | Unit and integration tests |
 
 ## Production Considerations
 

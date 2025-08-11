@@ -1,5 +1,5 @@
-# Use the official .NET 8 SDK image for building
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+# Use the official .NET 9 SDK image for building
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /app
 
 # Copy only the main application project files (exclude CDK project)
@@ -22,8 +22,8 @@ COPY src/LiveEventService.Infrastructure/ ./src/LiveEventService.Infrastructure/
 # Build and publish the application
 RUN dotnet publish src/LiveEventService.API/LiveEventService.API.csproj -c Release -o /app/publish
 
-# Use the official .NET 8 runtime image for running
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+# Use the official .NET 9 runtime image for running
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
 # Install curl for health checks

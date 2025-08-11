@@ -1,6 +1,6 @@
 using LiveEventService.Core.Registrations.EventRegistration;
+using LiveEventService.Core.Common;
 using HotChocolate.Subscriptions;
-using LiveEventService.Application.Features.Events.EventRegistration.Notifications;
 
 namespace LiveEventService.API.Events;
 

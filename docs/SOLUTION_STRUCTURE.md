@@ -146,7 +146,7 @@ Solution 'LiveEventService' (7 of 7 projects)
 ```json
 {
   "sdk": {
-    "version": "8.0.0",
+    "version": "9.0.0",
     "rollForward": "latestMinor",
     "allowPrerelease": false
   }

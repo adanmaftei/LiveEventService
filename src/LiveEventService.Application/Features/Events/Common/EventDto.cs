@@ -20,29 +20,3 @@ public class EventDto
     public string? OnlineMeetingUrl { get; set; } // Optional: URL for online events
     public int AvailableSpots => AvailableSeats; // Alias for compatibility with API
 }
-
-public class CreateEventDto
-{
-    public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public DateTime StartDateTime { get; set; }
-    public DateTime EndDateTime { get; set; }
-    public string TimeZone { get; set; } = string.Empty;
-    public string Location { get; set; } = string.Empty;
-    public int Capacity { get; set; }
-}
-
-public class UpdateEventDto : CreateEventDto
-{
-    public Guid Id { get; set; }
-    public bool? IsPublished { get; set; }
-}
-
-public class EventListDto
-{
-    public IEnumerable<EventDto> Items { get; set; } = new List<EventDto>();
-    public int TotalCount { get; set; }
-    public int PageNumber { get; set; }
-    public int PageSize { get; set; }
-    public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
-}

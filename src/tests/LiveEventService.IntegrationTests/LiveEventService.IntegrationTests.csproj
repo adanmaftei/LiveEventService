@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -22,8 +22,8 @@
     </PackageReference>
     
     <!-- ASP.NET Core Testing -->
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.7" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="9.0.7" />
     
     <!-- Testcontainers -->
     <PackageReference Include="Testcontainers" Version="4.6.0" />
@@ -31,28 +31,27 @@
     <PackageReference Include="Testcontainers.LocalStack" Version="4.6.0" />
     
     <!-- Entity Framework Testing -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.7" />
     
     <!-- GraphQL Testing -->
-    <PackageReference Include="Snapshooter.Xunit" Version="0.7.1" />
+    <PackageReference Include="Snapshooter.Xunit" Version="1.0.1" />
     
     <!-- HTTP Client & JSON -->
-    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.7" />
     
     <!-- Authentication Testing -->
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.13.0" />
     
     <!-- Assertions and Utilities -->
-    <PackageReference Include="FluentAssertions" Version="6.12.1" />
+    <PackageReference Include="FluentAssertions" Version="8.5.0" />
     <PackageReference Include="Bogus" Version="35.6.3" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Project References -->
-    <ProjectReference Include="..\LiveEventService.API\LiveEventService.API.csproj" />
-    <ProjectReference Include="..\LiveEventService.Application\LiveEventService.Application.csproj" />
-    <ProjectReference Include="..\LiveEventService.Core\LiveEventService.Core.csproj" />
-    <ProjectReference Include="..\LiveEventService.Infrastructure\LiveEventService.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\LiveEventService.API\LiveEventService.API.csproj" />
+    <ProjectReference Include="..\..\LiveEventService.Application\LiveEventService.Application.csproj" />
+    <ProjectReference Include="..\..\LiveEventService.Core\LiveEventService.Core.csproj" />
+    <ProjectReference Include="..\..\LiveEventService.Infrastructure\LiveEventService.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

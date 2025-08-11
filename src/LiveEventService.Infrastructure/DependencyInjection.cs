@@ -3,12 +3,15 @@ using LiveEventService.Core.Events;
 using LiveEventService.Infrastructure.Data;
 using LiveEventService.Infrastructure.Users;
 using LiveEventService.Infrastructure.Events;
-using LiveEventService.Application.Common.Interfaces;
 using IUserRepository = LiveEventService.Core.Users.User.IUserRepository;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using LiveEventService.Core.Common;
 using EventRegistrationEntity = LiveEventService.Core.Registrations.EventRegistration.EventRegistration;
+using LiveEventService.Infrastructure.Events.EventRegistrationNotifications;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using MediatR;
 
 namespace LiveEventService.Infrastructure;
 
@@ -19,20 +22,93 @@ public static class DependencyInjection
         // Configure Npgsql to handle DateTime properly
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", false);
         
-        // Register DbContext, repositories, etc.
-        if (isTesting == false)
+        // Add DbContext - only configure if not already configured (for test scenarios)
+        if (!services.Any(s => s.ServiceType == typeof(DbContextOptions<LiveEventDbContext>)))
         {
-            services.AddDbContext<LiveEventDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            if (isTesting == false)
+            {
+                services.AddDbContext<LiveEventDbContext>(options =>
+                    options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            }
         }
 
-        services.AddScoped<IEventRepository, EventRepository>();
+        // Register repositories
+        services.AddScoped(typeof(IRepository<>), typeof(RepositoryBase<>));
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
-        
+        services.AddScoped<LiveEventService.Core.Events.IEventRepository, EventRepository>();
+
         // Register generic repository for EventRegistration
         services.AddScoped<IRepository<EventRegistrationEntity>, RepositoryBase<EventRegistrationEntity>>();
         
+        // Register domain event dispatcher
+        services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
+
+        // Register domain event handlers (moved from Application layer)
+        services.AddScoped<EventRegistrationCreatedDomainEventHandler>();
+        services.AddScoped<EventRegistrationPromotedDomainEventHandler>();
+        services.AddScoped<EventRegistrationCancelledDomainEventHandler>();
+
+        // Register domain event handlers
+        services.AddScoped<INotificationHandler<EventRegistrationCreatedNotification>, EventRegistrationCreatedDomainEventHandler>();
+        services.AddScoped<INotificationHandler<EventRegistrationPromotedNotification>, EventRegistrationPromotedDomainEventHandler>();
+        services.AddScoped<INotificationHandler<EventRegistrationCancelledNotification>, EventRegistrationCancelledDomainEventHandler>();
+
+        // Register notifier interface
+        services.AddScoped<IEventRegistrationNotifier, EventRegistrationNotifier>();
+
+        // Add AWS Cognito authentication
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.Authority = $"https://cognito-idp.{configuration["AWS:Region"]}.amazonaws.com/{configuration["AWS:UserPoolId"]}";
+            options.TokenValidationParameters = new()
+            {
+                ValidateIssuer = true,
+                ValidIssuer = $"https://cognito-idp.{configuration["AWS:Region"]}.amazonaws.com/{configuration["AWS:UserPoolId"]}",
+                ValidateLifetime = true,
+                LifetimeValidator = (_, expires, _, _) => expires > DateTime.UtcNow,
+                ValidateAudience = false,
+                RoleClaimType = "cognito:groups"
+            };
+        });
+
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(RoleNames.Admin, policy => 
+                policy.RequireRole(RoleNames.Admin));
+            options.AddPolicy(RoleNames.Participant, policy => 
+                policy.RequireRole(RoleNames.Participant));
+        });
+
+        // Add basic health checks
+        var healthChecksBuilder = services.AddHealthChecks();
+        
+        healthChecksBuilder.AddCheck("AWS Cognito", () =>
+            {
+                // Simple check for Cognito config presence
+                var region = configuration["AWS:Region"]!;
+                var userPoolId = configuration["AWS:UserPoolId"]!;
+                return !string.IsNullOrEmpty(region) && !string.IsNullOrEmpty(userPoolId)
+                    ? HealthCheckResult.Healthy()
+                    : HealthCheckResult.Unhealthy("Cognito config missing");
+            }, tags: new[] { "aws", "cognito" });
+
+        // Add CORS policy
+        services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                string[] allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+                policy.WithOrigins(allowedOrigins)
+                      .AllowAnyHeader()
+                      .AllowAnyMethod();
+            });
+        });
+
         return services;
     }
 }

@@ -1,5 +1,6 @@
-using LiveEventService.Application.Common.Interfaces;
 using LiveEventService.Core.Common;
+using LiveEventService.Core.Registrations.EventRegistration;
+using LiveEventService.Infrastructure.Events.EventRegistrationNotifications;
 using MediatR;
 
 namespace LiveEventService.Infrastructure.Data;
@@ -20,7 +21,19 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
             entity.ClearDomainEvents();
             foreach (var domainEvent in events)
             {
-                await _mediator.Publish(domainEvent, cancellationToken);
+                // Create appropriate notification adapter based on domain event type
+                INotification? notification = domainEvent switch
+                {
+                    EventRegistrationCreatedDomainEvent created => new EventRegistrationCreatedNotification(created),
+                    EventRegistrationPromotedDomainEvent promoted => new EventRegistrationPromotedNotification(promoted),
+                    EventRegistrationCancelledDomainEvent cancelled => new EventRegistrationCancelledNotification(cancelled),
+                    _ => null
+                };
+
+                if (notification != null)
+                {
+                    await _mediator.Publish(notification, cancellationToken);
+                }
             }
         }
     }

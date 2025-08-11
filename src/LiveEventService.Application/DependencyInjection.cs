@@ -9,8 +9,11 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
-        // Register MediatR, AutoMapper, validators, etc.
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
+        // Register MediatR from Application assembly
+        services.AddMediatR(cfg => {
+            cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
+        });
+        
         services.AddAutoMapper(cfg => {
             cfg.AddMaps(typeof(DependencyInjection).Assembly);
         });

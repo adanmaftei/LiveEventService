@@ -14,11 +14,11 @@ The Live Event Service API is **completely working** with:
 
 ## Overview
 
-The Events REST API is implemented using .NET 8 Minimal APIs directly in `Program.cs`. This approach:
-- Reduces boilerplate and improves performance
-- Makes endpoint definitions more discoverable
-- Keeps business logic in the Application layer (CQRS, MediatR)
-- Preserves clean architecture boundaries
+The Events REST API is implemented using .NET 9 Minimal APIs directly in `Program.cs`. This approach:
+- Reduces boilerplate code
+- Improves performance
+- Provides better testability
+- Aligns with modern .NET patterns
 
 ## Quick Access
 
@@ -351,19 +351,12 @@ open http://localhost:5000/graphql
 4. Add appropriate authorization requirements
 5. Update Swagger documentation with XML comments
 
-## Rationale for Minimal APIs
+## Benefits
 
-### Benefits
-- **Performance**: Reduced overhead compared to traditional controllers
-- **Simplicity**: Less boilerplate code for simple endpoints
-- **Discoverability**: All endpoints visible in one place
-- **Modern**: Aligns with .NET 8 best practices
-
-### Clean Architecture Preservation
-- Business logic remains in Application layer
-- Domain models stay in Core layer
-- Data access isolated in Infrastructure layer
-- API layer only handles HTTP concerns
+- **Performance**: Minimal overhead compared to controller-based APIs
+- **Simplicity**: Less boilerplate code and configuration
+- **Testability**: Easy to unit test individual endpoints
+- **Modern**: Aligns with .NET 9 best practices
 
 ## Next Steps
 

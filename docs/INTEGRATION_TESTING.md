@@ -127,12 +127,19 @@ Authorization: Test {userId}|{role}|{email}
 
 This allows testing different user scenarios without complex token management.
 
+### Prerequisites
+
+1. **Docker Desktop** installed and running
+2. **.NET 9 SDK** installed
+3. **Testcontainers** NuGet packages (automatically included)
+4. **Git** for version control
+
 ## Running Tests
 
 ### 🚀 **Prerequisites**
 
 1. **Docker Desktop** must be running (for Testcontainers)
-2. **.NET 8 SDK** installed
+2. **.NET 9 SDK** installed
 3. **Sufficient memory** (containers require ~2GB RAM)
 
 ### 🏃 **Execution Commands**

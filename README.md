@@ -1,6 +1,6 @@
 # Live Event Service
 
-A scalable, modular backend microservice for live event sign-ups built with .NET 8, AWS, and modern cloud-native practices.
+A scalable, modular backend microservice for live event sign-ups built with .NET 9, AWS, and modern cloud-native practices.
 
 ## ✅ Current Status: Fully Operational
 
@@ -28,7 +28,7 @@ This application is **production-ready** and fully operational with:
 
 ## Tech Stack
 
-- **Backend**: .NET 8, C#
+- **Backend**: .NET 9, C#
 - **Database**: PostgreSQL with Entity Framework Core
 - **API**: REST, GraphQL (HotChocolate)
 - **Infrastructure**: AWS (ECS, RDS, Cognito, API Gateway, etc.)
@@ -42,7 +42,7 @@ This application is **production-ready** and fully operational with:
 ### Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) installed and **running**
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (optional, for local development)
+- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) (optional, for local development)
 
 ### Option 1: Full Docker Setup (Recommended)
 
