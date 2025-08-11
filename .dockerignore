@@ -1,0 +1,51 @@
+# Ignore git files
+.git
+.gitignore
+
+# Ignore Docker files
+Dockerfile*
+docker-compose*
+
+# Ignore IDE files
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Ignore build output
+**/bin/
+**/obj/
+**/out/
+
+# Ignore test results
+TestResults/
+**/*.trx
+**/*.coverage
+
+# Ignore logs
+logs/
+*.log
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore local environment files
+.env
+.env.local
+
+# Ignore node modules (if any)
+node_modules/
+npm-debug.log*
+
+# Ignore CDK output
+cdk.out/
+src/infrastructure/cdk.out/
+
+# Ignore LocalStack data
+localstack-data/
+
+# Ignore documentation (not needed in container)
+docs/
+README.md 

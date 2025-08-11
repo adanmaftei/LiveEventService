@@ -1,0 +1,67 @@
+# Gitleaks configuration for Live Event Service
+# Reference: https://github.com/gitleaks/gitleaks#configuration
+
+# General settings
+title = "Live Event Service Secrets Detection"
+version = "8.8.7"
+
+# Rules for detecting secrets
+[[rules]]
+description = "AWS Access Key"
+regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+
+[[rules]]
+description = "AWS Secret Key"
+regex = '''(?i)aws(.{0,20})?(?-i)[\"\']([0-9a-zA-Z\/+]{40})(?:[\"\'\n\r]|\Z|\\n)'''
+
+[[rules]]
+description = "JWT Token"
+regex = '''(?i)(eyJ[a-zA-Z0-9\-_=]+\.[a-zA-Z0-9\-_=]+\.?[a-zA-Z0-9\-_.+/=]*)'''
+
+[[rules]]
+description = "API Key"
+regex = '''(?i)(api[_-]?key|apikey|secret[_-]?key|private[_-]?key|access[_-]?key)[=:]["']?([a-zA-Z0-9\-_.]{20,80})["']?'''
+
+[[rules]]
+description = "Database Connection String"
+regex = '''(?i)(postgres|mysql|sqlserver)://[a-zA-Z0-9_]+:[^@\s]+@[a-zA-Z0-9.-]+:[0-9]+/\w+'''
+
+# Ignore specific files and directories
+[allowlist]
+description = "Files to ignore"
+files = [
+    "**/*.md",
+    "**/*.json",
+    "**/*.config",
+    "**/bin/**",
+    "**/obj/**",
+    "**/node_modules/**",
+    "**/packages/**",
+    "**/wwwroot/**"
+]
+
+# Ignore specific strings (e.g., test data)
+regexes = [
+    "test.*key",
+    "example.*key",
+    "dummy.*key"
+]
+
+# Ignore specific commits (by hash)
+commits = [
+    "0000000000000000000000000000000000000000"
+]
+
+# Global settings for all rules
+[rule]
+# Set to true to stop scanning after first finding a secret
+stopOnFirstMatch = false
+
+# Set to true to show the secret value in the output
+showSecrets = false
+
+# Set the minimum confidence level (low, medium, high)
+confidence = "medium"
+
+# Set the entropy level (0.0 - 8.0)
+entropy = 3.5

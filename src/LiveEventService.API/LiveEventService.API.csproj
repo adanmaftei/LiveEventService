@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNetCore.HealthChecks.Aws.S3" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+    <PackageReference Include="AWSSDK.CloudWatchLogs" Version="4.0.7.1" />
+    <PackageReference Include="AWSSDK.CognitoIdentityProvider" Version="4.0.1.13" />
+    <PackageReference Include="AWSSDK.Core" Version="4.0.0.18" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.2" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.6.2" />
+    <PackageReference Include="AWSSDK.XRay" Version="4.0.0.15" />
+    <PackageReference Include="AWSXRayRecorder.Handlers.AspNetCore" Version="2.12.0" />
+    <PackageReference Include="AWSXRayRecorder.Handlers.AwsSdk" Version="2.13.0" />
+    <PackageReference Include="AWSXRayRecorder.Handlers.System.Net" Version="2.12.0" />
+    <PackageReference Include="ChilliCream.Nitro.App" Version="28.0.14" />
+    <PackageReference Include="HotChocolate.AspNetCore" Version="15.1.8" />
+    <PackageReference Include="HotChocolate.AspNetCore.Authorization" Version="15.1.8" />
+    <PackageReference Include="HotChocolate.Data" Version="15.1.8" />
+    <PackageReference Include="HotChocolate.Subscriptions" Version="15.1.8" />
+    <PackageReference Include="HotChocolate.Subscriptions.InMemory" Version="15.1.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.18" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.7">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+    <PackageReference Include="Serilog" Version="4.3.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageReference Include="Serilog.Sinks.AwsCloudWatch" Version="4.4.42" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="9.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.3" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\LiveEventService.Application\LiveEventService.Application.csproj" />
+		<ProjectReference Include="..\LiveEventService.Infrastructure\LiveEventService.Infrastructure.csproj" />
+		<ProjectReference Include="..\LiveEventService.Core\LiveEventService.Core.csproj" />
+	</ItemGroup>
+
+</Project>

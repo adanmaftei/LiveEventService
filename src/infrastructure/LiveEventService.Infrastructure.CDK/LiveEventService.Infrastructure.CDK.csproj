@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+		<OutputType>Exe</OutputType>
+		<IsPackable>false</IsPackable>
+		<AWSProjectType>CDK</AWSProjectType>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Single CDK v2 package that includes all AWS services -->
+		<PackageReference Include="Amazon.CDK.Lib" Version="2.207.0" />
+
+		<!-- Core constructs library -->
+		<PackageReference Include="Constructs" Version="10.4.2" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\LiveEventService.API\LiveEventService.API.csproj" />
+	</ItemGroup>
+</Project>

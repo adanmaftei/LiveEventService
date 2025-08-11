@@ -1,0 +1,85 @@
+name: Security Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Weekly security scan (Sundays at midnight)
+    - cron: '0 0 * * 0'
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    # Run security audit for NuGet packages
+    - name: Run NuGet security audit
+      run: |
+        dotnet list package --vulnerable --include-transitive
+
+    # Run OWASP Dependency-Check
+    - name: Run OWASP Dependency-Check
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: 'LiveEventService'
+        scan_path: './src'
+        format: 'HTML'
+        fail_on_cvss_above: 7.0
+
+    # Run SonarCloud analysis
+    - name: SonarCloud Scan
+      uses: sonarsource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    # Run .NET security code scan
+    - name: Run Security Code Scan
+      uses: security-code-scan/security-code-scan@v5
+      with:
+        project: 'src/LiveEventService.API/LiveEventService.API.csproj'
+        output: 'security-report'
+
+    # Upload security scan results
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          **/dependency-check-report.html
+          **/security-report/**
+
+    # Run OWASP ZAP baseline scan (only on schedule)
+    - name: Run OWASP ZAP baseline scan
+      if: github.event_name == 'schedule'
+      uses: zaproxy/action-baseline@v0.9.0
+      with:
+        target: 'https://yourapi.example.com' # Update with your API URL
+        rules_file_name: 'zap.conf'
+        cmd_options: '-I -j -m 5 -T 60 -z "-config api.disablekey=true"'
+
+    # Check for secrets in code
+    - name: Detect secrets in code
+      uses: gitleaks/gitleaks-action@v2
+      with:
+        config-path: .github/gitleaks.toml
+
+    # Run .NET security code analysis
+    - name: Run .NET Security Code Analysis
+      uses: dotnet/security-code-analysis@main
+      with:
+        tools: 'credscan,polyspace,roslynanalyzers,tslint,tslint-cognitive-complexity'
+        output: 'security-results'
