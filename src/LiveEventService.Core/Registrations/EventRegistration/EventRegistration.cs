@@ -31,18 +31,20 @@ public class EventRegistration : Entity
         UserId = user.Id;
         
         RegistrationDate = DateTime.UtcNow;
-        Status = RegistrationStatus.Pending;
         Notes = notes;
         
-        // If event is full, add to waitlist
+        // Determine initial status based on event capacity
         if (@event.IsFull())
         {
-            AddToWaitlist();
+            Status = RegistrationStatus.Waitlisted;
+            PositionInQueue = null; // Position will be set later by the service layer
         }
         else
         {
             Status = RegistrationStatus.Confirmed;
+            PositionInQueue = null;
         }
+        
         AddDomainEvent(new EventRegistrationCreatedDomainEvent(this));
     }
 
@@ -90,7 +92,7 @@ public class EventRegistration : Entity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    private void AddToWaitlist()
+    public void AddToWaitlist()
     {
         Status = RegistrationStatus.Waitlisted;
         PositionInQueue = null; // Position will be set later by the service layer
@@ -106,7 +108,7 @@ public class EventRegistration : Entity
     }
     
     // Business logic methods (not EF properties)
-    public bool IsWaitlisted() => PositionInQueue.HasValue && PositionInQueue > 0;
+    public bool IsWaitlisted() => Status == RegistrationStatus.Waitlisted && PositionInQueue.HasValue && PositionInQueue > 0;
 }
 
 public enum RegistrationStatus

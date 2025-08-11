@@ -103,9 +103,15 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
                 options.IncludeExceptionDetails = true;
             });
 
-            // Configure HotChocolate to properly map currentUserId from test claims
+            // Configure HotChocolate to properly map currentUserId from test claims and enable introspection for testing
             services.AddGraphQL()
-            .AddHttpRequestInterceptor<TestGraphQLInterceptor>();
+            .AddHttpRequestInterceptor<TestGraphQLInterceptor>()
+            .ModifyRequestOptions(opt => {
+                opt.IncludeExceptionDetails = true;
+            })
+            .ModifyOptions(opt => {
+                opt.StrictValidation = false; // Allow introspection queries
+            });
 
             // Override AWS configuration for LocalStack
             services.Configure<Dictionary<string, string>>(config =>
@@ -206,7 +212,7 @@ public class TestAuthenticationHandler : AuthenticationHandler<TestAuthenticatio
         {
             new Claim(ClaimTypes.NameIdentifier, userId),
             new Claim("sub", userId), // HotChocolate looks for 'sub' claim for currentUserId
-            new Claim(ClaimTypes.Name, userId),
+            new Claim(ClaimTypes.Name, userId), // This is what the registration endpoint expects
             new Claim(ClaimTypes.Role, role),
             new Claim(ClaimTypes.Email, email)
         };

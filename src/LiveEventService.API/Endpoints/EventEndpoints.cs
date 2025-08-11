@@ -21,11 +21,11 @@ public static class EventEndpoints
     {
         endpoints.MapGet("/api/events", async (
             [FromServices] IMediator mediator,
-            [FromQuery] int pageNumber,
-            [FromQuery] int pageSize,
-            [FromQuery] bool? isPublished,
-            [FromQuery] bool? isUpcoming,
-            HttpContext httpContext) =>
+            HttpContext httpContext,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] bool? isPublished = true,
+            [FromQuery] bool? isUpcoming = true) =>
         {
             var query = new ListEventsQuery
             {
@@ -101,8 +101,8 @@ public static class EventEndpoints
             [FromServices] IMediator mediator,
             Guid eventId,
             [FromQuery] string? status,
-            [FromQuery] int pageNumber,
-            [FromQuery] int pageSize) =>
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10) =>
         {
             var query = new GetEventRegistrationsQuery
             {
@@ -118,8 +118,8 @@ public static class EventEndpoints
         endpoints.MapGet("/api/events/{eventId:guid}/waitlist", async (
             [FromServices] IMediator mediator,
             Guid eventId,
-            [FromQuery] int pageNumber,
-            [FromQuery] int pageSize) =>
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10) =>
         {
             var query = new GetEventRegistrationsQuery
             {

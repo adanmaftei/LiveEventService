@@ -52,6 +52,7 @@ public class CancelEventRegistrationCommandHandler : ICommandHandler<CancelEvent
 
         var wasConfirmed = registration.Status == RegistrationStatus.Confirmed;
         registration.Cancel();
+        
         await _registrationRepository.UpdateAsync(registration, cancellationToken);
 
         // If this was a confirmed registration, promote the next waitlisted registration

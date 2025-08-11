@@ -35,7 +35,7 @@ public static class DependencyInjection
         // Register repositories
         services.AddScoped(typeof(IRepository<>), typeof(RepositoryBase<>));
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<LiveEventService.Core.Events.IEventRepository, EventRepository>();
+        services.AddScoped<IEventRepository, EventRepository>();
 
         // Register generic repository for EventRegistration
         services.AddScoped<IRepository<EventRegistrationEntity>, RepositoryBase<EventRegistrationEntity>>();

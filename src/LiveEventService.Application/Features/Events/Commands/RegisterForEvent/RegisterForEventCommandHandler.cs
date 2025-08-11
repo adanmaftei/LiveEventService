@@ -64,17 +64,34 @@ public class RegisterForEventCommandHandler : ICommandHandler<RegisterForEventCo
             return BaseResponse<EventRegistrationDto>.Failed("You are already registered for this event");
         }
 
+        // Check if event is full BEFORE creating registration
+        var confirmedRegistrationCount = await _eventRepository.GetRegistrationCountForEventAsync(request.EventId, cancellationToken);
+        var isEventFull = confirmedRegistrationCount >= eventEntity.Capacity;
+
         // Create the registration
         var registration = new EventRegistrationEntity(eventEntity, user, request.Notes);
         
-        // Add to waitlist if event is full
-        if (eventEntity.IsFull())
+        // Set appropriate status based on event capacity
+        if (isEventFull)
         {
-            var waitlistPosition = await _eventRepository.GetRegistrationCountForEventAsync(request.EventId, cancellationToken) + 1;
-            registration.UpdateWaitlistPosition(waitlistPosition);
+            // Set status to waitlisted first
+            registration.AddToWaitlist();
+        }
+        else
+        {
+            registration.Confirm(); // Auto-confirm if event has capacity
         }
 
+        // Save registration first
         var createdRegistration = await _registrationRepository.AddAsync(registration, cancellationToken);
+        
+        // Assign waitlist position AFTER saving, based on database insertion order
+        if (isEventFull)
+        {
+            var waitlistPosition = await _eventRepository.CalculateWaitlistPositionAsync(request.EventId, createdRegistration.Id, cancellationToken);
+            createdRegistration.UpdateWaitlistPosition(waitlistPosition);
+            await _registrationRepository.UpdateAsync(createdRegistration, cancellationToken);
+        }
         
         // Map to DTO
         var registrationDto = _mapper.Map<EventRegistrationDto>(createdRegistration);
