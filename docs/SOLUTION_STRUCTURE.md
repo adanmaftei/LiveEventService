@@ -33,12 +33,14 @@ All project documentation is now visible in Visual Studio/Rider for easy access:
 | `docs\API_MINIMAL.md` | Complete REST & GraphQL API reference | 13KB |
 | `docs\CICD.md` | GitHub Actions CI/CD pipeline guide | 15KB |
 | `docs\LOCAL_DEVELOPMENT_SETUP.md` | Development environment setup | 10KB |
+| `docs\WAITLIST_FUNCTIONALITY.md` | Event waitlist and auto-promotion guide | 18KB |
+| `docs\INTEGRATION_TESTING.md` | Testcontainers & authentication testing | 16KB |
 | `docs\MONITORING.md` | Health checks and monitoring | 12KB |
 | `docs\LOGGING.md` | Serilog structured logging | 12KB |
 | `docs\TRACING.md` | AWS X-Ray distributed tracing | 13KB |
 | `docs\COMPLIANCE.md` | GDPR and privacy compliance | 5KB |
 | `docs\BACKUP_AND_DR.md` | Backup and disaster recovery | 6KB |
-| `docs\DOMAIN_EVENTS_AND_GRAPHQL.md` | Domain events patterns | 2KB |
+| `docs\DOMAIN_EVENTS_AND_GRAPHQL.md` | Domain events and real-time notifications | 12KB |
 
 ### 🚀 **DevOps Folder**
 
@@ -103,6 +105,8 @@ Solution 'LiveEventService' (7 of 7 projects)
 │   ├── API_MINIMAL.md
 │   ├── CICD.md
 │   ├── LOCAL_DEVELOPMENT_SETUP.md
+│   ├── WAITLIST_FUNCTIONALITY.md
+│   ├── INTEGRATION_TESTING.md
 │   ├── MONITORING.md
 │   ├── LOGGING.md
 │   ├── TRACING.md
@@ -225,7 +229,8 @@ cd LiveEventServiceDemo
 1. **`README.md`** - Project overview
 2. **`LOCAL_DEVELOPMENT_SETUP.md`** - Environment setup
 3. **`API_MINIMAL.md`** - API reference
-4. **`CICD.md`** - Deployment process
+4. **`WAITLIST_FUNCTIONALITY.md`** - Event waitlist features and implementation
+5. **`CICD.md`** - Deployment process
 
 ## Support
 

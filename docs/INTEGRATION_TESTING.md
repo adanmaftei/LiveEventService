@@ -72,6 +72,96 @@ public async Task CreateEvent_ShouldReturnForbidden_WhenAuthenticatedAsParticipa
 }
 ```
 
+### 🎟️ **Waitlist Functionality Tests** (`WaitlistIntegrationTests`, `WaitlistNotificationTests`)
+
+**Comprehensive waitlist testing covering all business scenarios:**
+
+**Core Functionality (`WaitlistIntegrationTests`):**
+- ✅ **Basic waitlist registration** - Users added to waitlist when events are full
+- ✅ **Position calculation** - Correct position assignment starting from 1
+- ✅ **Automatic promotion** - First waitlisted user promoted when spots open
+- ✅ **Position updates** - Remaining users moved up in queue after promotion
+- ✅ **Concurrency safety** - Multiple simultaneous registrations handle positions correctly
+- ✅ **Admin operations** - Manual promotion and cancellation by admins
+- ✅ **Multiple registrations** - Sequential waitlist positions maintained correctly
+
+**Real-time Notifications (`WaitlistNotificationTests`):**
+- ✅ **Domain event triggering** - Events raised for registration, promotion, cancellation
+- ✅ **GraphQL subscriptions** - Real-time notifications for waitlist changes
+- ✅ **Event promotion flow** - Complete end-to-end promotion with notifications
+
+**Example Waitlist Tests:**
+```csharp
+[Fact]
+public async Task WaitlistRegistration_WhenEventIsFull_ShouldAddToWaitlistWithCorrectPosition()
+{
+    // Arrange: Create event with capacity 1
+    var eventId = await CreateEventWithCapacity(1);
+    await RegisterUserForEvent(eventId, "user1@test.com"); // Confirmed
+    
+    // Act: Register second user
+    var result = await RegisterUserForEvent(eventId, "user2@test.com");
+    
+    // Assert: Should be waitlisted at position 1
+    result.Status.Should().Be("Waitlisted");
+    result.PositionInQueue.Should().Be(1);
+}
+
+[Fact]
+public async Task WaitlistPromotion_WhenConfirmedRegistrationCancelled_ShouldPromoteFirstWaitlisted()
+{
+    // Arrange: Event with 1 confirmed, 2 waitlisted
+    var eventId = await CreateEventWithCapacity(1);
+    var user1Id = await RegisterUserForEvent(eventId, "user1@test.com"); // Confirmed
+    var user2Id = await RegisterUserForEvent(eventId, "user2@test.com"); // Waitlisted #1
+    var user3Id = await RegisterUserForEvent(eventId, "user3@test.com"); // Waitlisted #2
+    
+    // Act: Cancel confirmed registration
+    await CancelRegistration(eventId, user1Id);
+    
+    // Assert: First waitlisted should be promoted, second should move to position 1
+    var user2Status = await GetRegistrationStatus(eventId, user2Id);
+    var user3Status = await GetRegistrationStatus(eventId, user3Id);
+    
+    user2Status.Status.Should().Be("Confirmed");
+    user2Status.PositionInQueue.Should().BeNull();
+    
+    user3Status.Status.Should().Be("Waitlisted");
+    user3Status.PositionInQueue.Should().Be(1);
+}
+
+[Fact]
+public async Task WaitlistRegistration_WhenMultiplePeopleRegisterSimultaneously_ShouldHandleConcurrency()
+{
+    // Arrange: Event with capacity 1
+    var eventId = await CreateEventWithCapacity(1);
+    await RegisterUserForEvent(eventId, "user1@test.com"); // Takes the confirmed spot
+    
+    // Act: 4 people register simultaneously for waitlist
+    var tasks = Enumerable.Range(2, 4).Select(i => 
+        RegisterUserForEvent(eventId, $"user{i}@test.com")
+    ).ToArray();
+    
+    await Task.WhenAll(tasks);
+    
+    // Assert: All should be waitlisted with sequential positions
+    var registrations = await GetEventRegistrations(eventId);
+    var waitlisted = registrations.Where(r => r.Status == "Waitlisted")
+                                  .OrderBy(r => r.PositionInQueue)
+                                  .ToList();
+    
+    waitlisted.Should().HaveCount(4);
+    waitlisted.Select(r => r.PositionInQueue).Should().BeEquivalentTo(new[] { 1, 2, 3, 4 });
+}
+```
+
+**Test Infrastructure Features:**
+- **Parallel execution safe** - Each test uses isolated database
+- **Real user simulation** - Creates actual users with authentication
+- **Domain event verification** - Tests through observable side effects
+- **GraphQL endpoint testing** - Verifies real-time notification functionality
+- **Concurrency testing** - Handles race conditions in waitlist management
+
 ### 🔍 **GraphQL Tests** (`EventGraphQLTests`)
 
 **Covers:**

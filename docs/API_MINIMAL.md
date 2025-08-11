@@ -152,6 +152,24 @@ curl -X POST http://localhost:5000/api/events/{event-id}/register \
   }'
 ```
 
+#### Get Event Waitlist (Admin)
+```bash
+curl -H "Authorization: Bearer <admin-jwt-token>" \
+  "http://localhost:5000/api/events/{event-id}/waitlist?pageNumber=1&pageSize=10"
+```
+
+#### Promote from Waitlist (Admin)
+```bash
+curl -X POST http://localhost:5000/api/events/{event-id}/registrations/{registration-id}/confirm \
+  -H "Authorization: Bearer <admin-jwt-token>"
+```
+
+#### Cancel Registration (Admin)
+```bash
+curl -X POST http://localhost:5000/api/events/{event-id}/registrations/{registration-id}/cancel \
+  -H "Authorization: Bearer <admin-jwt-token>"
+```
+
 ### Users API
 
 #### Get Current User

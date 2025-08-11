@@ -8,7 +8,7 @@ This application is **production-ready** and fully operational with:
 - ✅ Complete Docker Compose setup
 - ✅ PostgreSQL database with automatic migrations  
 - ✅ AWS service mocking via LocalStack
-- ✅ **Full CI/CD pipeline with GitHub Actions** ⭐ **NEW**
+- ✅ Full CI/CD pipeline with GitHub Actions
 - ✅ Serilog structured logging with correlation IDs
 - ✅ AWS X-Ray distributed tracing
 - ✅ Health checks for all services
@@ -20,6 +20,7 @@ This application is **production-ready** and fully operational with:
 - **RESTful API** - Comprehensive HTTP endpoints for all operations
 - **GraphQL API** - Flexible query language for efficient data fetching
 - **Real-time Subscriptions** - WebSocket support for live updates
+- **Event Waitlist Management** - Automatic waitlist handling with position tracking and promotion
 - **Authentication & Authorization** - JWT-based authentication with AWS Cognito
 - **Containerized Deployment** - Docker and AWS ECS Fargate for scalable hosting
 - **Infrastructure as Code** - AWS CDK for reproducible infrastructure
@@ -119,8 +120,13 @@ This structure makes it easy to find all code for a feature and enables true fea
 | POST   | `/api/events`                                | Admin              | Create event                      |
 | PUT    | `/api/events/{id}`                           | Admin              | Update event                      |
 | DELETE | `/api/events/{id}`                           | Admin              | Delete event                      |
-| POST   | `/api/events/{eventId}/register`             | Authenticated      | Register for event (existing users only) |
+| POST   | `/api/events/{eventId}/register`             | Authenticated      | Register for event (auto-waitlist if full) |
 | GET    | `/api/events/{eventId}/registrations`        | Admin              | List registrations for an event   |
+| GET    | `/api/events/{eventId}/waitlist`             | Admin              | List waitlisted registrations with positions |
+| POST   | `/api/events/{eventId}/registrations/{id}/confirm` | Admin        | Promote registration from waitlist |
+| POST   | `/api/events/{eventId}/registrations/{id}/cancel`  | Admin        | Cancel registration (admin action) |
+| POST   | `/api/events/{eventId}/publish`              | Admin              | Publish event                     |
+| POST   | `/api/events/{eventId}/unpublish`            | Admin              | Unpublish event                   |
 | GET    | `/api/users`                                 | Admin             | List users                        |
 | GET    | `/api/users/me`                              | Authenticated      | Get current user                  |
 | GET    | `/api/users/{id}`                            | Admin             | Get user by ID                    |
@@ -220,9 +226,10 @@ dotnet test /p:CollectCoverage=true
 ## Documentation
 
 - 📖 **[Local Development Setup](docs/LOCAL_DEVELOPMENT_SETUP.md)** - Complete setup guide
-- 🚀 **[CI/CD Pipeline](docs/CICD.md)** - GitHub Actions deployment automation ⭐ **NEW**
-- 📁 **[Solution Structure](docs/SOLUTION_STRUCTURE.md)** - Project organization guide ⭐ **NEW**
-- 🧪 **[Integration Testing](docs/INTEGRATION_TESTING.md)** - Testcontainers & authentication testing ⭐ **NEW**
+- 🚀 **[CI/CD Pipeline](docs/CICD.md)** - GitHub Actions deployment automation
+- 📁 **[Solution Structure](docs/SOLUTION_STRUCTURE.md)** - Project organization guide
+- 🧪 **[Integration Testing](docs/INTEGRATION_TESTING.md)** - Testcontainers & authentication testing
+- 🎟️ **[Waitlist Functionality](docs/WAITLIST_FUNCTIONALITY.md)** - Event waitlist and auto-promotion guide
 - 📊 **[Logging](docs/LOGGING.md)** - Serilog configuration and usage
 - 🔍 **[Tracing](docs/TRACING.md)** - AWS X-Ray distributed tracing
 - 🏥 **[Monitoring](docs/MONITORING.md)** - Health checks and CloudWatch
