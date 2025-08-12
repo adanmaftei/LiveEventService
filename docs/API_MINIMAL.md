@@ -333,7 +333,14 @@ All requests are logged with:
 
 - JWT authentication configured; integration tests use a test auth handler.
 - CORS default policy is configured from `AllowedOrigins`.
-- Security headers (CSP/HSTS/etc.) and rate limiting are not yet implemented in `Program.cs`.
+- HTTPS redirection (non-dev) and HSTS (prod) enabled.
+- Security headers middleware adds X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and CSP (non-dev).
+- Rate limiting: general policy (100 req/min per IP) and registration policy (5 req/min per user/IP). Disabled in Testing.
+  - Applied policies:
+    - Events and Users endpoints: "general"
+    - Registration endpoints: "registration"
+    - GraphQL (`/graphql`): "general"
+    - Health endpoints (`/health`, `/health/ready`, `/health/live`): "general"
 
 ## Development Workflow
 

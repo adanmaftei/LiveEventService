@@ -6,26 +6,30 @@ This document outlines critical security improvements for the Live Event Service
 
 ## 🔒 **Current Security Assessment**
 
-### ✅ **Existing Security Measures**
+### ✅ **Implemented Security Baseline**
 - JWT-based authentication (AWS Cognito configuration; tests replace with test auth)
 - Input validation (FluentValidation in Application layer where present)
 - Structured logging with correlation IDs (Serilog)
+- HTTPS redirection (non-development) and HSTS (production)
+- Security headers middleware (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy; CSP in non-development)
+- CORS policy configured from `AllowedOrigins`
+- Request size limit (10 MB) and removal of Kestrel `Server` header
+- Rate limiting: general policy and stricter registration policy
 
 ### ⏳ Not Yet Implemented (Planned)
-- HTTPS redirection and HSTS in the API middleware pipeline
-- Security headers middleware (CSP, X-Frame-Options, X-Content-Type-Options, etc.)
+- Audit logging of admin-sensitive actions
+- Field-level encryption at rest (KMS-backed)
+- Advanced input sanitization/content filtering
 
 ### ⚠️ **Identified Security Gaps**
-1. **Rate Limiting**: Not implemented
-2. **Input Sanitization**: Limited protection against injection attacks
-3. **Audit Logging**: No comprehensive audit trail
-4. **Data Encryption**: Sensitive data not encrypted at rest
-5. **Security Headers**: Missing
-6. **CORS Configuration**: Default policy configured from `AllowedOrigins`; review hardening for prod
+1. **Input Sanitization**: Limited protection against injection attacks
+2. **Audit Logging**: No comprehensive audit trail
+3. **Data Encryption**: Sensitive data not encrypted at rest
+4. **CORS Hardening**: Review per-environment origins for production
 
 ## 🚀 **Phase 1: Critical Security Improvements**
 
-### 1. **Rate Limiting Implementation**
+### 1. **Rate Limiting Implementation (COMPLETED)**
 
 **Current Issue:**
 - No protection against brute force attacks
@@ -56,11 +60,10 @@ public class RateLimitingMiddleware
 }
 ```
 
-**Rate Limiting Rules:**
-- **Registration Endpoints**: 5 requests per minute per IP
-- **Authentication**: 3 attempts per minute per IP
-- **General API**: 100 requests per minute per IP
-- **Admin Endpoints**: 50 requests per minute per authenticated user
+**Rate Limiting Rules (current):**
+- **Registration Endpoints**: 5 requests/minute per user (or IP when anonymous)
+- **General API**: 100 requests/minute per IP
+Note: Testing environment disables rate limiting.
 
 ### 2. **Enhanced Input Validation & Sanitization**
 

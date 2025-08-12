@@ -26,7 +26,8 @@ public static class UserEndpoints
             };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting("general");
 
         endpoints.MapGet("/api/users/me", async (
             [FromServices] IMediator mediator,
@@ -36,7 +37,8 @@ public static class UserEndpoints
             var query = new GetUserQuery { UserId = userId };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+        .RequireRateLimiting("general");
 
         endpoints.MapGet("/api/users/{id}", async (
             [FromServices] IMediator mediator,
@@ -45,7 +47,8 @@ public static class UserEndpoints
             var query = new GetUserQuery { UserId = id };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting("general");
 
         endpoints.MapPost("/api/users", async (
             [FromServices] IMediator mediator,
@@ -53,7 +56,8 @@ public static class UserEndpoints
         {
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting("general");
 
         endpoints.MapPut("/api/users/{id}", async (
             [FromServices] IMediator mediator,
@@ -75,6 +79,7 @@ public static class UserEndpoints
             
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+        .RequireRateLimiting("general");
     }
 } 

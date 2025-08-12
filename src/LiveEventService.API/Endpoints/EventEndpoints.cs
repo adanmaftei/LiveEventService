@@ -37,7 +37,8 @@ public static class EventEndpoints
             };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors, result.Message });
-        }).AllowAnonymous();// No authentication required for public event list
+        }).AllowAnonymous() // No authentication required for public event list
+        .RequireRateLimiting("general");
 
         endpoints.MapGet("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
@@ -46,7 +47,8 @@ public static class EventEndpoints
             var query = new GetEventQuery { EventId = id };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.NotFound(new { result.Errors });
-        }).AllowAnonymous();// No authentication required for public event details
+        }).AllowAnonymous() // No authentication required for public event details
+        .RequireRateLimiting("general");
 
         endpoints.MapPost("/api/events", async (
             [FromServices] IMediator mediator,
@@ -56,7 +58,8 @@ public static class EventEndpoints
             command.OrganizerId = httpContext.User.Identity?.Name ?? string.Empty;
             var result = await mediator.Send(command);
             return result.Success ? Results.Created($"/api/events/{result.Data?.Id}", result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting("general");
 
         endpoints.MapPut("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
@@ -71,7 +74,8 @@ public static class EventEndpoints
             command.UserId = httpContext.User.Identity?.Name ?? string.Empty;
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting("general");
 
         endpoints.MapDelete("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
@@ -85,7 +89,8 @@ public static class EventEndpoints
             };
             var result = await mediator.Send(command);
             return result.Success ? Results.NoContent() : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting("general");
 
         endpoints.MapPost("/api/events/{eventId:guid}/register", async (
             [FromServices] IMediator mediator,
@@ -97,7 +102,9 @@ public static class EventEndpoints
             command.UserId = httpContext.User.Identity?.Name ?? string.Empty;
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization();
+        })
+        .RequireAuthorization()
+        .RequireRateLimiting("registration");
 
         endpoints.MapGet("/api/events/{eventId:guid}/registrations", async (
             [FromServices] IMediator mediator,
@@ -115,7 +122,8 @@ public static class EventEndpoints
             };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting("general");
 
         endpoints.MapGet("/api/events/{eventId:guid}/waitlist", async (
             [FromServices] IMediator mediator,
@@ -132,7 +140,8 @@ public static class EventEndpoints
             };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting("general");
 
         endpoints.MapPost("/api/events/{eventId:guid}/registrations/{registrationId:guid}/confirm", async (
             [FromServices] IMediator mediator,
@@ -147,7 +156,8 @@ public static class EventEndpoints
             };
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting("general");
 
         endpoints.MapPost("/api/events/{eventId:guid}/registrations/{registrationId:guid}/cancel", async (
             [FromServices] IMediator mediator,
@@ -163,7 +173,8 @@ public static class EventEndpoints
             };
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting("general");
 
         endpoints.MapPost("/api/events/{eventId:guid}/publish", async (
             [FromServices] IMediator mediator,

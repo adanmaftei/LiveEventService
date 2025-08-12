@@ -10,9 +10,18 @@ using LiveEventService.API.GraphQL.Types;
 using Amazon.XRay.Recorder.Core;
 using Amazon.XRay.Recorder.Handlers.AwsSdk;
 using Serilog.Context;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 var isTesting = builder.Environment.IsEnvironment("Testing");
+
+// Harden Kestrel: remove Server header and cap request body size
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.AddServerHeader = false;
+    options.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB
+});
 
 // Configure AWS X-Ray
 AWSXRayRecorder.InitializeInstance(configuration: builder.Configuration);
@@ -59,6 +68,44 @@ builder.Services
     .AddSorting()
     .AddProjections();
 
+// Add rate limiting (disabled in Testing environment)
+if (!isTesting)
+{
+    builder.Services.AddRateLimiter(options =>
+    {
+        // General API limiter: token bucket per IP
+        options.AddPolicy("general", httpContext =>
+        {
+            var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon";
+            var key = $"general:{ip}";
+            return RateLimitPartition.GetTokenBucketLimiter(key, _ => new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = 100,
+                TokensPerPeriod = 100,
+                ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                AutoReplenishment = true,
+                QueueLimit = 0
+            });
+        });
+
+        // Stricter limiter for registration endpoints: per user if authenticated, else per IP
+        options.AddPolicy("registration", httpContext =>
+        {
+            var partitionKey = httpContext.User?.Identity?.IsAuthenticated == true
+                ? httpContext.User.Identity!.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon"
+                : httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon";
+
+            return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+        });
+    });
+}
+
 var app = builder.Build();
 
 // Initialize database
@@ -87,6 +134,17 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Live Event Service API v1");
         c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
     });
+}
+else
+{
+    // Production hardening
+    app.UseHsts();
+}
+
+// Redirect HTTP to HTTPS only outside dev/testing
+if (!app.Environment.IsDevelopment() && !isTesting)
+{
+    app.UseHttpsRedirection();
 }
 
 // Add correlation ID middleware
@@ -128,11 +186,20 @@ app.UseSerilogRequestLogging(options =>
 app.UseWhen(context => !context.Request.Path.StartsWithSegments("/graphql"), 
     appBuilder => appBuilder.UseMiddleware<GlobalExceptionMiddleware>());
 
+// Apply security headers
+app.UseMiddleware<LiveEventService.API.Middleware.SecurityHeadersMiddleware>();
+
 app.UseCors();
 
 // Use authentication and authorization
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Apply rate limiting (if enabled)
+if (!isTesting)
+{
+    app.UseRateLimiter();
+}
 
 // Configure X-Ray tracing middleware
 app.UseXRay("LiveEventService");
@@ -161,20 +228,27 @@ app.MapHealthChecks("/health", new()
         });
         await context.Response.WriteAsync(result);
     }
-});
+})
+    .RequireRateLimiting("general");
 
 app.MapHealthChecks("/health/ready", new()
 {
     Predicate = check => check.Tags.Contains("ready")
-});
+})
+    .RequireRateLimiting("general");
 
 app.MapHealthChecks("/health/live", new()
 {
     Predicate = _ => false
-});
+})
+    .RequireRateLimiting("general");
 
 // Configure GraphQL endpoint
-app.MapGraphQL("/graphql");
+var graphQLEndpoint = app.MapGraphQL("/graphql");
+if (!isTesting)
+{
+    graphQLEndpoint.RequireRateLimiting("general");
+}
 
 // Configure Nitro (GraphQL Playground) in development only
 if (app.Environment.IsDevelopment())

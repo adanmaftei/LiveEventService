@@ -235,6 +235,7 @@ dotnet test /p:CollectCoverage=true
 - 🛡️ **[Compliance](docs/COMPLIANCE.md)** - GDPR and privacy considerations
 - 🔄 **[Backup & DR](docs/BACKUP_AND_DR.md)** - Backup and disaster recovery
  - 🛡️ **[Security Enhancements](docs/SECURITY_ENHANCEMENTS.md)** - Planned security hardening (rate limiting, headers, HTTPS/HSTS)
+ - 🛡️ **[Security Enhancements](docs/SECURITY_ENHANCEMENTS.md)** - Security baseline (HTTPS/HSTS, headers, rate limiting) + next steps
  - ⚙️ **[Architecture Analysis & Improvements](docs/ARCHITECTURE_ANALYSIS_AND_IMPROVEMENTS.md)** - Current gaps and roadmap
  - 📈 **[Performance & Scalability](docs/PERFORMANCE_AND_SCALABILITY.md)** - Performance bottlenecks and plans
  - 📈 **[Scalability Improvements](docs/SCALABILITY_IMPROVEMENTS.md)** - Scaling strategies
