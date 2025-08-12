@@ -1,0 +1,45 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Cache hit/miss (rate)",
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "targets": [
+        {"expr": "rate(cache_hits_total[5m])", "legendFormat": "hits"},
+        {"expr": "rate(cache_misses_total[5m])", "legendFormat": "misses"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "Hit ratio (5m)",
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "targets": [
+        {"expr": "sum(rate(cache_hits_total[5m])) / clamp_min(sum(rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])), 1e-9)", "legendFormat": "ratio"}
+      ],
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "horizontal", "colorMode": "value", "graphMode": "none", "justifyMode": "auto"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache sets (rate)",
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "targets": [
+        {"expr": "rate(cache_sets_total[5m])", "legendFormat": "sets"}
+      ],
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+    }
+  ],
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": ["liveevent", "cache"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "",
+  "title": "Cache Efficiency",
+  "version": 1
+}
+
+

@@ -51,6 +51,9 @@ public static class DependencyInjection
         services.AddScoped<INotificationHandler<RegistrationWaitlistedNotification>, RegistrationWaitlistedDomainEventHandler>();
         services.AddScoped<INotificationHandler<EventCapacityIncreasedNotification>, EventCapacityIncreasedDomainEventHandler>();
         
+        // Default metrics recorder (overridden in Infrastructure)
+        services.AddSingleton<LiveEventService.Core.Common.IMetricRecorder, LiveEventService.Core.Common.NoOpMetricRecorder>();
+        
         return services;
     }
 } 

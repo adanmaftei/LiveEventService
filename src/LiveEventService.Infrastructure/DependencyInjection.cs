@@ -6,7 +6,6 @@ using LiveEventService.Infrastructure.Events;
 using LiveEventService.Infrastructure.Registrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
-using LiveEventService.Core.Common;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using MediatR;
@@ -15,6 +14,8 @@ using LiveEventService.Core.Users.User;
 using Amazon.S3;
 using Amazon;
 using Amazon.SimpleNotificationService;
+using LiveEventService.Core.Common;
+using LiveEventService.Infrastructure.Telemetry;
 
 namespace LiveEventService.Infrastructure;
 
@@ -174,6 +175,9 @@ public static class DependencyInjection
         {
             services.AddHostedService<OutboxProcessorBackgroundService>();
         }
+
+        // Override metrics recorder with infrastructure implementation
+        services.AddSingleton<IMetricRecorder, MetricRecorder>();
 
         return services;
     }

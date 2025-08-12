@@ -61,6 +61,9 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
 | **pgAdmin** | 5050 | http://localhost:5050 | ✅ **Working** | admin@example.com / admin |
 | **LocalStack** | 4566 | http://localhost:4566/_localstack/health | ✅ **Working** | test/test |
 | **Prometheus** | 9090 | http://localhost:9090 | ✅ **Working** | - |
+| **Grafana** | 3000 | http://localhost:3000 | ✅ **Working** | Anonymous; dashboard auto-imported |
+| **Loki** | 3100 | http://localhost:3100 | ✅ **Working** | - |
+| **Jaeger UI** | 16686 | http://localhost:16686 | ✅ **Working** | - |
 | **ADOT Collector** | 4317/4318 | OTLP gRPC/HTTP endpoints | ✅ **Working** | - |
 | **Redis** | 6379 | Direct connection | ✅ **Working** | - |
 
@@ -116,7 +119,12 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
 - **Features**:
   - OTEL metrics with Prometheus scraping endpoint
   - OTLP exporter configured (use ADOT Collector to ship to AWS X-Ray)
-  - Prometheus available at `http://localhost:9090` for metrics exploration
+  - Prometheus at `http://localhost:9090` for metrics exploration
+  - Grafana at `http://localhost:3000` with:
+    - Pre-wired Prometheus + Loki datasources
+    - Dashboard "LiveEvent Service Overview"
+  - Loki + Promtail for Docker logs in Grafana Explore and dashboard logs panel
+  - Jaeger at `http://localhost:16686` for local traces
   - ASP.NET Core and HttpClient instrumentation
 
 ### 🏥 Health Checks

@@ -17,43 +17,36 @@ using HotChocolate.AspNetCore;
 using HotChocolate.Execution.Options;
 using Microsoft.AspNetCore.Http;
 using HotChocolate.Execution;
+using Npgsql;
 
 namespace LiveEventService.IntegrationTests.Infrastructure;
 
 public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private static readonly SemaphoreSlim s_containerStartLock = new(1, 1);
-    private readonly PostgreSqlContainer _postgresContainer;
-    private readonly LocalStackContainer _localStackContainer;
 
-    public LiveEventTestApplicationFactory()
-    {
-        _postgresContainer = new PostgreSqlBuilder()
-            .WithImage("postgres:14")
-            .WithDatabase("LiveEventTestDB")
-            .WithUsername("postgres")
-            .WithPassword("postgres")
-            .WithCleanUp(true)
-            .WithWaitStrategy(Wait.ForUnixContainer()
-                .UntilPortIsAvailable(5432)
-                .UntilCommandIsCompleted("pg_isready -U postgres"))
-            .Build();
+    // Shared containers across all test classes to avoid start/stop races and speed up parallel runs
+    private static PostgreSqlContainer? s_postgresContainer;
+    private static LocalStackContainer? s_localStackContainer;
+    private static bool s_containersStarted;
 
-        _localStackContainer = new LocalStackBuilder()
-            .WithImage("localstack/localstack:3.0")
-            .WithEnvironment("SERVICES", "cognito-idp,s3,xray,cloudwatch,logs")
-            .WithEnvironment("DEBUG", "1")
-            .WithEnvironment("PERSISTENCE", "0")
-            .WithPortBinding(4566, true)
-            .WithCleanUp(true)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(4566))
-            .Build();
-    }
+    // Per-factory (per-class) isolated database name and connection string
+    private readonly string _databaseName = $"LiveEventTestDB_{Guid.NewGuid():N}";
+    private string? _databaseConnectionString;
+
+    public LiveEventTestApplicationFactory() { }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
         {
+            // Replace audit logger with in-memory implementation for assertions
+            var existingAudit = services.FirstOrDefault(s => s.ServiceType.FullName == typeof(LiveEventService.Application.Common.IAuditLogger).FullName);
+            if (existingAudit != null)
+            {
+                services.Remove(existingAudit);
+            }
+            services.AddSingleton<LiveEventService.Application.Common.IAuditLogger, InMemoryAuditLogger>();
             // Remove the real database context
             var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<LiveEventDbContext>));
             if (descriptor != null)
@@ -61,11 +54,11 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
                 services.Remove(descriptor);
             }
 
-            // Add test database context
+            // Add test database context (per-class isolated database)
             services.AddDbContext<LiveEventDbContext>(options =>
             {
                 options.UseNpgsql(
-                    _postgresContainer.GetConnectionString(),
+                    _databaseConnectionString!,
                     npgsqlOptions =>
                     {
                         npgsqlOptions.EnableRetryOnFailure(
@@ -127,16 +120,16 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
                 opt.StrictValidation = false; // Allow introspection queries
             });
 
-            // Override AWS configuration for LocalStack
+            // Override AWS configuration for LocalStack (shared across tests)
             services.Configure<Dictionary<string, string>>(config =>
             {
-                config["AWS:ServiceURL"] = _localStackContainer.GetConnectionString();
+                config["AWS:ServiceURL"] = s_localStackContainer!.GetConnectionString();
                 config["AWS:Region"] = "us-east-1";
                 config["AWS:UserPoolId"] = "us-east-1_000000001";
                 config["AWS:S3BucketName"] = "test-bucket";
             });
 
-            // Ensure the database is created
+            // Ensure the per-class database schema is created
             var serviceProvider = services.BuildServiceProvider();
             using var scope = serviceProvider.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<LiveEventDbContext>();
@@ -146,13 +139,13 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
         // Set test environment
         builder.UseEnvironment("Testing");
 
-        // Configure connection string for test
+        // Configure connection string for test (per-class DB)
         builder.ConfigureAppConfiguration((context, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:DefaultConnection"] = _postgresContainer.GetConnectionString(),
-                ["AWS:ServiceURL"] = _localStackContainer.GetConnectionString(),
+                ["ConnectionStrings:DefaultConnection"] = _databaseConnectionString!,
+                ["AWS:ServiceURL"] = s_localStackContainer!.GetConnectionString(),
                 ["AWS:Region"] = "us-east-1",
                 ["AWS:UserPoolId"] = "us-east-1_000000001",
                 ["AWS:S3BucketName"] = "test-bucket"
@@ -165,8 +158,52 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
         await s_containerStartLock.WaitAsync();
         try
         {
-            await _postgresContainer.StartAsync();
-            await _localStackContainer.StartAsync();
+            if (!s_containersStarted)
+            {
+                s_postgresContainer ??= new PostgreSqlBuilder()
+                    .WithImage("postgres:14")
+                    .WithDatabase("postgres") // connect to server DB; we'll create per-class DBs manually
+                    .WithUsername("postgres")
+                    .WithPassword("postgres")
+                    .WithCleanUp(true)
+                    .WithWaitStrategy(Wait.ForUnixContainer()
+                        .UntilPortIsAvailable(5432)
+                        .UntilCommandIsCompleted("pg_isready -U postgres"))
+                    .Build();
+
+                s_localStackContainer ??= new LocalStackBuilder()
+                    .WithImage("localstack/localstack:3.0")
+                    .WithEnvironment("SERVICES", "cognito-idp,s3,xray,cloudwatch,logs")
+                    .WithEnvironment("DEBUG", "1")
+                    .WithEnvironment("PERSISTENCE", "0")
+                    .WithPortBinding(4566, true)
+                    .WithCleanUp(true)
+                    .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(4566))
+                    .Build();
+
+                await s_postgresContainer.StartAsync();
+                await s_localStackContainer.StartAsync();
+                s_containersStarted = true;
+            }
+
+            // Create an isolated database for this test factory
+            var serverConnBuilder = new NpgsqlConnectionStringBuilder(s_postgresContainer!.GetConnectionString())
+            {
+                Database = "postgres"
+            };
+            await using (var conn = new NpgsqlConnection(serverConnBuilder.ConnectionString))
+            {
+                await conn.OpenAsync();
+                await using var cmd = new NpgsqlCommand($"CREATE DATABASE \"{_databaseName}\"", conn);
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            // Build connection string to the isolated database
+            var dbConnBuilder = new NpgsqlConnectionStringBuilder(s_postgresContainer.GetConnectionString())
+            {
+                Database = _databaseName
+            };
+            _databaseConnectionString = dbConnBuilder.ConnectionString;
         }
         finally
         {
@@ -176,8 +213,24 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
 
     public new async Task DisposeAsync()
     {
-        await _postgresContainer.DisposeAsync();
-        await _localStackContainer.DisposeAsync();
+        // Drop the per-class isolated database to keep the shared server clean
+        try
+        {
+            var serverConnBuilder = new NpgsqlConnectionStringBuilder(s_postgresContainer!.GetConnectionString())
+            {
+                Database = "postgres"
+            };
+            await using var conn = new NpgsqlConnection(serverConnBuilder.ConnectionString);
+            await conn.OpenAsync();
+            await using var drop = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{_databaseName}\" WITH (FORCE)", conn);
+            await drop.ExecuteNonQueryAsync();
+        }
+        catch
+        {
+            // ignore cleanup errors
+        }
+
+        // Do NOT dispose shared containers here; they are reused by other parallel classes.
         await base.DisposeAsync();
     }
 
@@ -189,8 +242,8 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
         return client;
     }
 
-    public string GetPostgresConnectionString() => _postgresContainer.GetConnectionString();
-    public string GetLocalStackEndpoint() => _localStackContainer.GetConnectionString();
+    public string GetPostgresConnectionString() => _databaseConnectionString!;
+    public string GetLocalStackEndpoint() => s_localStackContainer!.GetConnectionString();
 }
 
 public class TestAuthenticationSchemeOptions : AuthenticationSchemeOptions { }

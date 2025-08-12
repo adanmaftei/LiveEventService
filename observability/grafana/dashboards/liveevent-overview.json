@@ -1,0 +1,57 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "iteration": 1710000000000,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Requests per second",
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "targets": [
+        {"expr": "rate(http_server_requests_seconds_count[1m])", "legendFormat": "{{method}} {{status}}"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Request duration p95 (ms)",
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) * 1000", "legendFormat": "p95"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Custom metrics - events/registrations",
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "targets": [
+        {"expr": "increase(events_created_total[5m])", "legendFormat": "events created"},
+        {"expr": "increase(events_published_total[5m])", "legendFormat": "events published"},
+        {"expr": "increase(registrations_created_total[5m])", "legendFormat": "registrations"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "type": "logs",
+      "title": "Application logs",
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {"expr": "{container=\"liveevent-api\"}"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    }
+  ],
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": ["liveevent"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "",
+  "title": "LiveEvent Service Overview",
+  "version": 1
+}
+

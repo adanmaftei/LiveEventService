@@ -150,7 +150,7 @@ public class EventRegistration : Entity
         }
     }
     
-    public void RemoveFromWaitlist(string reason = null)
+    public void RemoveFromWaitlist(string? reason = null)
     {
         if (Status != RegistrationStatus.Waitlisted)
         {

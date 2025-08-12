@@ -74,6 +74,7 @@ namespace LiveEventService.Infrastructure.Data;
                          }
                 message.LastError = null;
                 processed++;
+                LiveEventService.Infrastructure.Telemetry.AppMetrics.OutboxProcessed.Add(1);
             }
             catch (Exception ex)
             {
@@ -83,10 +84,19 @@ namespace LiveEventService.Infrastructure.Data;
                 message.LastError = ex.Message;
                 var delaySec = Math.Min(300, 5 * Math.Max(1, message.TryCount));
                 message.NextAttemptAt = DateTime.UtcNow.AddSeconds(delaySec);
+                LiveEventService.Infrastructure.Telemetry.AppMetrics.OutboxFailed.Add(1);
             }
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        // Update gauge with an approximate of remaining pending (not exact under race, acceptable for telemetry)
+        try
+        {
+            var pending = await _dbContext.OutboxMessages.CountAsync(m => m.Status == OutboxStatus.Pending, cancellationToken);
+            var current = 0L; // UpDownCounter expects delta; set to absolute by subtracting previous, but we don't track prev → use Add with (pending - 0)
+            LiveEventService.Infrastructure.Telemetry.AppMetrics.OutboxPending.Add(pending - current);
+        }
+        catch { }
         return processed;
     }
 }

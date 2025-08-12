@@ -161,6 +161,20 @@ curl -w "Total time: %{time_total}s\n" -s http://localhost:5000/health > /dev/nu
 
 ## Integration with Observability
 
+### Cloud Monitoring (AWS)
+
+- Traces: exported via OTLP to ADOT Collector → AWS X-Ray
+- Metrics: exported via OTLP to ADOT Collector → CloudWatch EMF (service, infrastructure)
+- Optional: Long-term metrics → Amazon Managed Prometheus (AMP) and dashboards via Amazon Managed Grafana (AMG)
+- Logs: container logs to CloudWatch Logs (short retention for cost control). Serilog structured logs support correlation IDs.
+- Dashboard and alarms provisioned via CDK (API Gateway, ECS Fargate, RDS). Email alerts via SNS.
+
+### Enabling AMP/AMG (optional)
+1. Provision an AMP workspace and AMG workspace (or reuse existing).
+2. Set `PROM_REMOTE_WRITE_ENDPOINT` for ADOT Collector.
+3. Give ADOT Collector IAM `aps:RemoteWrite` to the AMP workspace.
+4. In AMG, add the AMP data source and build dashboards from custom metrics like `events_created_total`.
+
 ### Serilog Integration
 Health check requests are automatically logged with:
 - Request path and method
@@ -188,6 +202,23 @@ docker logs liveevent-api 2>&1 | grep -E "(GET /health|Root=|Parent=)"
 ## Monitoring in Development
 
 ### Docker Environment Monitoring
+# Local Observability Stack
+
+When running via Docker Compose, access these UIs for real-time visibility:
+
+- Grafana: http://localhost:3000 (anonymous)
+  - Datasources: Prometheus and Loki are pre-provisioned
+  - Dashboard: LiveEvent Service Overview (metrics + logs), auto-imported by `grafana-importer` sidecar
+- Prometheus: http://localhost:9090
+- Jaeger: http://localhost:16686
+- Loki: http://localhost:3100 (API)
+
+Dashboard and provisioning files live under `observability/grafana/`.
+
+Available dashboards (auto-imported):
+- LiveEvent Service Overview
+- LiveEvent Queue & Outbox
+- Cache Efficiency
 
 ```bash
 # Check all container health

@@ -17,6 +17,13 @@ using Amazon.CDK.AWS.Logs;
 using Constructs;
 using System.Text.Json;
 using Amazon.CDK.AWS.ApplicationAutoScaling;
+using Amazon.CDK.AWS.APS;
+using Amazon.CDK.AWS.Grafana;
+using Amazon.CDK.AWS.S3;
+using Amazon.CDK.AWS.Lambda;
+// using Amazon.CDK.AWS.Lambda.Python;
+using Amazon.CDK.AWS.S3.Assets;
+using Amazon.CDK.CustomResources;
 
 namespace LiveEventService.Infrastructure.CDK;
 
@@ -294,6 +301,32 @@ public class LiveEventServiceStack : Stack
             }
         });
 
+        // Amazon Managed Prometheus (AMP) workspace for scalable metrics storage
+        var ampWorkspace = new Amazon.CDK.AWS.APS.CfnWorkspace(this, "AmpWorkspace", new Amazon.CDK.AWS.APS.CfnWorkspaceProps
+        {
+            Alias = "liveeventservice"
+        });
+
+        // IAM permission for ADOT to remote write to AMP
+        var ampWorkspaceArn = Arn.Format(new ArnComponents
+        {
+            Service = "aps",
+            Resource = "workspace",
+            Region = this.Region,
+            Account = this.Account,
+            ResourceName = ampWorkspace.AttrWorkspaceId,
+            Partition = this.Partition
+        }, this);
+        taskDefinition.TaskRole.AddToPrincipalPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Actions = new[] { "aps:RemoteWrite" },
+            Resources = new[] { ampWorkspaceArn }
+        }));
+
+        // Grant task role permissions for observability exporters
+        taskDefinition.TaskRole.AddManagedPolicy(ManagedPolicy.FromAwsManagedPolicyName("CloudWatchAgentServerPolicy"));
+        taskDefinition.TaskRole.AddManagedPolicy(ManagedPolicy.FromAwsManagedPolicyName("AWSXRayDaemonWriteAccess"));
+
         // Add container to the task definition
         var container = taskDefinition.AddContainer("LiveEventAPI", new ContainerDefinitionOptions
         {
@@ -309,7 +342,11 @@ public class LiveEventServiceStack : Stack
             {
                 ["ASPNETCORE_ENVIRONMENT"] = "Production",
                 ["AWS_REGION"] = this.Region,
-                ["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "false"
+                ["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "false",
+                // OpenTelemetry export to local ADOT collector sidecar
+                ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://127.0.0.1:4317",
+                ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "grpc",
+                ["OTEL_SERVICE_NAME"] = "LiveEventService"
             },
             Secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>
             {
@@ -323,6 +360,145 @@ public class LiveEventServiceStack : Stack
         {
             ContainerPort = 80,
             Protocol = Amazon.CDK.AWS.ECS.Protocol.TCP
+        });
+
+        // Add ADOT collector sidecar for traces and metrics export
+        var adotCollectorConfig = @"receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+exporters:
+  awsxray:
+    region: ${AWS_REGION}
+  awsemf:
+    region: ${AWS_REGION}
+  prometheusremotewrite:
+    endpoint: ${PROM_REMOTE_WRITE_ENDPOINT}
+    auth:
+      authenticator: sigv4auth
+processors:
+  batch: {}
+extensions:
+  sigv4auth:
+service:
+  extensions: [sigv4auth]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsxray]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsemf, prometheusremotewrite]
+";
+
+        _ = taskDefinition.AddContainer("ADOTCollector", new ContainerDefinitionOptions
+        {
+            Image = ContainerImage.FromRegistry("public.ecr.aws/aws-observability/aws-otel-collector:latest"),
+            Essential = true,
+            Logging = LogDriver.AwsLogs(new AwsLogDriverProps
+            {
+                StreamPrefix = "ADOT"
+            }),
+            Environment = new Dictionary<string, string>
+            {
+                ["AWS_REGION"] = this.Region,
+                ["AWS_OTEL_COLLECTOR_CONFIG_CONTENT"] = adotCollectorConfig,
+                // Remote write endpoint for AMP
+                ["PROM_REMOTE_WRITE_ENDPOINT"] = Fn.Sub($"https://aps-workspaces.${{AWS::Region}}.amazonaws.com/workspaces/{ampWorkspace.AttrWorkspaceId}/api/v1/remote_write")
+            }
+        });
+
+        // Amazon Managed Grafana workspace
+        var amg = new Amazon.CDK.AWS.Grafana.CfnWorkspace(this, "AmgWorkspace", new Amazon.CDK.AWS.Grafana.CfnWorkspaceProps
+        {
+            AccountAccessType = "CURRENT_ACCOUNT",
+            AuthenticationProviders = new[] { "AWS_SSO" },
+            Name = "liveeventservice",
+            PermissionType = "SERVICE_MANAGED",
+            RoleArn = null // using AWS SSO; service-managed permissions
+        });
+
+        // S3 bucket to host dashboard JSONs
+        var dashboardsBucket = new Bucket(this, "DashboardsBucket", new BucketProps
+        {
+            BlockPublicAccess = BlockPublicAccess.BLOCK_ALL,
+            Encryption = BucketEncryption.S3_MANAGED,
+            RemovalPolicy = RemovalPolicy.RETAIN
+        });
+
+        // Upload local dashboards as assets
+        var overviewAsset = new Asset(this, "OverviewDashboardAsset", new AssetProps
+        {
+            Path = "../../observability/grafana/dashboards/liveevent-overview.json"
+        });
+        var outboxAsset = new Asset(this, "OutboxDashboardAsset", new AssetProps
+        {
+            Path = "../../observability/grafana/dashboards/liveevent-queue.json"
+        });
+        var cacheAsset = new Asset(this, "CacheDashboardAsset", new AssetProps
+        {
+            Path = "../../observability/grafana/dashboards/cache-efficiency.json"
+        });
+
+        // Grant read to the Lambda provisioner
+        overviewAsset.GrantRead(new ServicePrincipal("lambda.amazonaws.com"));
+        outboxAsset.GrantRead(new ServicePrincipal("lambda.amazonaws.com"));
+        cacheAsset.GrantRead(new ServicePrincipal("lambda.amazonaws.com"));
+
+        // Custom resource Lambda to import dashboards and create Prometheus datasource
+        var provisioner = new Function(this, "GrafanaProvisioner", new FunctionProps
+        {
+            Runtime = Runtime.PYTHON_3_12,
+            Handler = "grafana_provisioner.handler",
+            Code = Code.FromAsset("Lambda"),
+            Timeout = Duration.Minutes(5),
+            Environment = new Dictionary<string, string>
+            {
+                ["AMP_WORKSPACE_ID"] = ampWorkspace.AttrWorkspaceId
+            }
+        });
+
+        // Permissions to call AWS Grafana API and read S3 assets
+        provisioner.AddToRolePolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Actions = new[] { "grafana:CreateWorkspaceApiKey" },
+            Resources = new[] { amg.AttrId }
+        }));
+        provisioner.AddToRolePolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Actions = new[] { "s3:GetObject" },
+            Resources = new[]
+            {
+                Fn.Sub($"${{{overviewAsset.S3ObjectUrl}}}"),
+                Fn.Sub($"${{{outboxAsset.S3ObjectUrl}}}"),
+                Fn.Sub($"${{{cacheAsset.S3ObjectUrl}}}")
+            }
+        }));
+
+        // Custom resource that triggers the Lambda
+        var provider = new Provider(this, "GrafanaProvisionerProvider", new ProviderProps
+        {
+            OnEventHandler = provisioner
+        });
+
+        _ = new CustomResource(this, "GrafanaProvisioning", new CustomResourceProps
+        {
+            ServiceToken = provider.ServiceToken,
+            Properties = new Dictionary<string, object>
+            {
+                ["GRAFANA_WORKSPACE_ID"] = amg.AttrId,
+                ["GRAFANA_ENDPOINT"] = amg.AttrEndpoint,
+                ["AMP_WORKSPACE_ID"] = ampWorkspace.AttrWorkspaceId,
+                ["DASHBOARD_URIS"] = string.Join(",", new[]
+                {
+                    overviewAsset.S3ObjectUrl,
+                    outboxAsset.S3ObjectUrl,
+                    cacheAsset.S3ObjectUrl
+                })
+            }
         });
 
         // Request or create an ACM certificate for HTTPS

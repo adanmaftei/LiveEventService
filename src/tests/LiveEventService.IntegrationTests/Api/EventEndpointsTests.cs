@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using LiveEventService.IntegrationTests.Infrastructure;
 using LiveEventService.Infrastructure.Data;
+using LiveEventService.Application.Common;
 
 namespace LiveEventService.IntegrationTests.Api;
 
@@ -218,6 +219,11 @@ public class EventEndpointsTests : BaseLiveEventsTests
         var eventInDb = await dbContext.Events.FindAsync(eventId);
         eventInDb.Should().NotBeNull();
         eventInDb!.IsPublished.Should().BeTrue();
+
+        // Verify audit entry
+        var audit = scope.ServiceProvider.GetRequiredService<IAuditLogger>() as InMemoryAuditLogger;
+        audit.Should().NotBeNull();
+        audit!.Entries.Should().Contain(e => e.Action == "PublishEvent" && e.EntityId == eventId.ToString());
     }
 
     [Fact]

@@ -37,6 +37,7 @@ public class GetEventQueryHandler : IQueryHandler<GetEventQuery, BaseResponse<Ev
             var cachedDto = JsonSerializer.Deserialize<BaseResponse<EventDto>>(cached);
             if (cachedDto != null)
             {
+                // Metrics moved to Infrastructure; no direct dependency from Application
                 return cachedDto;
             }
         }

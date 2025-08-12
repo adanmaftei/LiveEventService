@@ -24,10 +24,10 @@ src/LiveEventService.IntegrationTests/
 #### **LiveEventTestApplicationFactory**
 - **Purpose**: Main test infrastructure that sets up the entire application for testing
 - **Features**:
-  - Spins up PostgreSQL container using Testcontainers
-  - Starts LocalStack container for AWS services (S3, Cognito, X-Ray, CloudWatch)
+  - Starts shared PostgreSQL and LocalStack containers once per test run (thread-safe start)
+  - Creates an isolated Postgres database per test class to enable safe parallelization
   - Replaces real authentication with test authentication
-  - Configures test database with automatic schema creation
+  - Configures EF Core to point to the per-class database and ensures schema creation
   - Provides authenticated and unauthenticated HTTP clients
 
 #### **TestDataBuilder**
@@ -156,8 +156,8 @@ public async Task WaitlistRegistration_WhenMultiplePeopleRegisterSimultaneously_
 ```
 
 **Test Infrastructure Features:**
-- **Parallel execution safe** - Each test class uses its own Postgres container (isolated DB). Tests run in parallel without a shared in-memory DB.
-- **Outbox-aware** - The transactional outbox is enabled at the DbContext level, but the background outbox processor is disabled in the Testing environment to preserve test determinism and avoid cross-class interference.
+- **Parallel execution safe** - Shared containers, per-class isolated databases; no cross-class data races.
+- **Outbox-aware** - The transactional outbox is enabled at the DbContext level; tests wait for domain-event processing via in-process handlers while avoiding cross-class interference.
 - **Real user simulation** - Creates actual users with authentication
 - **Domain event verification** - Tests through observable side effects
 - **GraphQL endpoint testing** - Verifies real-time notification functionality
@@ -245,8 +245,8 @@ dotnet test src/LiveEventService.IntegrationTests/ --filter "EventEndpointsTests
 # Run tests with verbose output
 dotnet test src/LiveEventService.IntegrationTests/ --verbosity normal
 
-# Run tests in parallel (be careful with database tests)
-dotnet test src/LiveEventService.IntegrationTests/ --parallel
+# Run tests in parallel (default). Isolation is handled per class.
+dotnet test src/LiveEventService.IntegrationTests/
 
 # Generate coverage report
 dotnet test src/LiveEventService.IntegrationTests/ --collect:"XPlat Code Coverage"
@@ -255,9 +255,9 @@ dotnet test src/LiveEventService.IntegrationTests/ --collect:"XPlat Code Coverag
 ### 🐳 **Container Management**
 
 Tests automatically handle container lifecycle:
-- **Startup**: Containers start before tests begin
-- **Cleanup**: Containers are disposed after tests complete
-- **Isolation**: Each test class gets its own containers (Postgres + LocalStack)
+- **Startup**: Shared containers (Postgres + LocalStack) start once before any tests execute
+- **Cleanup**: Shared containers are kept for the full run; per-class databases are dropped on class dispose
+- **Isolation**: Each test class uses its own database inside the shared Postgres server
 - **Port Management**: Testcontainers handles port allocation automatically
 
 ## Test Data Management

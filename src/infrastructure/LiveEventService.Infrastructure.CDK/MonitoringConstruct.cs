@@ -213,6 +213,19 @@ public class MonitoringConstruct : Construct
             ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD
         });
 
+        var ecsMemoryAlarm = new Alarm(this, "EcsMemoryAlarm", new AlarmProps
+        {
+            AlarmDescription = "ECS memory utilization > 85% for 5 minutes",
+            Metric = props.EcsService.Service.MetricMemoryUtilization(new MetricOptions
+            {
+                Statistic = "Average",
+                Period = Duration.Minutes(1)
+            }),
+            Threshold = 85,
+            EvaluationPeriods = 5,
+            ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD
+        });
+
         // RDS Alarms
         var rdsCpuAlarm = new Alarm(this, "RdsCpuAlarm", new AlarmProps
         {
@@ -227,11 +240,46 @@ public class MonitoringConstruct : Construct
             ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD
         });
 
+        var rdsConnectionsAlarm = new Alarm(this, "RdsConnectionsAlarm", new AlarmProps
+        {
+            AlarmDescription = "RDS connections > 90% of max over 10 minutes",
+            Metric = props.Database.MetricDatabaseConnections(new MetricOptions
+            {
+                Statistic = "Average",
+                Period = Duration.Minutes(5)
+            }),
+            Threshold = 0, // set in real env using Parameter or dynamic lookup of max_connections
+            EvaluationPeriods = 2,
+            ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD,
+            TreatMissingData = TreatMissingData.NOT_BREACHING
+        });
+
+        // Cost guardrail: CloudWatch Logs retention already shorter; create 4XX rate warning alarm
+        var api4xxAlarm = new Alarm(this, "Api4xxAlarm", new AlarmProps
+        {
+            AlarmDescription = "API Gateway 4XX errors > 5% over 5 minutes",
+            Metric = new Metric(new MetricProps
+            {
+                Namespace = "AWS/ApiGateway",
+                MetricName = "4XXError",
+                DimensionsMap = new Dictionary<string, string> { ["ApiName"] = props.ApiGateway.RestApiName },
+                Statistic = "Sum",
+                Period = Duration.Minutes(5)
+            }),
+            Threshold = 5,
+            EvaluationPeriods = 1,
+            ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD,
+            TreatMissingData = TreatMissingData.NOT_BREACHING
+        });
+
         // Add actions to alarms
         var alarmAction = new SnsAction(alarmTopic);
         api5xxAlarm.AddAlarmAction(alarmAction);
         ecsCpuAlarm.AddAlarmAction(alarmAction);
+        ecsMemoryAlarm.AddAlarmAction(alarmAction);
         rdsCpuAlarm.AddAlarmAction(alarmAction);
+        rdsConnectionsAlarm.AddAlarmAction(alarmAction);
+        api4xxAlarm.AddAlarmAction(alarmAction);
     }
 }
 

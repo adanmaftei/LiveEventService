@@ -13,6 +13,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using LiveEventService.Core.Registrations.EventRegistration;
 using LiveEventService.API.Constants;
+using LiveEventService.Infrastructure.Telemetry;
 
 namespace LiveEventService.API.Events;
 
@@ -53,17 +54,35 @@ public static class EventEndpoints
 
         endpoints.MapPost("/api/events", async (
             [FromServices] IMediator mediator,
+            [FromServices] LiveEventService.Application.Common.IAuditLogger audit,
             [FromBody] CreateEventCommand command,
             HttpContext httpContext) =>
         {
             command.OrganizerId = httpContext.User.Identity?.Name ?? string.Empty;
             var result = await mediator.Send(command);
+            if (result.Success && result.Data?.Id is not null)
+            {
+                AppMetrics.EventsCreated.Add(1);
+                await audit.LogAsync(new LiveEventService.Application.Common.AuditLogEntry
+                {
+                    Action = "CreateEvent",
+                    EntityType = "Event",
+                    EntityId = result.Data.Id.ToString(),
+                    UserId = command.OrganizerId,
+                    Metadata = new Dictionary<string, object?>
+                    {
+                        ["title"] = command.Event.Title,
+                        ["capacity"] = command.Event.Capacity
+                    }
+                });
+            }
             return result.Success ? Results.Created($"/api/events/{result.Data?.Id}", result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPut("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
+            [FromServices] LiveEventService.Application.Common.IAuditLogger audit,
             Guid id,
             [FromBody] UpdateEventCommand command,
             HttpContext httpContext) =>
@@ -74,12 +93,28 @@ public static class EventEndpoints
             }
             command.UserId = httpContext.User.Identity?.Name ?? string.Empty;
             var result = await mediator.Send(command);
+            if (result.Success)
+            {
+                AppMetrics.EventsUpdated.Add(1);
+                await audit.LogAsync(new LiveEventService.Application.Common.AuditLogEntry
+                {
+                    Action = "UpdateEvent",
+                    EntityType = "Event",
+                    EntityId = id.ToString(),
+                    UserId = command.UserId,
+                    Metadata = new Dictionary<string, object?>
+                    {
+                        ["capacity"] = command.Event.Capacity
+                    }
+                });
+            }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapDelete("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
+            [FromServices] LiveEventService.Application.Common.IAuditLogger audit,
             Guid id,
             HttpContext httpContext) =>
         {
@@ -89,9 +124,20 @@ public static class EventEndpoints
                 UserId = httpContext.User.Identity?.Name ?? string.Empty
             };
             var result = await mediator.Send(command);
+            if (result.Success)
+            {
+                AppMetrics.EventsDeleted.Add(1);
+                await audit.LogAsync(new LiveEventService.Application.Common.AuditLogEntry
+                {
+                    Action = "DeleteEvent",
+                    EntityType = "Event",
+                    EntityId = id.ToString(),
+                    UserId = command.UserId
+                });
+            }
             return result.Success ? Results.NoContent() : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events/{eventId:guid}/register", async (
             [FromServices] IMediator mediator,
@@ -146,6 +192,7 @@ public static class EventEndpoints
 
         endpoints.MapPost("/api/events/{eventId:guid}/registrations/{registrationId:guid}/confirm", async (
             [FromServices] IMediator mediator,
+            [FromServices] LiveEventService.Application.Common.IAuditLogger audit,
             Guid eventId,
             Guid registrationId,
             HttpContext httpContext) =>
@@ -156,12 +203,25 @@ public static class EventEndpoints
                 AdminUserId = httpContext.User.Identity?.Name ?? string.Empty
             };
             var result = await mediator.Send(command);
+            if (result.Success)
+            {
+                AppMetrics.RegistrationsCreated.Add(1);
+                await audit.LogAsync(new LiveEventService.Application.Common.AuditLogEntry
+                {
+                    Action = "ConfirmRegistration",
+                    EntityType = "EventRegistration",
+                    EntityId = registrationId.ToString(),
+                    UserId = command.AdminUserId,
+                    Metadata = new Dictionary<string, object?> { ["eventId"] = eventId }
+                });
+            }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events/{eventId:guid}/registrations/{registrationId:guid}/cancel", async (
             [FromServices] IMediator mediator,
+            [FromServices] LiveEventService.Application.Common.IAuditLogger audit,
             Guid eventId,
             Guid registrationId,
             HttpContext httpContext) =>
@@ -173,12 +233,25 @@ public static class EventEndpoints
                 IsAdmin = true
             };
             var result = await mediator.Send(command);
+            if (result.Success)
+            {
+                AppMetrics.RegistrationsCancelled.Add(1);
+                await audit.LogAsync(new LiveEventService.Application.Common.AuditLogEntry
+                {
+                    Action = "CancelRegistration",
+                    EntityType = "EventRegistration",
+                    EntityId = registrationId.ToString(),
+                    UserId = command.UserId,
+                    Metadata = new Dictionary<string, object?> { ["eventId"] = eventId }
+                });
+            }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events/{eventId:guid}/publish", async (
             [FromServices] IMediator mediator,
+            [FromServices] LiveEventService.Application.Common.IAuditLogger audit,
             Guid eventId,
             HttpContext httpContext) =>
         {
@@ -188,11 +261,23 @@ public static class EventEndpoints
                 AdminUserId = httpContext.User.Identity?.Name ?? string.Empty
             };
             var result = await mediator.Send(command);
+            if (result.Success)
+            {
+                AppMetrics.EventsPublished.Add(1);
+                await audit.LogAsync(new LiveEventService.Application.Common.AuditLogEntry
+                {
+                    Action = "PublishEvent",
+                    EntityType = "Event",
+                    EntityId = eventId.ToString(),
+                    UserId = command.AdminUserId
+                });
+            }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin);
 
         endpoints.MapPost("/api/events/{eventId:guid}/unpublish", async (
             [FromServices] IMediator mediator,
+            [FromServices] LiveEventService.Application.Common.IAuditLogger audit,
             Guid eventId,
             HttpContext httpContext) =>
         {
@@ -202,6 +287,17 @@ public static class EventEndpoints
                 AdminUserId = httpContext.User.Identity?.Name ?? string.Empty
             };
             var result = await mediator.Send(command);
+            if (result.Success)
+            {
+                AppMetrics.EventsUnpublished.Add(1);
+                await audit.LogAsync(new LiveEventService.Application.Common.AuditLogEntry
+                {
+                    Action = "UnpublishEvent",
+                    EntityType = "Event",
+                    EntityId = eventId.ToString(),
+                    UserId = command.AdminUserId
+                });
+            }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin);
     }

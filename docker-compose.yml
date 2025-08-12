@@ -130,6 +130,84 @@ services:
     networks:
       - liveevent-network
 
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    command: ["-config.file=/etc/loki/local-config.yml"]
+    volumes:
+      - ./observability/loki-config.yml:/etc/loki/local-config.yml:ro
+    ports:
+      - "3100:3100"
+    networks:
+      - liveevent-network
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: promtail
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./observability/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - liveevent-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    container_name: jaeger
+    environment:
+      - COLLECTOR_ZIPKIN_HTTP_PORT=9411
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "14250:14250" # gRPC collector
+      - "14268:14268" # HTTP collector
+      - "9411:9411"   # Zipkin
+    networks:
+      - liveevent-network
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_USERS_DEFAULT_THEME=light
+    volumes:
+      - ./observability/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./observability/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - liveevent-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  grafana-importer:
+    image: python:3.12-alpine
+    container_name: grafana-importer
+    depends_on:
+      grafana:
+        condition: service_healthy
+    volumes:
+      - ./observability/grafana:/app:ro
+    working_dir: /app
+    command: ["python", "/app/import_dashboard.py"]
+    environment:
+      - GRAFANA_URL=http://grafana:3000
+      - GRAFANA_USER=admin
+      - GRAFANA_PASS=admin
+      - DASHBOARD_PATH=/app/dashboards/liveevent-overview.json
+    networks:
+      - liveevent-network
+
 networks:
   liveevent-network:
     driver: bridge

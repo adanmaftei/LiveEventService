@@ -60,9 +60,10 @@ public class WaitlistRemovalDomainEventHandler
                 waitlistedRegistration.UpdateWaitlistPosition(newPosition);
                 await _registrationRepository.UpdateAsync(waitlistedRegistration, cancellationToken);
                 
+                var oldPos = waitlistedRegistration.PositionInQueue;
                 _logger.LogInformation(
                     "Updated waitlist position for registration {RegistrationId} from {OldPosition} to {NewPosition}",
-                    waitlistedRegistration.Id, waitlistedRegistration.PositionInQueue, newPosition);
+                    waitlistedRegistration.Id, oldPos, newPosition);
             }
         }
         

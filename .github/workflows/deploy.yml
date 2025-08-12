@@ -50,11 +50,6 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     
-    services:
-      docker:
-        image: docker:dind
-        options: --privileged
-    
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -64,14 +59,9 @@ jobs:
       with:
         dotnet-version: '9.0.x'
         
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-      
     - name: Verify Docker
-      run: |
-        docker info
-        docker version
-        
+      run: docker --version
+
     - name: Restore dependencies
       run: dotnet restore
         
@@ -80,11 +70,8 @@ jobs:
         
     - name: Run Integration Tests
       run: |
-        # Run integration tests with Docker containers
-        dotnet test src/LiveEventService.IntegrationTests/ --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
+        dotnet test src/tests/LiveEventService.IntegrationTests/LiveEventService.IntegrationTests.csproj --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
       env:
-        # Ensure Testcontainers can access Docker
-        DOCKER_HOST: unix:///var/run/docker.sock
         TESTCONTAINERS_RYUK_DISABLED: true
 
   # Build and Deploy Job - depends on tests passing
@@ -105,10 +92,6 @@ jobs:
         role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
         aws-region: ${{ env.AWS_REGION }}
         
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-      
     - name: Set up .NET
       uses: actions/setup-dotnet@v3
       with:
@@ -120,46 +103,6 @@ jobs:
     - name: Build
       run: dotnet build --no-restore --configuration Release
         
-    - name: Publish
-      run: |
-        dotnet publish src/LiveEventService.API/LiveEventService.API.csproj -c Release -o ./publish
-        
-    - name: Build and Push Docker image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-        
-    - name: Download task definition
-      run: |
-        aws ecs describe-task-definition --task-definition ${{ env.ECS_SERVICE }} --query taskDefinition > task-definition.json
-        
-    - name: Fill in the new image ID in the Amazon ECS task definition
-      id: task-def
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
-      with:
-        task-definition: task-definition.json
-        container-name: ${{ env.CONTAINER_NAME }}
-        image: ${{ steps.build-image.outputs.image }}
-        
-    - name: Deploy Amazon ECS task definition
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: ${{ steps.task-def.outputs.task-definition-json }}
-        service: ${{ env.ECS_SERVICE }}
-        cluster: ${{ env.ECS_CLUSTER }}
-        wait-for-service-stability: true
-        
-    - name: Invalidate CloudFront cache
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
-        aws-region: ${{ env.AWS_REGION }}
-      
     - name: Deploy CDK Stack
       run: |
         cd src/infrastructure

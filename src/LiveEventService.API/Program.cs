@@ -21,6 +21,13 @@ using StackExchange.Redis;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using LiveEventService.API.GraphQL.DataLoaders;
+using Amazon;
+using Amazon.CloudWatchLogs;
+using Serilog.Formatting.Json;
+using Serilog.Sinks.AwsCloudWatch;
+using LiveEventService.Application.Common;
+using LiveEventService.API.Logging;
+using LiveEventService.Infrastructure.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 var isTesting = builder.Environment.IsEnvironment("Testing");
@@ -33,13 +40,30 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 
-// Configure Serilog with CloudWatch
+// Configure Serilog (Console always; CloudWatch in Production)
 builder.Host.UseSerilog((context, configuration) =>
 {
     configuration
         .ReadFrom.Configuration(context.Configuration)
         .Enrich.FromLogContext()
         .WriteTo.Console();
+
+    var isProd = context.HostingEnvironment.IsProduction();
+    if (isProd && !isTesting)
+    {
+        var logGroup = context.Configuration["AWS:CloudWatch:LogGroup"] ?? "/live-event-service/logs";
+        var region = context.Configuration["AWS:CloudWatch:Region"]
+                     ?? context.Configuration["AWS:Region"]
+                     ?? "us-east-1";
+
+        var cwClient = new AmazonCloudWatchLogsClient(RegionEndpoint.GetBySystemName(region));
+        configuration.WriteTo.AmazonCloudWatch(
+            logGroup: logGroup,
+            logStreamPrefix: "live-event-service-",
+            cloudWatchClient: cwClient,
+            textFormatter: new JsonFormatter(),
+            createLogGroup: true);
+    }
 });
 
 Log.Information("Starting web application");
@@ -50,6 +74,7 @@ builder.Services.AddInfrastructureServices(builder.Configuration, isTesting);
 
 // Add API-specific services
 builder.Services.AddScoped<IEventRegistrationNotifier, EventRegistrationNotifier>();
+builder.Services.AddSingleton<IAuditLogger>(sp => new SerilogAuditLogger(Log.Logger));
 
 // Add a resilient HttpClient for outbound calls (using Microsoft.Extensions.Http.Resilience)
 builder.Services
@@ -69,6 +94,7 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation()
             .AddProcessInstrumentation()
+            .AddMeter(AppMetrics.MeterName)
             .AddPrometheusExporter();
     })
     .WithTracing(tracing =>
@@ -233,11 +259,12 @@ app.Use(async (context, next) =>
 // Add enhanced request logging
 app.UseSerilogRequestLogging(options =>
 {
-    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+        options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
     {
         diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
         diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
-        diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
+            var ua = httpContext.Request.Headers.UserAgent.ToString();
+            diagnosticContext.Set("UserAgent", ua ?? string.Empty);
         diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
         
         // Add correlation ID if available

@@ -1,0 +1,35 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Outbox processed vs failed",
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "targets": [
+        {"expr": "increase(outbox_processed_total[5m])", "legendFormat": "processed"},
+        {"expr": "increase(outbox_failed_total[5m])", "legendFormat": "failed"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox pending count",
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "targets": [
+        {"expr": "outbox_pending_count", "legendFormat": "pending"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+    }
+  ],
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": ["liveevent", "queue"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "",
+  "title": "LiveEvent Queue & Outbox",
+  "version": 1
+}
+
+

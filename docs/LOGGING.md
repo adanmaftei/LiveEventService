@@ -9,7 +9,7 @@ The logging system is **completely working** with:
 - ✅ Structured JSON logging with correlation IDs
 - ✅ Request/response logging with timing and context
 - ✅ Console output for development
-- ✅ CloudWatch integration ready for production
+- ✅ CloudWatch integration automatically enabled in Production
 - ✅ Automatic correlation ID generation and tracking
 
 ## Overview
@@ -70,26 +70,25 @@ builder.Host.UseSerilog((context, configuration) =>
 
 ### Production Configuration
 
-For production, add CloudWatch configuration:
+CloudWatch logging is now wired in startup and turns on automatically when `ASPNETCORE_ENVIRONMENT=Production`.
+
+Required settings (can be left as defaults):
 
 ```json
 {
-  "Serilog": {
-    "WriteTo": [
-      {
-        "Name": "Console"
-      },
-      {
-        "Name": "AmazonCloudWatch",
-        "Args": {
-          "logGroup": "/live-event-service/logs",
-          "region": "us-east-1"
-        }
-      }
-    ]
+  "AWS": {
+    "Region": "us-east-1",
+    "CloudWatch": {
+      "LogGroup": "/live-event-service/logs",
+      "Region": "us-east-1"
+    }
   }
 }
 ```
+
+Notes:
+- In Production, logs go to both Console and CloudWatch Logs.
+- In non‑production, only Console is enabled by default.
 
 ## Request Logging with Correlation IDs
 

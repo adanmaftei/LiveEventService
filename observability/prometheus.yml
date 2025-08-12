@@ -6,4 +6,7 @@ scrape_configs:
     static_configs:
       - targets: ['api:80']
     metrics_path: /metrics
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['jaeger:14269']
 

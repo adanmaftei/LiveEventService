@@ -7,22 +7,26 @@ This document describes the Continuous Integration and Continuous Deployment (CI
 The CI/CD pipeline is implemented using GitHub Actions and consists of the following stages:
 
 1. **Unit Tests** - Run unit tests on every push and pull request
-2. **Integration Tests** - Run integration tests with Docker containers
-3. **Security Testing** - Run security scans and vulnerability checks
-4. **Build and Deploy** - Build Docker image and deploy to AWS ECS (only on main branch)
+2. **Integration Tests** - Run integration tests with Testcontainers (Docker on hosted runner)
+3. **Security Testing** - Run dependency/SAST scans on schedule and PRs
+4. **Deploy** - Deploy CDK stack to AWS (ECS, RDS, ADOT, AMP/AMG) on main branch
 
 ## Pipeline Configuration
 
 ### GitHub Actions Workflows
 
-No workflow files are currently committed in this repository. The following outlines a proposed setup:
+The repository includes:
 
-#### 1. Deploy Workflow (proposed path: `.github/workflows/deploy.yml`)
+- `.github/workflows/deploy.yml`
+  - Jobs: unit-tests, integration-tests, build-and-deploy
+  - Uses GitHub OIDC (`id-token: write`) and `aws-actions/configure-aws-credentials` to assume a role
+  - Runs tests then deploys the CDK stack (`src/infrastructure`) as the single source of truth
+  - CDK provisions AMP and AMG and auto-imports dashboards via a custom resource
 
-Key stages:
-- Restore → Build → Unit + Integration Tests (with Docker) → Build/push image → Deploy (ECS/ECR)
+- `.github/workflows/security-testing.yml`
+  - Runs dependency audit, OWASP Dependency-Check, SonarCloud (if configured), SCS, gitleaks
+  - Scheduled weekly and on PRs
 
-#### 2. Security Testing Workflow (proposed path: `.github/workflows/security-testing.yml`)
-
-Key stages:
-- Dependency scanning (e.g., dotnet list package --vulnerable), SAST, container image scan
+Notes:
+- Image builds and task-definition wiring are handled by CDK; pipeline no longer pushes images directly.
+- For multi-environment promotion, pass an image tag into CDK via context/parameters and manage environments via separate stacks.

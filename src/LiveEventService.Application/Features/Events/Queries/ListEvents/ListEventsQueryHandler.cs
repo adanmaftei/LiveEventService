@@ -39,6 +39,7 @@ public class ListEventsQueryHandler : IQueryHandler<ListEventsQuery, BaseRespons
             var cachedDto = JsonSerializer.Deserialize<BaseResponse<EventListDto>>(cached);
             if (cachedDto != null)
             {
+                // Metrics recorded in Infrastructure via a recorder if needed
                 return cachedDto;
             }
         }
