@@ -11,8 +11,8 @@ The Live Event Service demonstrates **exemplary architecture** with Clean Archit
 ### 🎯 **Recent Changes in Code**
 - ✅ Registration insert safety and waitlist concurrency: `EventRegistrationRepository` added with navigation state fixes and advisory-lock-based position assignment
 - ✅ Database Performance: Indexes migration present (verify actual migration contents if updated separately)
+- ✅ Transactional Outbox: `OutboxMessages` table, DbContext writes outbox entries in same transaction; hosted outbox processor enabled in non-testing environments
 - ⚠️ Query Optimization: Some `AsNoTracking` usage exists; not all read paths are verified
-- 🔄 Next Priority: Outbox pattern implementation for event reliability
 
 ---
 

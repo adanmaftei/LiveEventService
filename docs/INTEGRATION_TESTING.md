@@ -157,6 +157,7 @@ public async Task WaitlistRegistration_WhenMultiplePeopleRegisterSimultaneously_
 
 **Test Infrastructure Features:**
 - **Parallel execution safe** - Each test class uses its own Postgres container (isolated DB). Tests run in parallel without a shared in-memory DB.
+- **Outbox-aware** - The transactional outbox is enabled at the DbContext level, but the background outbox processor is disabled in the Testing environment to preserve test determinism and avoid cross-class interference.
 - **Real user simulation** - Creates actual users with authentication
 - **Domain event verification** - Tests through observable side effects
 - **GraphQL endpoint testing** - Verifies real-time notification functionality

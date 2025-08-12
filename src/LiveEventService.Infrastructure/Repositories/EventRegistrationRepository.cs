@@ -42,8 +42,8 @@ public class EventRegistrationRepository : RepositoryBase<EventRegistrationEntit
                 var eventId = (Guid)(eventIdProperty.GetValue(entity) ?? Guid.Empty);
                 long lockKey = BitConverter.ToInt64(eventId.ToByteArray(), 0);
 
-                // Acquire transaction-scoped advisory lock for this event
-                await _dbContext.Database.ExecuteSqlRawAsync($"SELECT pg_advisory_xact_lock({lockKey});", cancellationToken);
+                // Acquire transaction-scoped advisory lock for this event (parameterized)
+                await _dbContext.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({lockKey});", cancellationToken);
 
                 // Compute next position under the lock
                 var nextPosition = await _dbContext.EventRegistrations

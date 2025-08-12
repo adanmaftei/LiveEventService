@@ -5,6 +5,7 @@ using LiveEventService.Application.Features.Users.User.Update;
 using LiveEventService.Core.Common;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using LiveEventService.API.Constants;
 
 namespace LiveEventService.API.Users;
 
@@ -27,7 +28,7 @@ public static class UserEndpoints
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapGet("/api/users/me", async (
             [FromServices] IMediator mediator,
@@ -38,7 +39,7 @@ public static class UserEndpoints
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization()
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapGet("/api/users/{id}", async (
             [FromServices] IMediator mediator,
@@ -48,7 +49,7 @@ public static class UserEndpoints
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/users", async (
             [FromServices] IMediator mediator,
@@ -57,7 +58,7 @@ public static class UserEndpoints
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPut("/api/users/{id}", async (
             [FromServices] IMediator mediator,
@@ -80,6 +81,6 @@ public static class UserEndpoints
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization()
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
     }
 } 

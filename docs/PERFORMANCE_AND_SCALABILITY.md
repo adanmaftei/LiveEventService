@@ -12,7 +12,7 @@ Based on the current implementation and logs analysis:
 
 1. **Domain Event Processing**
    - MediatR handlers publish notifications; some operations still run inline
-   - Background processing/outbox not yet implemented
+   - Transactional outbox implemented; background outbox processor runs in non-testing environments
 
 2. **Database Query Patterns**
    - No caching layer for frequently accessed data

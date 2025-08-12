@@ -28,6 +28,12 @@ The system uses domain events to decouple business logic and enable real-time no
 - The API project implements `IEventRegistrationNotifier` (`EventRegistrationNotifier`) to publish notifications to the appropriate HotChocolate topic (e.g., `eventRegistration_{eventId}`).
 - The notification includes the event ID, user info, action, and timestamp.
 
+## Transactional Outbox (Implemented)
+
+- The DbContext writes a lean outbox entry for each raised domain event into the `OutboxMessages` table in the same transaction as the state change.
+- A background outbox processor service scans pending messages and processes them. Currently, entries are recorded primarily for operational traceability and future external integrations.
+- In the Testing environment, the outbox processor is disabled to avoid cross-test interference; in Development/Production, it runs as a hosted service.
+
 ## GraphQL Subscriptions
 
 - Clients can subscribe to `eventRegistration_{eventId}` topics to receive real-time updates about registrations for a specific event.

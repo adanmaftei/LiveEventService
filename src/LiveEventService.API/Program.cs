@@ -1,6 +1,7 @@
 using LiveEventService.API.Events;
 using LiveEventService.API.Users;
 using LiveEventService.API.Middleware;
+using LiveEventService.API.Constants;
 using LiveEventService.Application;
 using LiveEventService.Core.Common;
 using LiveEventService.Infrastructure;
@@ -74,10 +75,10 @@ if (!isTesting)
     builder.Services.AddRateLimiter(options =>
     {
         // General API limiter: token bucket per IP
-        options.AddPolicy("general", httpContext =>
+        options.AddPolicy(PolicyNames.General, httpContext =>
         {
             var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon";
-            var key = $"general:{ip}";
+            var key = $"{PolicyNames.General}:{ip}";
             return RateLimitPartition.GetTokenBucketLimiter(key, _ => new TokenBucketRateLimiterOptions
             {
                 TokenLimit = 100,
@@ -89,7 +90,7 @@ if (!isTesting)
         });
 
         // Stricter limiter for registration endpoints: per user if authenticated, else per IP
-        options.AddPolicy("registration", httpContext =>
+        options.AddPolicy(PolicyNames.Registration, httpContext =>
         {
             var partitionKey = httpContext.User?.Identity?.IsAuthenticated == true
                 ? httpContext.User.Identity!.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon"
@@ -151,11 +152,11 @@ if (!app.Environment.IsDevelopment() && !isTesting)
 app.Use(async (context, next) =>
 {
     // Add correlation ID to the request if not present
-    var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault() ?? Guid.NewGuid().ToString();
-    context.Items["CorrelationId"] = correlationId;
+    var correlationId = context.Request.Headers[CustomHeaderNames.CorrelationId].FirstOrDefault() ?? Guid.NewGuid().ToString();
+    context.Items[CustomHeaderNames.CorrelationId] = correlationId;
     
     // Add correlation ID to the response headers
-    context.Response.Headers.Append("X-Correlation-ID", correlationId);
+    context.Response.Headers.Append(CustomHeaderNames.CorrelationId, correlationId);
     
     // Add correlation ID to all logs in this request
     using (LogContext.PushProperty("CorrelationId", correlationId))
@@ -175,7 +176,7 @@ app.UseSerilogRequestLogging(options =>
         diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
         
         // Add correlation ID if available
-        if (httpContext.Request.Headers.TryGetValue("X-Correlation-ID", out var correlationId))
+        if (httpContext.Request.Headers.TryGetValue(CustomHeaderNames.CorrelationId, out var correlationId))
         {
             diagnosticContext.Set("CorrelationId", correlationId);
         }
@@ -205,7 +206,7 @@ if (!isTesting)
 app.UseXRay("LiveEventService");
 
 // Configure health check endpoints
-app.MapHealthChecks("/health", new()
+app.MapHealthChecks(RoutePaths.Health, new()
 {
     ResponseWriter = async (context, report) =>
     {
@@ -229,25 +230,25 @@ app.MapHealthChecks("/health", new()
         await context.Response.WriteAsync(result);
     }
 })
-    .RequireRateLimiting("general");
+    .RequireRateLimiting(PolicyNames.General);
 
-app.MapHealthChecks("/health/ready", new()
+app.MapHealthChecks(RoutePaths.HealthReady, new()
 {
     Predicate = check => check.Tags.Contains("ready")
 })
-    .RequireRateLimiting("general");
+    .RequireRateLimiting(PolicyNames.General);
 
-app.MapHealthChecks("/health/live", new()
+app.MapHealthChecks(RoutePaths.HealthLive, new()
 {
     Predicate = _ => false
 })
-    .RequireRateLimiting("general");
+    .RequireRateLimiting(PolicyNames.General);
 
 // Configure GraphQL endpoint
-var graphQLEndpoint = app.MapGraphQL("/graphql");
+var graphQLEndpoint = app.MapGraphQL(RoutePaths.GraphQL);
 if (!isTesting)
 {
-    graphQLEndpoint.RequireRateLimiting("general");
+    graphQLEndpoint.RequireRateLimiting(PolicyNames.General);
 }
 
 // Configure Nitro (GraphQL Playground) in development only

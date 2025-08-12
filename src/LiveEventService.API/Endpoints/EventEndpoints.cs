@@ -12,6 +12,7 @@ using LiveEventService.Core.Common;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using LiveEventService.Core.Registrations.EventRegistration;
+using LiveEventService.API.Constants;
 
 namespace LiveEventService.API.Events;
 
@@ -38,7 +39,7 @@ public static class EventEndpoints
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors, result.Message });
         }).AllowAnonymous() // No authentication required for public event list
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapGet("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
@@ -48,7 +49,7 @@ public static class EventEndpoints
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.NotFound(new { result.Errors });
         }).AllowAnonymous() // No authentication required for public event details
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events", async (
             [FromServices] IMediator mediator,
@@ -59,7 +60,7 @@ public static class EventEndpoints
             var result = await mediator.Send(command);
             return result.Success ? Results.Created($"/api/events/{result.Data?.Id}", result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPut("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
@@ -75,7 +76,7 @@ public static class EventEndpoints
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapDelete("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
@@ -104,7 +105,7 @@ public static class EventEndpoints
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         })
         .RequireAuthorization()
-        .RequireRateLimiting("registration");
+        .RequireRateLimiting(PolicyNames.Registration);
 
         endpoints.MapGet("/api/events/{eventId:guid}/registrations", async (
             [FromServices] IMediator mediator,
@@ -123,7 +124,7 @@ public static class EventEndpoints
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapGet("/api/events/{eventId:guid}/waitlist", async (
             [FromServices] IMediator mediator,
@@ -141,7 +142,7 @@ public static class EventEndpoints
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events/{eventId:guid}/registrations/{registrationId:guid}/confirm", async (
             [FromServices] IMediator mediator,
@@ -157,7 +158,7 @@ public static class EventEndpoints
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
-        .RequireRateLimiting("general");
+        .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events/{eventId:guid}/registrations/{registrationId:guid}/cancel", async (
             [FromServices] IMediator mediator,

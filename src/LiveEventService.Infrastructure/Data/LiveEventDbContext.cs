@@ -22,6 +22,7 @@ public class LiveEventDbContext : DbContext
     public DbSet<Event> Events => Set<Event>();
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<EventRegistrationEntity> EventRegistrations => Set<EventRegistrationEntity>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
 
 
@@ -45,6 +46,16 @@ public class LiveEventDbContext : DbContext
             
         modelBuilder.Entity<EventRegistrationEntity>()
             .HasQueryFilter(er => er.Status != RegistrationStatus.Cancelled);
+
+        // Outbox table configuration
+        modelBuilder.Entity<OutboxMessage>(builder =>
+        {
+            builder.ToTable("OutboxMessages");
+            builder.HasKey(o => o.Id);
+            builder.Property(o => o.EventType).IsRequired().HasMaxLength(512);
+            builder.Property(o => o.Payload).IsRequired();
+            builder.HasIndex(o => new { o.Status, o.NextAttemptAt });
+        });
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -65,14 +76,43 @@ public class LiveEventDbContext : DbContext
             typeof(Entity).GetProperty("UpdatedAt")?.SetValue(entity, DateTime.UtcNow);
         }
 
-        var result = await base.SaveChangesAsync(cancellationToken);
-
-        // Dispatch domain events
+        // Collect domain events BEFORE saving, to ensure atomic outbox write with state changes
         var domainEntities = ChangeTracker.Entries<Entity>()
             .Where(x => x.Entity.DomainEvents.Any())
             .Select(x => x.Entity)
             .ToList();
-        if (domainEntities.Any())
+
+        if (domainEntities.Count > 0)
+        {
+            // Copy events for outbox; we will persist them atomically with state changes below
+            var copiedEvents = domainEntities
+                .SelectMany(e => e.DomainEvents)
+                .ToList();
+
+            foreach (var domainEvent in copiedEvents)
+            {
+                var outbox = new OutboxMessage
+                {
+                    EventType = domainEvent.GetType().AssemblyQualifiedName ?? domainEvent.GetType().FullName ?? string.Empty,
+                    Payload = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        Type = domainEvent.GetType().Name,
+                        OccurredOn = domainEvent.DateOccurred
+                    }),
+                    OccurredOn = DateTime.UtcNow,
+                    Status = OutboxStatus.Pending,
+                    TryCount = 0,
+                    NextAttemptAt = DateTime.UtcNow
+                };
+                await OutboxMessages.AddAsync(outbox, cancellationToken);
+            }
+        }
+
+        // Persist entity changes and outbox entries in a single transaction
+        var result = await base.SaveChangesAsync(cancellationToken);
+
+        // After commit, dispatch in-process events to preserve current behavior
+        if (domainEntities.Count > 0)
         {
             await _domainEventDispatcher.DispatchAndClearEventsAsync(domainEntities, cancellationToken);
         }

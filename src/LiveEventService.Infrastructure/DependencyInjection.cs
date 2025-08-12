@@ -113,6 +113,12 @@ public static class DependencyInjection
             });
         });
 
+        // Register outbox processor background service (disabled in Testing)
+        if (!isTesting)
+        {
+            services.AddHostedService<OutboxProcessorBackgroundService>();
+        }
+
         return services;
     }
 }
