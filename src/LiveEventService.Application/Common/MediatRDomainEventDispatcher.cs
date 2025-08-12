@@ -1,11 +1,10 @@
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Registrations.EventRegistration;
 using LiveEventService.Core.Events;
-using LiveEventService.Infrastructure.Events.EventRegistrationNotifications;
-using LiveEventService.Infrastructure.Events.WaitlistNotifications;
+using LiveEventService.Application.Common.Notifications;
 using MediatR;
 
-namespace LiveEventService.Infrastructure.Data;
+namespace LiveEventService.Application.Common;
 
 public class MediatRDomainEventDispatcher : IDomainEventDispatcher
 {

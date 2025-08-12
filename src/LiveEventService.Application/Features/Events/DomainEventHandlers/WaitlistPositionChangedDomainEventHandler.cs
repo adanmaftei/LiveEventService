@@ -1,20 +1,20 @@
 using MediatR;
-using LiveEventService.Infrastructure.Events.WaitlistNotifications;
 using Microsoft.Extensions.Logging;
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Events;
+using LiveEventService.Application.Common.Notifications;
 
-namespace LiveEventService.Infrastructure.Events;
+namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
 
 public class WaitlistPositionChangedDomainEventHandler 
     : INotificationHandler<WaitlistPositionChangedNotification>
 {
     private readonly ILogger<WaitlistPositionChangedDomainEventHandler> _logger;
-    private readonly IRepository<Event> _eventRepository;
+    private readonly IRepository<LiveEventService.Core.Events.Event> _eventRepository;
 
     public WaitlistPositionChangedDomainEventHandler(
         ILogger<WaitlistPositionChangedDomainEventHandler> logger,
-        IRepository<Event> eventRepository)
+        IRepository<LiveEventService.Core.Events.Event> eventRepository)
     {
         _logger = logger;
         _eventRepository = eventRepository;

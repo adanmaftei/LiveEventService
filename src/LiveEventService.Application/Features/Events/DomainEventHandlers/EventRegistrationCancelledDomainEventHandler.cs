@@ -1,22 +1,23 @@
+using LiveEventService.Application.Common.Notifications;
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Events;
 using LiveEventService.Core.Registrations.EventRegistration;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
-namespace LiveEventService.Infrastructure.Events.EventRegistrationNotifications;
+namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
 
 public class EventRegistrationCancelledDomainEventHandler : INotificationHandler<EventRegistrationCancelledNotification>
 {
     private readonly IEventRegistrationNotifier _notifier;
-    private readonly IRepository<EventRegistration> _registrationRepository;
-    private readonly IRepository<Event> _eventRepository;
+    private readonly IRepository<LiveEventService.Core.Registrations.EventRegistration.EventRegistration> _registrationRepository;
+    private readonly IRepository<LiveEventService.Core.Events.Event> _eventRepository;
     private readonly ILogger<EventRegistrationCancelledDomainEventHandler> _logger;
 
     public EventRegistrationCancelledDomainEventHandler(
         IEventRegistrationNotifier notifier,
-        IRepository<EventRegistration> registrationRepository,
-        IRepository<Event> eventRepository,
+        IRepository<LiveEventService.Core.Registrations.EventRegistration.EventRegistration> registrationRepository,
+        IRepository<LiveEventService.Core.Events.Event> eventRepository,
         ILogger<EventRegistrationCancelledDomainEventHandler> logger)
     {
         _notifier = notifier;
@@ -83,7 +84,7 @@ public class EventRegistrationCancelledDomainEventHandler : INotificationHandler
 }
 
 // Specification to get confirmed registrations for an event
-public class ConfirmedRegistrationsForEventSpecification : BaseSpecification<EventRegistration>
+public class ConfirmedRegistrationsForEventSpecification : BaseSpecification<LiveEventService.Core.Registrations.EventRegistration.EventRegistration>
 {
     public ConfirmedRegistrationsForEventSpecification(Guid eventId)
     {

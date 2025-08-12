@@ -2,7 +2,60 @@
 
 ## Overview
 
-The Live Event Service solution is organized using **Visual Studio Solution Folders** to provide clear separation of concerns and easy navigation for development teams. All documentation, configuration, and DevOps files are included in the solution for maximum visibility and maintainability.
+The Live Event Service solution is organized using **Clean Architecture** and **Domain-Driven Design (DDD)** principles with clear separation of concerns. The solution follows a layered architecture pattern with proper dependency direction and domain event-driven communication.
+
+## Architecture Overview
+
+### 🏗️ **Clean Architecture Layers**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Presentation Layer                       │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              LiveEventService.API                   │   │
+│  │  • REST Controllers                                 │   │
+│  │  • GraphQL Resolvers                                │   │
+│  │  • Middleware (Auth, Logging, etc.)                 │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Application Layer                        │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │          LiveEventService.Application               │   │
+│  │  • CQRS Commands & Queries                          │   │
+│  │  • Domain Event Handlers                            │   │
+│  │  • MediatR Notifications                            │   │
+│  │  • Validation & Business Rules                      │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Domain Layer                           │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              LiveEventService.Core                  │   │
+│  │  • Domain Entities (Event, EventRegistration)      │   │
+│  │  • Domain Events                                    │   │
+│  │  • Domain Services                                  │   │
+│  │  • Value Objects                                    │   │
+│  │  • Repository Interfaces                            │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Infrastructure Layer                       │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │          LiveEventService.Infrastructure            │   │
+│  │  • Entity Framework Core                            │   │
+│  │  • Repository Implementations                       │   │
+│  │  • Database Migrations                              │   │
+│  │  • External Service Integrations                    │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Solution Organization
 
@@ -12,120 +65,233 @@ The Live Event Service solution is organized using **Visual Studio Solution Fold
 LiveEventService.sln
 ├── 📁 src/                           # Source Code Projects
 │   ├── 🎯 LiveEventService.API       # REST & GraphQL API
-│   ├── 🔧 LiveEventService.Application # CQRS, Commands, Queries
+│   ├── 🔧 LiveEventService.Application # CQRS, Commands, Queries, Domain Event Handlers
 │   ├── ⭐ LiveEventService.Core      # Domain Models & Business Logic
 │   └── 🗄️ LiveEventService.Infrastructure # Data Access & External Services
 ├── 📁 infrastructure/                # AWS CDK Infrastructure
 │   └── 🏗️ LiveEventService.Infrastructure.CDK
-├── 📁 tests/                        # Test Projects (Future)
-├── 📁 Documentation/                 # All Documentation Files ⭐ NEW
-├── 📁 DevOps/                       # CI/CD & Container Files ⭐ NEW
-└── 📁 Configuration/                 # Project Configuration Files ⭐ NEW
+├── 📁 tests/                        # Test Projects
+│   ├── 🧪 LiveEventService.UnitTests
+│   └── 🔗 LiveEventService.IntegrationTests
+├── 📁 Documentation/                 # All Documentation Files
+├── 📁 DevOps/                       # CI/CD & Container Files
+└── 📁 Configuration/                 # Project Configuration Files
 ```
 
-### 📚 **Documentation Folder**
+### 🏗️ **Project Structure Details**
 
-All project documentation is now visible in Visual Studio/Rider for easy access:
+#### 🎯 **LiveEventService.API**
+```
+LiveEventService.API/
+├── Controllers/                     # REST API Controllers
+│   ├── EventsController.cs
+│   ├── EventRegistrationsController.cs
+│   └── UsersController.cs
+├── GraphQL/                        # GraphQL Schema & Resolvers
+│   ├── Schema/
+│   └── Resolvers/
+├── Middleware/                     # Custom Middleware
+├── Program.cs                      # Application Entry Point
+└── appsettings.json               # Configuration
+```
 
-| File | Purpose | Size |
-|------|---------|------|
-| `README.md` | Project overview and quick start | Main |
-| `docs\API_MINIMAL.md` | Complete REST & GraphQL API reference | 13KB |
-| `docs\CICD.md` | GitHub Actions CI/CD pipeline guide | 15KB |
-| `docs\LOCAL_DEVELOPMENT_SETUP.md` | Development environment setup | 10KB |
-| `docs\WAITLIST_FUNCTIONALITY.md` | Event waitlist and auto-promotion guide | 18KB |
-| `docs\INTEGRATION_TESTING.md` | Testcontainers & authentication testing | 16KB |
-| `docs\MONITORING.md` | Health checks and monitoring | 12KB |
-| `docs\LOGGING.md` | Serilog structured logging | 12KB |
-| `docs\TRACING.md` | AWS X-Ray distributed tracing | 13KB |
-| `docs\COMPLIANCE.md` | GDPR and privacy compliance | 5KB |
-| `docs\BACKUP_AND_DR.md` | Backup and disaster recovery | 6KB |
-| `docs\DOMAIN_EVENTS_AND_GRAPHQL.md` | Domain events and real-time notifications | 12KB |
+#### 🔧 **LiveEventService.Application**
+```
+LiveEventService.Application/
+├── Common/                         # Shared Application Concerns
+│   ├── Behaviors/                  # MediatR Pipeline Behaviors
+│   ├── Notifications/              # MediatR Notification Adapters
+│   └── MediatRDomainEventDispatcher.cs
+├── Features/                       # Feature-based Organization
+│   ├── Events/                     # Event-related Features
+│   │   ├── Commands/               # Event Commands
+│   │   ├── Queries/                # Event Queries
+│   │   └── DomainEventHandlers/    # Domain Event Handlers
+│   │       ├── EventCapacityIncreasedDomainEventHandler.cs
+│   │       ├── EventRegistrationCancelledDomainEventHandler.cs
+│   │       ├── EventRegistrationCreatedDomainEventHandler.cs
+│   │       ├── EventRegistrationPromotedDomainEventHandler.cs
+│   │       ├── RegistrationWaitlistedDomainEventHandler.cs
+│   │       ├── WaitlistPositionChangedDomainEventHandler.cs
+│   │       └── WaitlistRemovalDomainEventHandler.cs
+│   └── Users/                      # User-related Features
+│       ├── Commands/
+│       └── Queries/
+├── DependencyInjection.cs          # Application Layer DI Configuration
+└── Validators/                     # FluentValidation Validators
+```
 
-### 🚀 **DevOps Folder**
+#### ⭐ **LiveEventService.Core**
+```
+LiveEventService.Core/
+├── Common/                         # Shared Domain Concerns
+│   ├── BaseEntity.cs
+│   ├── IDomainEventDispatcher.cs
+│   ├── IDomainEvent.cs
+│   └── IRepository.cs
+├── Events/                         # Event Domain
+│   ├── Event/
+│   │   ├── Event.cs                # Event Entity
+│   │   └── EventDomainEvents.cs    # Event-related Domain Events
+│   └── EventRegistration/
+│       ├── EventRegistration.cs    # EventRegistration Entity
+│       └── EventRegistrationDomainEvents.cs
+├── Registrations/                  # Registration Domain
+│   └── EventRegistration/
+│       ├── EventRegistration.cs    # EventRegistration Entity
+│       ├── RegistrationStatus.cs   # Enum
+│       └── EventRegistrationDomainEvents.cs
+└── Users/                          # User Domain
+    └── User/
+        └── User.cs                 # User Entity
+```
 
-All CI/CD and containerization files organized together:
+#### 🗄️ **LiveEventService.Infrastructure**
+```
+LiveEventService.Infrastructure/
+├── Configurations/                 # EF Core Entity Configurations
+│   ├── EventConfiguration.cs
+│   ├── EventRegistrationConfiguration.cs
+│   └── UserConfiguration.cs
+├── Data/                          # Database Context & Migrations
+│   ├── ApplicationDbContext.cs
+│   └── Migrations/
+├── Repositories/                  # Repository Implementations
+│   ├── EventRepository.cs
+│   ├── EventRegistrationRepository.cs
+│   └── UserRepository.cs
+├── Users/                         # User-related Infrastructure
+├── DependencyInjection.cs         # Infrastructure Layer DI Configuration
+└── Specifications/                # EF Core Specifications
+```
 
-| File | Purpose |
-|------|---------|
-| `.github\workflows\deploy.yml` | GitHub Actions deployment pipeline |
-| `Dockerfile` | Multi-stage container build |
-| `docker-compose.yml` | Local development orchestration |
-| `.dockerignore` | Docker build context exclusions |
-| `.gitignore` | Git ignore patterns |
+### 🧪 **Test Projects Structure**
 
-### ⚙️ **Configuration Folder**
+#### **LiveEventService.UnitTests**
+```
+LiveEventService.UnitTests/
+├── Application/                   # Application Layer Tests
+│   ├── Commands/                  # Command Handler Tests
+│   ├── Queries/                   # Query Handler Tests
+│   └── Features/                  # Feature Tests
+│       └── Events/
+│           └── DomainEventHandlers/ # Domain Event Handler Tests
+├── Core/                          # Domain Layer Tests
+│   ├── Domain/                    # Entity Tests
+│   └── Specifications/            # Specification Tests
+└── Infrastructure/                # Infrastructure Layer Tests
+    ├── Repositories/              # Repository Tests
+    └── Events/                    # Infrastructure Event Tests
+```
 
-Project-wide configuration and standards:
+#### **LiveEventService.IntegrationTests**
+```
+LiveEventService.IntegrationTests/
+├── Controllers/                   # API Controller Tests
+├── GraphQL/                       # GraphQL Integration Tests
+├── Database/                      # Database Integration Tests
+└── Authentication/                # Auth Integration Tests
+```
 
-| File | Purpose |
-|------|---------|
-| `.editorconfig` | Cross-IDE formatting standards |
-| `global.json` | .NET SDK version specification |
-| `nuget.config` | NuGet package sources and security |
-| `LiveEventService.sln.DotSettings` | ReSharper/Rider code style |
-| `LICENSE` | MIT license for the project |
+## Domain Event Flow Architecture
 
-## Benefits of This Organization
-
-### 🎯 **Team Productivity**
-- **One-Click Access**: All documentation accessible from IDE
-- **Consistent Standards**: EditorConfig ensures consistent formatting
-- **Easy Navigation**: Solution folders group related files
-- **Quick Reference**: Documentation right where developers work
-
-### 📚 **Knowledge Management**
-- **Centralized Documentation**: Everything in the solution
-- **Version Controlled**: Documentation evolves with code
-- **Search Enabled**: Find documentation through IDE search
-- **Context Aware**: Documentation alongside relevant code
-
-### 🔧 **Development Experience**
-- **New Developer Onboarding**: Everything visible in solution explorer
-- **Code Reviews**: Documentation changes visible in PRs
-- **Standards Enforcement**: EditorConfig and DotSettings applied automatically
-- **Tooling Integration**: ReSharper/Rider picks up configuration
-
-## Visual Studio Solution Explorer View
-
-When you open the solution in Visual Studio or JetBrains Rider, you'll see:
+### 🔄 **Domain Event Processing Pipeline**
 
 ```
-Solution 'LiveEventService' (7 of 7 projects)
-├── 📁 src
-│   ├── 🎯 LiveEventService.API
-│   ├── 🔧 LiveEventService.Application  
-│   ├── ⭐ LiveEventService.Core
-│   └── 🗄️ LiveEventService.Infrastructure
-├── 📁 infrastructure
-│   └── 🏗️ LiveEventService.Infrastructure.CDK
-├── 📁 tests
-├── 📁 Documentation
-│   ├── README.md
-│   ├── API_MINIMAL.md
-│   ├── CICD.md
-│   ├── LOCAL_DEVELOPMENT_SETUP.md
-│   ├── WAITLIST_FUNCTIONALITY.md
-│   ├── INTEGRATION_TESTING.md
-│   ├── MONITORING.md
-│   ├── LOGGING.md
-│   ├── TRACING.md
-│   ├── COMPLIANCE.md
-│   ├── BACKUP_AND_DR.md
-│   └── DOMAIN_EVENTS_AND_GRAPHQL.md
-├── 📁 DevOps
-│   ├── deploy.yml
-│   ├── Dockerfile
-│   ├── docker-compose.yml
-│   ├── .dockerignore
-│   └── .gitignore
-└── 📁 Configuration
-    ├── .editorconfig
-    ├── global.json
-    ├── nuget.config
-    ├── LICENSE
-    └── LiveEventService.sln.DotSettings
+1. Domain Entity (Event/EventRegistration)
+   ↓ Raises Domain Event
+2. MediatRDomainEventDispatcher (Application Layer)
+   ↓ Converts to MediatR Notification
+3. Domain Event Handler (Application Layer)
+   ↓ Processes Business Logic
+4. Notification Adapter (Application Layer)
+   ↓ Converts to External Notification
+5. External Notification Service (Infrastructure Layer)
+   ↓ Sends to External Systems
 ```
+
+### 📋 **Domain Event Handler Locations**
+
+**✅ Correctly Located in Application Layer:**
+- `LiveEventService.Application/Features/Events/DomainEventHandlers/`
+  - `EventCapacityIncreasedDomainEventHandler.cs`
+  - `EventRegistrationCancelledDomainEventHandler.cs`
+  - `EventRegistrationCreatedDomainEventHandler.cs`
+  - `EventRegistrationPromotedDomainEventHandler.cs`
+  - `RegistrationWaitlistedDomainEventHandler.cs`
+  - `WaitlistPositionChangedDomainEventHandler.cs`
+  - `WaitlistRemovalDomainEventHandler.cs`
+
+**✅ Correctly Located in Application Layer:**
+- `LiveEventService.Application/Common/Notifications/`
+  - `EventRegistrationDomainEventAdapters.cs`
+  - `WaitlistDomainEventAdapters.cs`
+
+**✅ Correctly Located in Application Layer:**
+- `LiveEventService.Application/Common/MediatRDomainEventDispatcher.cs`
+
+## Key Architectural Principles
+
+### 🎯 **Dependency Direction**
+- **API** → **Application** → **Core** ← **Infrastructure**
+- Domain layer has no dependencies on other layers
+- Infrastructure depends on Core interfaces
+- Application orchestrates domain logic
+
+### 🔄 **Domain Event Pattern**
+- Domain entities raise domain events for significant state changes
+- Application layer handles domain events through MediatR
+- Domain events trigger side effects (notifications, updates)
+- Maintains loose coupling between components
+
+### 📦 **CQRS Pattern**
+- Commands: Modify state (CreateEvent, RegisterForEvent, CancelRegistration)
+- Queries: Read data (GetEvent, ListRegistrations)
+- Separate models for read and write operations
+- Optimized for different use cases
+
+### 🧪 **Testing Strategy**
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test component interactions with database
+- **Architecture Tests**: Ensure architectural boundaries are respected
+
+## Benefits of This Architecture
+
+### 🎯 **Maintainability**
+- Clear separation of concerns
+- Domain logic isolated from infrastructure
+- Easy to modify business rules without affecting other layers
+
+### 🔄 **Testability**
+- Domain logic can be tested without database
+- Infrastructure can be mocked for unit tests
+- Integration tests verify real component interactions
+
+### 📈 **Scalability**
+- Domain events enable asynchronous processing
+- CQRS allows read/write optimization
+- Clean boundaries enable microservice extraction
+
+### 🛡️ **Reliability**
+- Domain events ensure consistency
+- Repository pattern abstracts data access
+- Validation at multiple layers
+
+## Recent Architectural Improvements
+
+### ✅ **Completed Refactoring**
+1. **Moved Domain Event Handlers**: From Infrastructure to Application layer
+2. **Moved Notification Adapters**: From Infrastructure to Application layer  
+3. **Moved MediatR Dispatcher**: From Infrastructure to Application layer
+4. **Updated Namespaces**: All moved components now use Application layer namespaces
+5. **Fixed Dependency Injection**: Proper registration of moved components
+6. **Updated Unit Tests**: All tests now reference correct namespaces
+
+### 🎯 **Architectural Benefits Achieved**
+- **Proper Layer Separation**: Domain event handlers now in correct layer
+- **Clean Dependencies**: Infrastructure no longer contains application logic
+- **Better Testability**: Domain event handlers can be tested independently
+- **Consistent Patterns**: All domain event processing follows same pattern
 
 ## Configuration Files Explained
 
@@ -210,6 +376,12 @@ Solution 'LiveEventService' (7 of 7 projects)
 3. **Tool Updates**: Keep ReSharper/Rider rules current
 4. **Documentation Review**: Monthly documentation accuracy check
 
+### 🏗️ **Architecture Maintenance**
+1. **Layer Boundaries**: Ensure dependencies flow in correct direction
+2. **Domain Events**: Use domain events for cross-aggregate communication
+3. **Repository Pattern**: Keep data access abstracted through interfaces
+4. **CQRS Separation**: Maintain clear separation between commands and queries
+
 ## Quick Start for New Team Members
 
 ### 1. **Clone and Open**
@@ -224,13 +396,22 @@ cd LiveEventServiceDemo
 - ✅ EditorConfig formatting applied automatically
 - ✅ ReSharper/Rider shows project-specific settings
 - ✅ NuGet packages restore from configured sources
+- ✅ All projects build successfully
+- ✅ All tests pass
 
 ### 3. **Key Documentation to Read**
 1. **`README.md`** - Project overview
 2. **`LOCAL_DEVELOPMENT_SETUP.md`** - Environment setup
 3. **`API_MINIMAL.md`** - API reference
 4. **`WAITLIST_FUNCTIONALITY.md`** - Event waitlist features and implementation
-5. **`CICD.md`** - Deployment process
+5. **`DOMAIN_EVENTS_AND_GRAPHQL.md`** - Domain events and real-time notifications
+6. **`CICD.md`** - Deployment process
+
+### 4. **Understanding the Architecture**
+1. **Start with Core**: Understand domain entities and business rules
+2. **Review Application**: See how commands/queries orchestrate domain logic
+3. **Examine Infrastructure**: Understand data persistence and external integrations
+4. **Study Domain Events**: Learn how components communicate asynchronously
 
 ## Support
 
@@ -239,13 +420,16 @@ cd LiveEventServiceDemo
 - **Configuration Problems**: Check team standards in Configuration folder
 - **IDE Setup**: Refer to EditorConfig and DotSettings files
 - **DevOps Questions**: Review CICD.md and DevOps folder
+- **Architecture Questions**: Review this document and domain events documentation
 
 ### 🔧 **Troubleshooting**
 1. **Formatting Not Applied**: Check EditorConfig extension installed
 2. **Wrong SDK Version**: Verify global.json SDK version
 3. **Package Restore Issues**: Check nuget.config sources
 4. **ReSharper Issues**: Reload DotSettings file
+5. **Build Errors**: Ensure all projects reference correct namespaces
+6. **Test Failures**: Check if domain event handlers are properly registered
 
 ---
 
-**This organized solution structure provides enterprise-grade project organization, making the Live Event Service maintainable and developer-friendly!** 🌟 
+**This organized solution structure provides enterprise-grade project organization with Clean Architecture principles, making the Live Event Service maintainable, testable, and developer-friendly!** 🌟 

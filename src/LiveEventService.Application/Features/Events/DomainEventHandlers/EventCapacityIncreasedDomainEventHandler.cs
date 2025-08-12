@@ -2,22 +2,22 @@ using LiveEventService.Core.Events;
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Registrations.EventRegistration;
 using MediatR;
-using LiveEventService.Infrastructure.Events.WaitlistNotifications;
 using Microsoft.Extensions.Logging;
+using LiveEventService.Application.Common.Notifications;
 
-namespace LiveEventService.Infrastructure.Events;
+namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
 
 public class EventCapacityIncreasedDomainEventHandler 
     : INotificationHandler<EventCapacityIncreasedNotification>
 {
     private readonly ILogger<EventCapacityIncreasedDomainEventHandler> _logger;
-    private readonly IRepository<Event> _eventRepository;
-    private readonly IRepository<EventRegistration> _registrationRepository;
+    private readonly IRepository<LiveEventService.Core.Events.Event> _eventRepository;
+    private readonly IRepository<LiveEventService.Core.Registrations.EventRegistration.EventRegistration> _registrationRepository;
 
     public EventCapacityIncreasedDomainEventHandler(
         ILogger<EventCapacityIncreasedDomainEventHandler> logger,
-        IRepository<Event> eventRepository,
-        IRepository<EventRegistration> registrationRepository)
+        IRepository<LiveEventService.Core.Events.Event> eventRepository,
+        IRepository<LiveEventService.Core.Registrations.EventRegistration.EventRegistration> registrationRepository)
     {
         _logger = logger;
         _eventRepository = eventRepository;
@@ -91,7 +91,7 @@ public class EventCapacityIncreasedDomainEventHandler
 }
 
 // Specification to get the next waitlisted registration
-public class NextWaitlistedRegistrationSpecification : BaseSpecification<EventRegistration>
+public class NextWaitlistedRegistrationSpecification : BaseSpecification<LiveEventService.Core.Registrations.EventRegistration.EventRegistration>
 {
     public NextWaitlistedRegistrationSpecification(Guid eventId)
     {

@@ -1,7 +1,8 @@
+using LiveEventService.Application.Common.Notifications;
 using LiveEventService.Core.Common;
 using MediatR;
 
-namespace LiveEventService.Infrastructure.Events.EventRegistrationNotifications;
+namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
 
 public class EventRegistrationCreatedDomainEventHandler : INotificationHandler<EventRegistrationCreatedNotification>
 {

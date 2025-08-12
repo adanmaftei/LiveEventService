@@ -6,11 +6,9 @@ using LiveEventService.Infrastructure.Events;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using LiveEventService.Core.Common;
-using LiveEventService.Infrastructure.Events.EventRegistrationNotifications;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using MediatR;
-using LiveEventService.Infrastructure.Events.WaitlistNotifications;
 using LiveEventService.Core.Registrations.EventRegistration;
 using LiveEventService.Core.Users.User;
 
@@ -42,18 +40,8 @@ public static class DependencyInjection
         services.AddScoped<IRepository<EventRegistration>, RepositoryBase<EventRegistration>>();
         
         // Register domain event dispatcher
-        services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
-
-        // Register domain event handlers (only register once)
-        services.AddScoped<INotificationHandler<EventRegistrationCreatedNotification>, EventRegistrationCreatedDomainEventHandler>();
-        services.AddScoped<INotificationHandler<EventRegistrationPromotedNotification>, EventRegistrationPromotedDomainEventHandler>();
-        services.AddScoped<INotificationHandler<EventRegistrationCancelledNotification>, EventRegistrationCancelledDomainEventHandler>();
-        
-        // Register waitlist domain event handlers
-        services.AddScoped<INotificationHandler<EventCapacityIncreasedNotification>, EventCapacityIncreasedDomainEventHandler>();
-        services.AddScoped<INotificationHandler<RegistrationWaitlistedNotification>, RegistrationWaitlistedDomainEventHandler>();
-        services.AddScoped<INotificationHandler<WaitlistPositionChangedNotification>, WaitlistPositionChangedDomainEventHandler>();
-        services.AddScoped<INotificationHandler<WaitlistRemovalNotification>, WaitlistRemovalDomainEventHandler>();
+        // Note: The actual implementation is in the Application layer
+        // This will be registered by the Application layer's DI configuration
 
         // Add AWS Cognito authentication
         services.AddAuthentication(options =>

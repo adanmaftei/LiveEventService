@@ -1,23 +1,23 @@
 using MediatR;
-using LiveEventService.Infrastructure.Events.WaitlistNotifications;
 using Microsoft.Extensions.Logging;
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Events;
 using LiveEventService.Core.Registrations.EventRegistration;
+using LiveEventService.Application.Common.Notifications;
 
-namespace LiveEventService.Infrastructure.Events;
+namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
 
 public class WaitlistRemovalDomainEventHandler 
     : INotificationHandler<WaitlistRemovalNotification>
 {
     private readonly ILogger<WaitlistRemovalDomainEventHandler> _logger;
-    private readonly IRepository<Event> _eventRepository;
-    private readonly IRepository<EventRegistration> _registrationRepository;
+    private readonly IRepository<LiveEventService.Core.Events.Event> _eventRepository;
+    private readonly IRepository<LiveEventService.Core.Registrations.EventRegistration.EventRegistration> _registrationRepository;
 
     public WaitlistRemovalDomainEventHandler(
         ILogger<WaitlistRemovalDomainEventHandler> logger,
-        IRepository<Event> eventRepository,
-        IRepository<EventRegistration> registrationRepository)
+        IRepository<LiveEventService.Core.Events.Event> eventRepository,
+        IRepository<LiveEventService.Core.Registrations.EventRegistration.EventRegistration> registrationRepository)
     {
         _logger = logger;
         _eventRepository = eventRepository;
@@ -73,7 +73,7 @@ public class WaitlistRemovalDomainEventHandler
 }
 
 // Specification to get waitlisted registrations for an event
-public class WaitlistedRegistrationsForEventSpecification : BaseSpecification<EventRegistration>
+public class WaitlistedRegistrationsForEventSpecification : BaseSpecification<LiveEventService.Core.Registrations.EventRegistration.EventRegistration>
 {
     public WaitlistedRegistrationsForEventSpecification(Guid eventId)
     {

@@ -1,10 +1,9 @@
+using LiveEventService.Application.Common.Notifications;
+using LiveEventService.Application.Features.Events.DomainEventHandlers;
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Events;
 using LiveEventService.Core.Registrations.EventRegistration;
 using LiveEventService.Core.Users.User;
-using LiveEventService.Infrastructure.Events.EventRegistrationNotifications;
-using LiveEventService.Infrastructure.Events.WaitlistNotifications;
-using LiveEventService.Infrastructure.Events;
 using LiveEventService.UnitTests.Common;
 using Microsoft.Extensions.Logging;
 

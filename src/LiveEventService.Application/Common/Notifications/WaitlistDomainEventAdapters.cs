@@ -2,7 +2,7 @@ using MediatR;
 using LiveEventService.Core.Events;
 using LiveEventService.Core.Registrations.EventRegistration;
 
-namespace LiveEventService.Infrastructure.Events.WaitlistNotifications;
+namespace LiveEventService.Application.Common.Notifications;
 
 // Adapter classes to make waitlist domain events implement INotification
 // This follows the same pattern as EventRegistrationDomainEventAdapters
