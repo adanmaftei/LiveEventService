@@ -24,8 +24,8 @@ X-Ray is properly configured in the application startup:
 AWSXRayRecorder.InitializeInstance(configuration: builder.Configuration);
 AWSSDKHandler.RegisterXRayForAllServices();
 
-// Add X-Ray middleware - this must be early in the pipeline
-app.UseXRay(builder.Configuration.GetValue<string>("AWS:XRay:ServiceName") ?? "LiveEventService.API");
+// Add X-Ray middleware
+app.UseXRay("LiveEventService");
 ```
 
 ## Configuration Settings

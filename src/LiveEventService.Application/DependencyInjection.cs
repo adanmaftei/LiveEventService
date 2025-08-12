@@ -6,12 +6,13 @@ using LiveEventService.Core.Common;
 using LiveEventService.Application.Common;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 
 namespace LiveEventService.Application;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
         // Register MediatR from Application assembly
         services.AddMediatR(cfg => {
@@ -27,6 +28,16 @@ public static class DependencyInjection
         
         // Register validation behavior
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+        // Register background processing services
+        services.AddSingleton<IMessageQueue, InMemoryMessageQueue>();
+        services.AddScoped<IDomainEventProcessor, MediatRDomainEventProcessor>();
+        
+        // Configure background processing options
+        services.Configure<BackgroundProcessingOptions>(configuration.GetSection("Performance:BackgroundProcessing"));
+        
+        // Register background service
+        services.AddHostedService<DomainEventBackgroundService>();
 
         // Register domain event dispatcher
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();

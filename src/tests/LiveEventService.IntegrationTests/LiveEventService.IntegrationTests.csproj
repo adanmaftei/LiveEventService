@@ -26,8 +26,8 @@
     </PackageReference>
     
     <!-- ASP.NET Core Testing -->
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.7" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="9.0.7" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="9.0.8" />
     
     <!-- Testcontainers -->
     <PackageReference Include="Testcontainers" Version="4.6.0" />
@@ -35,13 +35,13 @@
     <PackageReference Include="Testcontainers.LocalStack" Version="4.6.0" />
     
     <!-- Entity Framework Testing -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.7" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.8" />
     
     <!-- GraphQL Testing -->
     <PackageReference Include="Snapshooter.Xunit" Version="1.0.1" />
     
     <!-- HTTP Client & JSON -->
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.8" />
     
     <!-- Authentication Testing -->
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.13.0" />

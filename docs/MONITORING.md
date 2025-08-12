@@ -9,7 +9,7 @@ The monitoring and health check system is **completely working** with:
 - ✅ Real-time health status reporting via `/health` endpoint
 - ✅ PostgreSQL database connectivity monitoring
 - ✅ AWS Cognito configuration validation
-- ✅ S3 health check (conditionally enabled for production)
+- S3 health check: not currently added
 - ✅ Structured logging integration for health events
 - ✅ X-Ray distributed tracing for health check requests
 

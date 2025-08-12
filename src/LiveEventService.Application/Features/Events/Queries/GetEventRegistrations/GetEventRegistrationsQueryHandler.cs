@@ -32,8 +32,8 @@ public class GetEventRegistrationsQueryHandler : IQueryHandler<GetEventRegistrat
         GetEventRegistrationsQuery request, 
         CancellationToken cancellationToken)
     {
-        // Verify event exists
-        var eventEntity = await _eventRepository.GetByIdAsync(request.EventId, cancellationToken);
+        // Verify event exists (read-only check)
+        var eventEntity = await _eventRepository.GetByIdReadOnlyAsync(request.EventId, cancellationToken);
         if (eventEntity == null)
         {
             return BaseResponse<EventRegistrationListDto>.Failed("Event not found");
@@ -43,13 +43,13 @@ public class GetEventRegistrationsQueryHandler : IQueryHandler<GetEventRegistrat
         var spec = new GetEventRegistrationsSpecification(request.EventId, request.Status, request.UserId);
         spec.ApplyPaging((request.PageNumber - 1) * request.PageSize, request.PageSize);
 
-        // Get filtered and paged registrations
-        var registrations = await _registrationRepository.ListAsync(spec, cancellationToken);
-        // Get total count for pagination (without paging)
-        var countSpec = new GetEventRegistrationsSpecification(request.EventId, request.Status, request.UserId);
+        // Get filtered and paged registrations using read-only query
+        var registrations = await _registrationRepository.ListReadOnlyAsync(spec, cancellationToken);
+        // Get total count for pagination using optimized count specification (no includes)
+        var countSpec = new GetEventRegistrationsCountSpecification(request.EventId, request.Status, request.UserId);
         var totalCount = await _registrationRepository.CountAsync(countSpec, cancellationToken);
 
-        // Map to DTOs
+        // Map to DTOs (AutoMapper will handle the includes from the specification)
         var registrationDtos = registrations.Select(er => _mapper.Map<EventRegistrationDto>(er)).ToList();
 
         var result = new EventRegistrationListDto

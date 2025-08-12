@@ -30,7 +30,7 @@ builder.Host.UseSerilog((context, configuration) =>
 Log.Information("Starting web application");
 
 // Add services to the container.
-builder.Services.AddApplicationServices();
+builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddInfrastructureServices(builder.Configuration, isTesting);
 
 // Add API-specific services

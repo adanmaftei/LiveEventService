@@ -117,12 +117,12 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
   - LocalStack integration for development
 
 ### 🏥 Health Checks
-- **Status**: ✅ **All passing**
+- **Status**: ✅ **Operational**
 - **Endpoint**: http://localhost:5000/health
-- **Checks**:
+- **Checks in code**:
   - PostgreSQL database connectivity
   - AWS Cognito configuration validation
-  - S3 health check (disabled in development)
+  - S3 health check: not currently added
 
 ## API Endpoints
 

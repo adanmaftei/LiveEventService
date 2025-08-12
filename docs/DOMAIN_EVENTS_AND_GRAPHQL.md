@@ -24,8 +24,8 @@ The system uses domain events to decouple business logic and enable real-time no
 
 ## How Events Are Handled
 
-- In the API project, MediatR `INotificationHandler`s listen for these events.
-- For each event, a handler publishes a `EventRegistrationNotification` to the appropriate HotChocolate GraphQL topic (e.g., `eventRegistration_{eventId}`).
+- In the Application project, MediatR `INotificationHandler`s listen for these events and use an `IEventRegistrationNotifier` abstraction.
+- The API project implements `IEventRegistrationNotifier` (`EventRegistrationNotifier`) to publish notifications to the appropriate HotChocolate topic (e.g., `eventRegistration_{eventId}`).
 - The notification includes the event ID, user info, action, and timestamp.
 
 ## GraphQL Subscriptions

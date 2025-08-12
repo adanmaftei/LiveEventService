@@ -3,6 +3,7 @@ using LiveEventService.Core.Events;
 using LiveEventService.Infrastructure.Data;
 using LiveEventService.Infrastructure.Users;
 using LiveEventService.Infrastructure.Events;
+using LiveEventService.Infrastructure.Registrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using LiveEventService.Core.Common;
@@ -36,8 +37,8 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
 
-        // Register generic repository for EventRegistration
-        services.AddScoped<IRepository<EventRegistration>, RepositoryBase<EventRegistration>>();
+        // Register repository for EventRegistration with navigation safety
+        services.AddScoped<IRepository<EventRegistration>, EventRegistrationRepository>();
         
         // Register domain event dispatcher
         // Note: The actual implementation is in the Application layer

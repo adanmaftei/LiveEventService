@@ -1,18 +1,16 @@
 # API Documentation - Live Event Service
 
-## ✅ Current Status: Fully Operational
+## ✅ Current Status
 
-The Live Event Service API is **completely working** with:
-- ✅ All REST endpoints functional and accessible
-- ✅ **NEW: All 4 admin endpoints fully implemented** (confirm, cancel, publish, unpublish)
-- ✅ Swagger UI available with comprehensive documentation
-- ✅ Health checks operational with real-time status
-- ✅ JWT authentication framework ready (via Cognito/LocalStack)
-- ✅ CORS configured for frontend integration
-- ✅ Clean architecture with minimal API endpoints
-- ✅ Structured logging and distributed tracing
-- ✅ **UPDATED: X-Ray tracing properly configured**
-- ✅ **UPDATED: Correlation ID tracking implemented**
+The Live Event Service API includes:
+- ✅ Minimal API endpoints for Events, Registrations, and Users
+- ✅ Admin endpoints (confirm, cancel, publish, unpublish)
+- ✅ Swagger UI (Development)
+- ✅ Health checks (PostgreSQL and AWS Cognito configuration)
+- ✅ JWT authentication wiring (Cognito config; tests use test auth)
+- ✅ CORS policy sourced from `AllowedOrigins`
+- ✅ Serilog structured logging with correlation IDs
+- ✅ AWS X-Ray tracing
 
 ## Overview
 
@@ -35,18 +33,18 @@ The Events REST API is implemented using .NET 9 Minimal APIs directly in `Progra
 
 | Method | Route                                         | Auth Roles         | Description                       | Status |
 |--------|-----------------------------------------------|--------------------|-----------------------------------|--------|
-| GET    | `/api/events`                                | Authenticated      | List events                       | ✅ Working |
-| GET    | `/api/events/{id}`                           | Authenticated      | Get event by ID                   | ✅ Working |
-| POST   | `/api/events`                                | Admin, Organizer   | Create event                      | ✅ Working |
-| PUT    | `/api/events/{id}`                           | Admin, Organizer   | Update event                      | ✅ Working |
-| DELETE | `/api/events/{id}`                           | Admin, Organizer   | Delete event                      | ✅ Working |
+| GET    | `/api/events`                                | Anonymous          | List published/upcoming events    | ✅ Working |
+| GET    | `/api/events/{id}`                           | Anonymous          | Get event by ID                   | ✅ Working |
+| POST   | `/api/events`                                | Admin              | Create event                      | ✅ Working |
+| PUT    | `/api/events/{id}`                           | Admin              | Update event                      | ✅ Working |
+| DELETE | `/api/events/{id}`                           | Admin              | Delete event                      | ✅ Working |
 | POST   | `/api/events/{eventId}/register`             | Authenticated      | Register for event                | ✅ Working |
-| GET    | `/api/events/{eventId}/registrations`        | Admin, Organizer   | List registrations for an event   | ✅ Working |
-| GET    | `/api/events/{eventId}/waitlist`             | Admin, Organizer   | List waitlisted registrations     | ✅ Working |
+| GET    | `/api/events/{eventId}/registrations`        | Admin              | List registrations for an event   | ✅ Working |
+| GET    | `/api/events/{eventId}/waitlist`             | Admin              | List waitlisted registrations     | ✅ Working |
 | POST   | `/api/events/{eventId}/registrations/{registrationId}/confirm` | Admin | Confirm registration (promote from waitlist) | ✅ Working |
 | POST   | `/api/events/{eventId}/registrations/{registrationId}/cancel` | Admin | Cancel registration (admin action) | ✅ Working |
-| POST   | `/api/events/{eventId}/publish`              | Admin, Organizer   | Publish event                     | ✅ Working |
-| POST   | `/api/events/{eventId}/unpublish`            | Admin, Organizer   | Unpublish event                   | ✅ Working |
+| POST   | `/api/events/{eventId}/publish`              | Admin              | Publish event                     | ✅ Working |
+| POST   | `/api/events/{eventId}/unpublish`            | Admin              | Unpublish event                   | ✅ Working |
 
 ### User Management
 
@@ -95,8 +93,8 @@ GET /health
 
 ### Health Check Components
 - **PostgreSQL (RDS)**: Database connectivity and responsiveness
-- **AWS Cognito**: Configuration validation (User Pool, Region)
-- **S3 Health Check**: Conditionally enabled for production environments
+- **AWS Cognito**: Configuration presence validation (User Pool, Region)
+- S3 health check: not currently added in code
 
 ### Testing Health Checks
 ```bash
@@ -224,11 +222,8 @@ curl -H "Authorization: Bearer <your-jwt-token>" http://localhost:5000/api/event
 - **Authenticated**: Basic read access and event registration
 - **Anonymous**: Health check only
 
-### Development Mode
-In development with LocalStack:
-- Cognito is mocked for testing
-- JWT validation is configured but bypassed for development
-- All endpoints are accessible for testing purposes
+### Development & Tests
+- Local development uses Cognito config; integration tests replace auth with a test scheme.
 
 ## Error Handling
 
@@ -334,18 +329,11 @@ All requests are logged with:
 - Database query performance
 - Health check status
 
-## Security Features
+## Security Notes
 
-### Implemented Security
-- **JWT Authentication**: Ready for Cognito integration
-- **CORS Policy**: Configured for known origins
-- **Input Validation**: Automatic model validation
-- **SQL Injection Protection**: Entity Framework parameterized queries
-
-### Security Headers
-- `X-Correlation-ID`: Request tracking
-- `Content-Type`: Proper content type handling
-- Standard ASP.NET Core security headers
+- JWT authentication configured; integration tests use a test auth handler.
+- CORS default policy is configured from `AllowedOrigins`.
+- Security headers (CSP/HSTS/etc.) and rate limiting are not yet implemented in `Program.cs`.
 
 ## Development Workflow
 

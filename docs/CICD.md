@@ -15,51 +15,14 @@ The CI/CD pipeline is implemented using GitHub Actions and consists of the follo
 
 ### GitHub Actions Workflows
 
-#### 1. Deploy Workflow (`.github/workflows/deploy.yml`)
+No workflow files are currently committed in this repository. The following outlines a proposed setup:
 
-This workflow handles the main CI/CD pipeline:
+#### 1. Deploy Workflow (proposed path: `.github/workflows/deploy.yml`)
 
-```yaml
-name: Deploy Live Event Service
+Key stages:
+- Restore → Build → Unit + Integration Tests (with Docker) → Build/push image → Deploy (ECS/ECR)
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+#### 2. Security Testing Workflow (proposed path: `.github/workflows/security-testing.yml`)
 
-jobs:
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Set up .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '9.0.x'
-```
-
-#### 2. Security Testing Workflow (`.github/workflows/security-testing.yml`)
-
-This workflow runs security scans:
-
-```yaml
-name: Security Testing
-
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
-  schedule:
-    - cron: '0 0 * * 0'  # Weekly security scan
-
-jobs:
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Set up .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: '9.0.x'
-``` 
+Key stages:
+- Dependency scanning (e.g., dotnet list package --vulnerable), SAST, container image scan

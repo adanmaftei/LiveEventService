@@ -24,13 +24,14 @@ public class GetEventQueryHandler : IQueryHandler<GetEventQuery, BaseResponse<Ev
 
     public async Task<BaseResponse<EventDto>> Handle(GetEventQuery request, CancellationToken cancellationToken)
     {
-        var eventEntity = await _eventRepository.GetByIdAsync(request.EventId, cancellationToken);
+        // Use read-only query since we're just displaying data
+        var eventEntity = await _eventRepository.GetByIdReadOnlyAsync(request.EventId, cancellationToken);
         if (eventEntity == null)
         {
             return BaseResponse<EventDto>.Failed("Event not found");
         }
 
-        // Get organizer details
+        // Get organizer details (read-only)
         var organizer = await _userRepository.GetByIdentityIdAsync(eventEntity.OrganizerId, cancellationToken);
         
         // Map to DTO

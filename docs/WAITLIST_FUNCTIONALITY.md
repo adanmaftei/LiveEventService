@@ -229,17 +229,10 @@ public class EventRegistration : Entity
 
 ### Domain Event Handlers
 
-**Infrastructure Layer Handlers** (Business Logic):
-- `RegistrationWaitlistedDomainEventHandler`: Calculates waitlist positions
-- `WaitlistPositionChangedDomainEventHandler`: Logs position changes
-- `WaitlistRemovalDomainEventHandler`: Updates positions for remaining users
-- `EventCapacityIncreasedDomainEventHandler`: Promotes users when capacity increases
-- `EventRegistrationCancelledDomainEventHandler`: Handles waitlist promotion when confirmed registrations are cancelled
-
-**API Layer Handlers** (Real-time Notifications):
-- `EventRegistrationCreatedDomainEventHandler`: Publishes GraphQL notifications
-- `EventRegistrationPromotedDomainEventHandler`: Publishes promotion notifications
-- `EventRegistrationCancelledDomainEventHandler`: Publishes cancellation notifications
+Handlers live in the Application layer and publish GraphQL notifications via an `IEventRegistrationNotifier` implemented in the API layer:
+- `EventRegistrationCreatedDomainEventHandler`
+- `EventRegistrationPromotedDomainEventHandler`
+- `EventRegistrationCancelledDomainEventHandler`
 
 ## Testing
 
@@ -320,7 +313,7 @@ public async Task<IActionResult> GetEvent(Guid eventId)
 
 ### Database Indexes
 
-The following indexes are recommended for optimal waitlist performance:
+The following indexes are implemented to optimize waitlist performance:
 
 ```sql
 -- For waitlist position calculations
@@ -338,10 +331,7 @@ ON EventRegistrations (UserId, Status);
 
 ### Caching Strategy
 
-- **Event capacity and current registration count** - Cache with short TTL (30 seconds)
-- **Waitlist positions** - Don't cache due to frequent changes
-- **Event details** - Cache with longer TTL (5 minutes)
-- **User permissions** - Cache with medium TTL (5 minutes)
+- No caching layer is implemented yet. Planned caching will avoid caching waitlist positions due to frequent changes.
 
 ## Best Practices
 

@@ -30,20 +30,20 @@ public class ListEventsQueryHandler : IQueryHandler<ListEventsQuery, BaseRespons
         var spec = new ListEventsSpecification(request.IsPublished, request.OrganizerId, request.IsUpcoming);
         spec.ApplyPaging((request.PageNumber - 1) * request.PageSize, request.PageSize);
 
-        // Get filtered and paged events
-        var events = await _eventRepository.ListAsync(spec, cancellationToken);
+        // Get filtered and paged events using read-only query (no change tracking)
+        var events = await _eventRepository.ListReadOnlyAsync(spec, cancellationToken);
         // Get total count for pagination (without paging)
         var countSpec = new ListEventsSpecification(request.IsPublished, request.OrganizerId, request.IsUpcoming);
         var totalCount = await _eventRepository.CountAsync(countSpec, cancellationToken);
 
-        // Get organizer details for each event using specification-based query
+        // Get organizer details for each event using specification-based query (no change tracking)
         var organizerIds = events.Select(e => e.OrganizerId).Distinct().ToList();
         var organizerLookup = new Dictionary<string, User>();
         
         if (organizerIds.Any())
         {
             var organizerSpec = new GetUsersByIdentityIdsSpecification(organizerIds);
-            var organizers = await _userRepository.ListAsync(organizerSpec, cancellationToken);
+            var organizers = await _userRepository.ListReadOnlyAsync(organizerSpec, cancellationToken);
             organizerLookup = organizers.ToDictionary(o => o.IdentityId);
         }
 

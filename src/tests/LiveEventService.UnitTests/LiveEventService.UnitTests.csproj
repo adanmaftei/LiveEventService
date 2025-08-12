@@ -42,7 +42,7 @@
     <PackageReference Include="AutoFixture.AutoMoq" Version="4.18.1" />
     
     <!-- Entity Framework Testing -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.7" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.8" />
     
     <!-- MediatR Testing -->
     <PackageReference Include="MediatR" Version="13.0.0" />

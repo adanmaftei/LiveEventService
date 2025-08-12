@@ -3,9 +3,11 @@ using Microsoft.Extensions.Logging;
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Events;
 using LiveEventService.Application.Common.Notifications;
+using LiveEventService.Application.Common;
 
 namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
 
+[AsyncProcessing(Priority = 1, MaxRetryAttempts = 3, RetryDelaySeconds = 2)]
 public class WaitlistPositionChangedDomainEventHandler 
     : INotificationHandler<WaitlistPositionChangedNotification>
 {

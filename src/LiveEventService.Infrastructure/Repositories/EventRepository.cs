@@ -14,6 +14,7 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
     public async Task<IEnumerable<Event>> GetUpcomingEventsAsync(CancellationToken cancellationToken = default)
     {
         return await _dbContext.Events
+            .AsNoTracking()
             .Where(e => e.StartDate > DateTime.UtcNow && e.IsPublished)
             .OrderBy(e => e.StartDate)
             .ToListAsync(cancellationToken);
@@ -22,6 +23,7 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
     public async Task<IEnumerable<Event>> GetEventsByOrganizerAsync(string organizerId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Events
+            .AsNoTracking()
             .Where(e => e.OrganizerId == organizerId)
             .OrderByDescending(e => e.StartDate)
             .ToListAsync(cancellationToken);
@@ -30,6 +32,7 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
     public async Task<IReadOnlyList<Event>> GetPublishedEventsAsync(int skip, int take, CancellationToken cancellationToken = default)
     {
         return await _dbSet
+            .AsNoTracking()
             .Where(e => e.IsPublished)
             .OrderByDescending(e => e.StartDate)
             .Skip(skip)
@@ -57,7 +60,9 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
         // Calculate position based on the order of creation (using CreatedAt and Id for tie-breaking)
         // Count how many waitlisted registrations for this event were created before this one
         var currentRegistration = await _dbContext.EventRegistrations
+            .AsNoTracking()
             .Where(r => r.Id == registrationId)
+            .Select(r => new { r.CreatedAt }) // Only select needed fields
             .FirstOrDefaultAsync(cancellationToken);
             
         if (currentRegistration == null)
@@ -66,6 +71,7 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
         }
 
         var position = await _dbContext.EventRegistrations
+            .AsNoTracking()
             .Where(r => r.EventId == eventId && 
                        r.Status == RegistrationStatus.Waitlisted &&
                        (r.CreatedAt < currentRegistration.CreatedAt || 

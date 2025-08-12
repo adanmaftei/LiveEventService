@@ -2,18 +2,16 @@
 
 A scalable, modular backend microservice for live event sign-ups built with .NET 9, AWS, and modern cloud-native practices.
 
-## ✅ Current Status: Fully Operational
+## ✅ Current Status
 
-This application is **production-ready** and fully operational with:
-- ✅ Complete Docker Compose setup
+This application is operational for local development and testing with:
+- ✅ Docker Compose setup (API, Postgres, LocalStack, pgAdmin)
 - ✅ PostgreSQL database with automatic migrations  
 - ✅ AWS service mocking via LocalStack
-- ✅ Full CI/CD pipeline with GitHub Actions
 - ✅ Serilog structured logging with correlation IDs
 - ✅ AWS X-Ray distributed tracing
-- ✅ Health checks for all services
-- ✅ Swagger API documentation
-- ✅ GraphQL endpoint with playground
+- ✅ Health checks (PostgreSQL and AWS Cognito configuration)
+- ✅ Swagger (Development) and GraphQL endpoint
 
 ## Features
 
@@ -88,7 +86,7 @@ dotnet run --project src/LiveEventService.API
 
 ```
 src/
-  LiveEventService.API/         # API project (REST controllers, GraphQL)
+  LiveEventService.API/         # API project (Minimal APIs + GraphQL)
   LiveEventService.Application/ # Application layer (CQRS, DTOs, validators)
   LiveEventService.Core/        # Domain models, interfaces, exceptions
   LiveEventService.Infrastructure/ # Data access, external services
@@ -115,8 +113,8 @@ This structure makes it easy to find all code for a feature and enables true fea
 
 | Method | Route                                         | Auth Roles         | Description                       |
 |--------|-----------------------------------------------|--------------------|-----------------------------------|
-| GET    | `/api/events`                                | Authenticated      | List events                       |
-| GET    | `/api/events/{id}`                           | Authenticated      | Get event by ID                   |
+| GET    | `/api/events`                                | Anonymous          | List published/upcoming events    |
+| GET    | `/api/events/{id}`                           | Anonymous          | Get event by ID                   |
 | POST   | `/api/events`                                | Admin              | Create event                      |
 | PUT    | `/api/events/{id}`                           | Admin              | Update event                      |
 | DELETE | `/api/events/{id}`                           | Admin              | Delete event                      |
@@ -184,11 +182,11 @@ cdk bootstrap
 cdk deploy
 ```
 
-The GitHub Actions workflow will automatically build, test, and deploy the application when you push to main.
+Note: CI/CD workflows are not included in this repository. See `docs/CICD.md` for a proposed workflow.
 
 ## Monitoring & Observability
 
-- **Health Checks**: `/health` endpoint with PostgreSQL and AWS service checks
+- **Health Checks**: `/health` endpoint with PostgreSQL and AWS Cognito config checks
 - **Logging**: Structured Serilog with correlation ID tracking
 - **Tracing**: AWS X-Ray distributed tracing for performance monitoring
 - **Metrics**: AWS CloudWatch integration ready for production
@@ -236,6 +234,14 @@ dotnet test /p:CollectCoverage=true
 - 🔗 **[API Documentation](docs/API_MINIMAL.md)** - Minimal API implementation
 - 🛡️ **[Compliance](docs/COMPLIANCE.md)** - GDPR and privacy considerations
 - 🔄 **[Backup & DR](docs/BACKUP_AND_DR.md)** - Backup and disaster recovery
+ - 🛡️ **[Security Enhancements](docs/SECURITY_ENHANCEMENTS.md)** - Planned security hardening (rate limiting, headers, HTTPS/HSTS)
+ - ⚙️ **[Architecture Analysis & Improvements](docs/ARCHITECTURE_ANALYSIS_AND_IMPROVEMENTS.md)** - Current gaps and roadmap
+ - 📈 **[Performance & Scalability](docs/PERFORMANCE_AND_SCALABILITY.md)** - Performance bottlenecks and plans
+ - 📈 **[Scalability Improvements](docs/SCALABILITY_IMPROVEMENTS.md)** - Scaling strategies
+ - 🧭 **[Domain Events & GraphQL](docs/DOMAIN_EVENTS_AND_GRAPHQL.md)** - Event flow and real-time notifications
+ - 🧾 **[TODO: Performance Improvements](docs/TODO_PERFORMANCE_IMPROVEMENTS.md)** - Implementation checklist/roadmap
+ - 💸 **[Cost Optimization](docs/COST_OPTIMIZATION.md)** - AWS cost-saving strategies
+ - 🚢 **[Deployment Optimization](docs/DEPLOYMENT_OPTIMIZATION.md)** - Blue/green, canary, multi-region (future-state)
 
 ## Contributing
 

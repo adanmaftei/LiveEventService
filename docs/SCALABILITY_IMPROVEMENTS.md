@@ -4,18 +4,15 @@ This document outlines scalability enhancements for the Live Event Service.
 
 ## Current Scalability Assessment
 
-### ✅ Well-Implemented Features
-- Auto-scaling: ECS Fargate scales 2-10 tasks based on CPU (70% threshold)
-- Load balancing: Application Load Balancer with health checks
-- Database connection pooling: Entity Framework Core
-- API Gateway throttling: 100 req/sec steady, 200 burst capacity
-- Database storage auto-scaling: 20GB to 100GB
+### ✅ Current State
+- Docker Compose for local; proposed ECS features listed here are future-state
+- Database connection pooling: default EF Core/Npgsql
 
 ### ⚠️ Scalability Limitations
-- Database bottleneck: Single RDS instance, no read replicas
-- No caching layer: Repeated database queries
-- Limited API Gateway features: No request caching
-- No CDN: Static content served directly
+- Single DB instance (local dev): no read replicas
+- No caching layer
+- No API Gateway in repo; no request caching
+- No CDN in repo
 
 ## High-Priority Improvements
 

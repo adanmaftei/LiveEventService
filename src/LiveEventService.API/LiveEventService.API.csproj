@@ -11,12 +11,12 @@
   <ItemGroup>
     <PackageReference Include="AspNetCore.HealthChecks.Aws.S3" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
-    <PackageReference Include="AWSSDK.CloudWatchLogs" Version="4.0.7.1" />
-    <PackageReference Include="AWSSDK.CognitoIdentityProvider" Version="4.0.1.13" />
-    <PackageReference Include="AWSSDK.Core" Version="4.0.0.18" />
+    <PackageReference Include="AWSSDK.CloudWatchLogs" Version="4.0.7.3" />
+    <PackageReference Include="AWSSDK.CognitoIdentityProvider" Version="4.0.1.15" />
+    <PackageReference Include="AWSSDK.Core" Version="4.0.0.21" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.2.1" />
-    <PackageReference Include="AWSSDK.S3" Version="4.0.6.2" />
-    <PackageReference Include="AWSSDK.XRay" Version="4.0.0.15" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.6.4" />
+    <PackageReference Include="AWSSDK.XRay" Version="4.0.0.17" />
     <PackageReference Include="AWSXRayRecorder.Handlers.AspNetCore" Version="2.12.0" />
     <PackageReference Include="AWSXRayRecorder.Handlers.AwsSdk" Version="2.13.0" />
     <PackageReference Include="AWSXRayRecorder.Handlers.System.Net" Version="2.12.0" />
@@ -26,8 +26,8 @@
     <PackageReference Include="HotChocolate.Data" Version="15.1.8" />
     <PackageReference Include="HotChocolate.Subscriptions" Version="15.1.8" />
     <PackageReference Include="HotChocolate.Subscriptions.InMemory" Version="15.1.8" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.7" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.7">
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.8">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

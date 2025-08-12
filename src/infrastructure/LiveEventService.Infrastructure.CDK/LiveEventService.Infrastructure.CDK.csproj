@@ -11,7 +11,7 @@
 
 	<ItemGroup>
 		<!-- Single CDK v2 package that includes all AWS services -->
-		<PackageReference Include="Amazon.CDK.Lib" Version="2.208.0" />
+		<PackageReference Include="Amazon.CDK.Lib" Version="2.210.0" />
 
 		<!-- Core constructs library -->
 		<PackageReference Include="Constructs" Version="10.4.2" />

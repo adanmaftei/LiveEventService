@@ -19,14 +19,38 @@ public class RepositoryBase<T> : IRepository<T> where T : Entity
         return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
     }
 
+    /// <summary>
+    /// Gets an entity by ID without change tracking for read-only scenarios
+    /// </summary>
+    public virtual async Task<T?> GetByIdReadOnlyAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+    }
+
     public virtual async Task<IReadOnlyList<T>> ListAllAsync(CancellationToken cancellationToken = default)
     {
         return await _dbSet.ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Lists all entities without change tracking for read-only scenarios
+    /// </summary>
+    public virtual async Task<IReadOnlyList<T>> ListAllReadOnlyAsync(CancellationToken cancellationToken = default)
+    {
+        return await _dbSet.AsNoTracking().ToListAsync(cancellationToken);
+    }
+
     public virtual async Task<IReadOnlyList<T>> ListAsync(ISpecification<T> spec, CancellationToken cancellationToken = default)
     {
         return await ApplySpecification(spec).ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists entities using specification without change tracking for read-only scenarios
+    /// </summary>
+    public virtual async Task<IReadOnlyList<T>> ListReadOnlyAsync(ISpecification<T> spec, CancellationToken cancellationToken = default)
+    {
+        return await ApplySpecification(spec, useTracking: false).ToListAsync(cancellationToken);
     }
 
     public virtual async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
@@ -63,8 +87,17 @@ public class RepositoryBase<T> : IRepository<T> where T : Entity
         return await ApplySpecification(spec).FirstOrDefaultAsync(cancellationToken);
     }
 
-    protected IQueryable<T> ApplySpecification(ISpecification<T> spec)
+    /// <summary>
+    /// Gets first entity matching specification without change tracking for read-only scenarios
+    /// </summary>
+    public virtual async Task<T?> FirstOrDefaultReadOnlyAsync(ISpecification<T> spec, CancellationToken cancellationToken = default)
     {
-        return SpecificationEvaluator<T>.GetQuery(_dbSet.AsQueryable(), spec);
+        return await ApplySpecification(spec, useTracking: false).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    protected IQueryable<T> ApplySpecification(ISpecification<T> spec, bool useTracking = true)
+    {
+        var query = useTracking ? _dbSet.AsQueryable() : _dbSet.AsNoTracking();
+        return SpecificationEvaluator<T>.GetQuery(query, spec);
     }
 }

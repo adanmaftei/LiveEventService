@@ -93,7 +93,7 @@ For production, add CloudWatch configuration:
 
 ## Request Logging with Correlation IDs
 
-### Automatic Correlation ID Middleware
+### Correlation ID Middleware
 
 The application automatically handles correlation IDs:
 
@@ -115,7 +115,7 @@ app.Use(async (context, next) =>
 });
 ```
 
-### Enhanced Request Logging
+### Request Logging
 
 Request logging includes rich context:
 

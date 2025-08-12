@@ -83,16 +83,12 @@ LiveEventService.sln
 #### 🎯 **LiveEventService.API**
 ```
 LiveEventService.API/
-├── Controllers/                     # REST API Controllers
-│   ├── EventsController.cs
-│   ├── EventRegistrationsController.cs
-│   └── UsersController.cs
-├── GraphQL/                        # GraphQL Schema & Resolvers
-│   ├── Schema/
-│   └── Resolvers/
-├── Middleware/                     # Custom Middleware
+├── Endpoints/                      # Minimal API endpoint mappings (events, users)
+├── GraphQL/                        # GraphQL Types & Subscriptions
+│   └── Subscriptions/EventRegistrationNotifier.cs
+├── Middleware/                     # Global exception middleware
 ├── Program.cs                      # Application Entry Point
-└── appsettings.json               # Configuration
+└── appsettings.json                # Configuration
 ```
 
 #### 🔧 **LiveEventService.Application**
@@ -158,7 +154,7 @@ LiveEventService.Infrastructure/
 │   └── Migrations/
 ├── Repositories/                  # Repository Implementations
 │   ├── EventRepository.cs
-│   ├── EventRegistrationRepository.cs
+│   ├── Registrations/EventRegistrationRepository.cs
 │   └── UserRepository.cs
 ├── Users/                         # User-related Infrastructure
 ├── DependencyInjection.cs         # Infrastructure Layer DI Configuration

@@ -156,7 +156,7 @@ public async Task WaitlistRegistration_WhenMultiplePeopleRegisterSimultaneously_
 ```
 
 **Test Infrastructure Features:**
-- **Parallel execution safe** - Each test uses isolated database
+- **Parallel execution safe** - Each test class uses its own Postgres container (isolated DB). Tests run in parallel without a shared in-memory DB.
 - **Real user simulation** - Creates actual users with authentication
 - **Domain event verification** - Tests through observable side effects
 - **GraphQL endpoint testing** - Verifies real-time notification functionality
@@ -199,7 +199,7 @@ public async Task GraphQL_Schema_ShouldMatchSnapshot()
 
 ### 🔐 **Mock Authentication System**
 
-The integration tests use a custom authentication system that simulates real authentication without requiring actual JWT tokens or AWS Cognito:
+The integration tests replace Cognito with a custom authentication scheme without requiring actual JWT tokens or AWS Cognito:
 
 ```csharp
 // Create authenticated clients with different roles
@@ -256,7 +256,7 @@ dotnet test src/LiveEventService.IntegrationTests/ --collect:"XPlat Code Coverag
 Tests automatically handle container lifecycle:
 - **Startup**: Containers start before tests begin
 - **Cleanup**: Containers are disposed after tests complete
-- **Isolation**: Each test class gets fresh containers
+- **Isolation**: Each test class gets its own containers (Postgres + LocalStack)
 - **Port Management**: Testcontainers handles port allocation automatically
 
 ## Test Data Management
