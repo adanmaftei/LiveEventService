@@ -12,6 +12,9 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using MediatR;
 using LiveEventService.Core.Registrations.EventRegistration;
 using LiveEventService.Core.Users.User;
+using Amazon.S3;
+using Amazon;
+using Amazon.SimpleNotificationService;
 
 namespace LiveEventService.Infrastructure;
 
@@ -28,7 +31,20 @@ public static class DependencyInjection
             if (isTesting == false)
             {
                 services.AddDbContext<LiveEventDbContext>(options =>
-                        options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+                {
+                    options.UseNpgsql(
+                        configuration.GetConnectionString("DefaultConnection"),
+                        npgsqlOptions =>
+                        {
+                            // Enable resilient execution for transient faults
+                            npgsqlOptions.EnableRetryOnFailure(
+                                maxRetryCount: 5,
+                                maxRetryDelay: TimeSpan.FromSeconds(10),
+                                errorCodesToAdd: null);
+                            // Set a sensible command timeout for long-running operations
+                            npgsqlOptions.CommandTimeout(30);
+                        });
+                });
             }
         }
 
@@ -98,8 +114,48 @@ public static class DependencyInjection
                     : HealthCheckResult.Unhealthy("Cognito config missing");
             }, tags: new[] { "aws", "cognito" });
 
-        // Note: S3 health check is not implemented due to missing package
-        // For production, consider adding AspNetCore.HealthChecks.Aws.S3 package
+        // Configure Amazon S3 client (LocalStack-aware) and health check
+        var awsRegion = configuration["AWS:Region"] ?? "us-east-1";
+        var s3BucketName = configuration["AWS:S3BucketName"];
+        var serviceUrl = configuration["AWS:ServiceURL"]; // when set, points to LocalStack
+
+        services.AddSingleton<IAmazonS3>(_ =>
+        {
+            var config = new AmazonS3Config
+            {
+                RegionEndpoint = RegionEndpoint.GetBySystemName(awsRegion),
+            };
+
+            if (!string.IsNullOrWhiteSpace(serviceUrl))
+            {
+                // Local development with LocalStack
+                config.ServiceURL = serviceUrl;
+                config.ForcePathStyle = true; // required for LocalStack
+                config.UseHttp = serviceUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+            }
+
+            return new AmazonS3Client(config);
+        });
+
+        // Configure Amazon SNS (LocalStack-aware)
+        services.AddSingleton<IAmazonSimpleNotificationService>(_ =>
+        {
+            var cfg = new AmazonSimpleNotificationServiceConfig
+            {
+                RegionEndpoint = RegionEndpoint.GetBySystemName(awsRegion),
+            };
+            if (!string.IsNullOrWhiteSpace(serviceUrl))
+            {
+                cfg.ServiceURL = serviceUrl;
+                cfg.UseHttp = serviceUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+            }
+            return new AmazonSimpleNotificationServiceClient(cfg);
+        });
+
+        if (!string.IsNullOrWhiteSpace(s3BucketName))
+        {
+            healthChecksBuilder.AddCheck<HealthChecks.S3BucketHealthCheck>("AWS S3", tags: new[] { "aws", "s3", "ready" });
+        }
 
         // Add CORS policy
         services.AddCors(options =>

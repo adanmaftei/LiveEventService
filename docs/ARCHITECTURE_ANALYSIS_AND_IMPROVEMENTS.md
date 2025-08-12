@@ -32,23 +32,23 @@ The Live Event Service demonstrates **exemplary architecture** with Clean Archit
 ### ⚠️ **Identified Gaps & Improvement Opportunities**
 
 #### **Performance & Scalability**
-- [ ] **No Caching Layer**: All requests hit database directly
-- [ ] **Database Performance**: Indexes migration added; confirm exact indexes and coverage
-- [ ] **Query Optimization**: Ensure `AsNoTracking()` for all read-only queries
-- [ ] **Connection Pooling**: Default settings not optimized for high concurrency
+- [ ] Caching layer not implemented (all reads hit DB)
+- [ ] Query optimization: ensure `AsNoTracking()` and consider compiled queries for hottest paths
+- [ ] GraphQL potential N+1 without DataLoader
+- [ ] Read replicas not in use for scale-out reads
+- [ ] Connection pooling not tuned for peak concurrency
 
 #### **Security**
-- [ ] **API Protection**: No rate limiting or request throttling
-- [ ] **Input Security**: Missing comprehensive input sanitization
-- [ ] **Audit Logging**: No comprehensive audit trail for admin actions
-- [ ] **Data Protection**: Sensitive data not encrypted at rest
-- [ ] **Security Headers**: Missing security middleware (CSP, HSTS, HTTPS redirection)
+- [x] Baseline implemented: HTTPS/HSTS (prod), security headers, rate limiting, CORS
+- [ ] Comprehensive audit logging for admin actions
+- [ ] Secret management via AWS Secrets Manager/SSM
+- [ ] CSP report endpoint + report-only rollout
 
 #### **Resilience**
-- [ ] **Event Reliability**: No outbox pattern - risk of lost domain events
-- [ ] **Fault Tolerance**: No circuit breaker pattern for external services
-- [ ] **Error Recovery**: Limited retry policies and dead letter queues
-- [ ] **Monitoring**: Basic health checks but limited business metrics
+- [x] Transactional outbox implemented (in-DB persistence)
+- [ ] Outbox delivery to external bus (SNS/SQS/Kafka) with idempotency/DLQ
+- [ ] Transient fault handling with Polly (retry/jitter, circuit breaker, timeouts)
+- [ ] Business/operational metrics and alerts beyond basic health checks
 
 ---
 
@@ -56,40 +56,21 @@ The Live Event Service demonstrates **exemplary architecture** with Clean Archit
 
 ### **Phase 1: Foundation & Critical Reliability (Weeks 1-4)**
 
-#### **🔴 Priority 0: Outbox Pattern Implementation (CRITICAL)**
-**Impact**: Prevents data loss during domain event processing  
-**Effort**: Medium (1-2 weeks)  
-**Risk**: High - Current in-memory queue can lose events during failures
+#### **🟢 Priority A: Quick Wins (Low effort, High impact)**
+1) Resilience policies with Polly (retry with jitter, timeout, circuit breaker) for outbound dependencies (AWS SDK, Redis) and Npgsql execution strategy for transient faults.
+2) EF performance passes: ensure `AsNoTracking()` on read paths; introduce compiled queries for event list/details and registrations queries.
+3) GraphQL DataLoader and depth/complexity limits to eliminate N+1 and protect backend.
+4) OpenTelemetry metrics (ASP.NET Core, EF, HttpClient) + /metrics exposure and basic dashboards/alerts.
 
-**Tasks:**
-- [ ] Create `OutboxMessages` table with EF Core migration
-- [ ] Implement `IOutboxService` interface and implementation
-- [ ] Create `OutboxMessage` entity with proper configuration
-- [ ] Update `MediatRDomainEventDispatcher` to use outbox for async events
-- [ ] Implement `OutboxMessageProcessor` background service
-- [ ] Add retry logic with exponential backoff
-- [ ] Implement dead letter queue for failed messages
-- [ ] Add outbox health checks and monitoring
-- [ ] Update integration tests to verify outbox functionality
+#### **🟡 Priority B: Medium effort, High impact**
+5) Redis cache-aside for hot reads (events list/details, registration counts) with invalidation on writes and stampede protection.
+6) Outbox delivery to SNS/SQS (or Kafka) with idempotency keys and DLQ; processor publishes and tracks lag.
 
-**Implementation Notes:**
-```sql
-CREATE TABLE OutboxMessages (
-    Id UNIQUEIDENTIFIER PRIMARY KEY,
-    Type NVARCHAR(255) NOT NULL,
-    Data NVARCHAR(MAX) NOT NULL,
-    CreatedAt DATETIME2 NOT NULL,
-    ProcessedAt DATETIME2 NULL,
-    Error NVARCHAR(MAX) NULL,
-    RetryCount INT NOT NULL DEFAULT 0,
-    MaxRetryCount INT NOT NULL DEFAULT 3,
-    NextRetryAt DATETIME2 NULL
-);
-
-CREATE INDEX IX_OutboxMessages_Unprocessed 
-ON OutboxMessages (CreatedAt) 
-WHERE ProcessedAt IS NULL;
-```
+#### **🔵 Priority C: Medium–High effort**
+7) Read replicas (Aurora/RDS) and a replica `DbContext` for read-only queries.
+8) WebSocket/GraphQL subscription backplane (Redis) for multi-instance scale.
+9) CI/CD hardening: GitHub Actions → ECR/ECS via CDK, Blue/Green, secrets from AWS.
+10) Audit logging for admin operations; CSP report endpoint and secret management rollout.
 
 #### **🟡 Priority 1: Caching Layer Implementation (HIGH)**
 **Impact**: 60-80% performance improvement for read operations  
@@ -131,7 +112,7 @@ WHERE ProcessedAt IS NULL;
 }
 ```
 
-#### **🟢 Priority 2: Database Performance Optimization ✅ COMPLETED**
+#### **🟢 Priority: Database Performance Optimization ✅ COMPLETED**
 **Impact**: 50% query performance improvement achieved  
 **Effort**: Completed (3-5 days)  
 **Status**: ✅ **FULLY IMPLEMENTED**
@@ -157,22 +138,14 @@ WHERE ProcessedAt IS NULL;
 
 ### **Phase 2: Security & Resilience (Weeks 5-8)**
 
-#### **🟡 Priority 3: Security Enhancements (HIGH)**
+#### **🟡 Priority: Security Enhancements (HIGH)**
 **Impact**: Essential for production security compliance  
 **Effort**: Medium (2-3 weeks)
 
 **Tasks:**
-- [ ] **Rate Limiting Implementation**:
-  - [ ] Create `RateLimitingMiddleware` with distributed cache
-  - [ ] Configure limits: 5 req/min for registration, 100 req/min general API
-  - [ ] Add IP-based and user-based rate limiting
-  - [ ] Implement rate limit headers in responses
-  - [ ] **Security Headers & HTTPS**:
-  - [ ] Content Security Policy (CSP)
-  - [ ] X-Frame-Options: DENY
-  - [ ] X-Content-Type-Options: nosniff
-  - [ ] HTTPS redirection and Strict-Transport-Security (HSTS)
-  - [ ] Permissions-Policy for browser features
+- [ ] CSP report endpoint and report-only rollout
+- [ ] Audit logging for admin operations (entity + pipelines)
+- [ ] Secret management (AWS Secrets Manager/SSM) and removal from config
 - [ ] **Comprehensive Audit Logging**:
   - [ ] Create `AuditLog` entity and configuration
   - [ ] Implement `IAuditService` for all admin actions
@@ -187,7 +160,7 @@ WHERE ProcessedAt IS NULL;
   - [ ] Configure specific allowed headers and methods
 - [ ] Security testing and penetration testing
 
-#### **🟢 Priority 4: Circuit Breaker & Retry Policies (MEDIUM)**
+#### **🟢 Priority: Circuit Breaker & Retry Policies (MEDIUM)**
 **Impact**: Prevents cascading failures  
 **Effort**: Medium (1-2 weeks)
 
@@ -210,7 +183,7 @@ WHERE ProcessedAt IS NULL;
   - [ ] Failure rate monitoring
 - [ ] Integration testing for resilience patterns
 
-#### **🟢 Priority 5: Advanced Monitoring & Alerting (MEDIUM)**
+#### **🟢 Priority: Advanced Monitoring & Alerting (MEDIUM)**
 **Impact**: Operational excellence and proactive issue detection  
 **Effort**: Medium (1-2 weeks)
 

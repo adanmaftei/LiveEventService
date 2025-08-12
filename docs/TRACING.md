@@ -1,6 +1,6 @@
-# Distributed Tracing with AWS X-Ray
+# Distributed Tracing (OpenTelemetry + ADOT Collector with AWS X-Ray Export)
 
-This document describes the distributed tracing implementation using AWS X-Ray in the Live Event Service.
+This document describes the distributed tracing implementation using OpenTelemetry in the Live Event Service. Traces are exported via OTLP to the AWS Distro for OpenTelemetry (ADOT) Collector, which sends them to AWS X-Ray.
 
 ## Overview
 
@@ -8,49 +8,49 @@ The Live Event Service implements comprehensive distributed tracing using AWS X-
 
 ## Current Status
 
-- ✅ X-Ray properly integrated with .NET 9 ASP.NET Core
-- ✅ Automatic instrumentation for HTTP requests
-- ✅ Database query tracing with Entity Framework
-- ✅ AWS SDK integration for service calls
-- ✅ Custom subsegments for business logic
-- ✅ LocalStack integration for development
+- ✅ OpenTelemetry SDK integrated for ASP.NET Core and HttpClient
+- ✅ Metrics: Prometheus endpoint exposed for scraping
+- ✅ Tracing: OTLP exporter configured (endpoint provided via environment, e.g. ADOT Collector)
+- ✅ Local development: Prometheus metrics available; traces sent to local/remote collector when configured
 
 ## Program.cs Integration
 
-X-Ray is properly configured in the application startup:
+OpenTelemetry is configured in startup for metrics and tracing:
 
 ```csharp
-// Configure AWS X-Ray
-AWSXRayRecorder.InitializeInstance(configuration: builder.Configuration);
-AWSSDKHandler.RegisterXRayForAllServices();
-
-// Add X-Ray middleware
-app.UseXRay("LiveEventService");
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddProcessInstrumentation()
+            .AddPrometheusExporter();
+    })
+    .WithTracing(tracing =>
+    {
+        tracing
+            .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("LiveEventService"))
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddOtlpExporter();
+    });
 ```
 
-## Configuration Settings
+## Configuration Settings (Environment)
 
-X-Ray is configured in `appsettings.Development.json`:
+Typical environment variables for ADOT Collector + OTLP:
 
-```json
-{
-  "AWS": {
-    "Region": "us-east-1",
-    "ServiceURL": "http://localhost:4566",
-    "XRay": {
-      "ServiceName": "LiveEventService.API",
-      "CollectSqlQueries": true,
-      "TraceHttpRequests": true,
-      "TraceAWSRequests": true,
-      "UseRuntimeErrors": true
-    }
-  }
-}
+```bash
+OTEL_SERVICE_NAME=LiveEventService
+OTEL_EXPORTER_OTLP_ENDPOINT=http://adot-collector:4317
+OTEL_RESOURCE_ATTRIBUTES=service.namespace=live-event-service,service.version=1.0.0
 ```
 
-## Required IAM Permissions
+## Required IAM Permissions (Collector to X-Ray)
 
-For production deployment, ensure your IAM role has these permissions:
+For production deployment, ensure the ADOT Collector task/role has these permissions:
 
 ```json
 {
@@ -75,75 +75,42 @@ For production deployment, ensure your IAM role has these permissions:
 
 ### Automatic Instrumentation
 
-X-Ray automatically traces:
+OpenTelemetry automatically traces:
 
-1. **HTTP Requests**: All incoming API requests
-2. **Entity Framework**: SQL queries and database operations
-3. **AWS SDK Calls**: All AWS service calls (S3, Cognito, etc.)
-4. **HttpClient**: Outbound HTTP requests
+1. **HTTP Requests** (ASP.NET Core)
+2. **HttpClient** outbound requests
+3. You can add EF Core tracing via community instrumentation if needed
 
 ### Manual Instrumentation
 
-For custom segments and subsegments:
+For custom spans, use OpenTelemetry API:
 
 ```csharp
-using Amazon.XRay.Recorder.Core;
+using OpenTelemetry.Trace;
+using System.Diagnostics;
 
-// Create a custom segment
-using (var segment = AWSXRayRecorder.Instance.BeginSegment("CustomOperation"))
-{
-    try
-    {
-        // Your business logic here
-        using (AWSXRayRecorder.Instance.BeginSubsegment("DatabaseQuery"))
-        {
-            // Database operations
-            var events = await _eventRepository.GetAllAsync();
-        }
-        
-        using (AWSXRayRecorder.Instance.BeginSubsegment("ExternalAPICall"))
-        {
-            // External API calls
-            var response = await httpClient.GetAsync("https://api.external.com/data");
-        }
-    }
-    catch (Exception ex)
-    {
-        segment?.AddException(ex);
-        throw;
-    }
-}
+var activitySource = new ActivitySource("LiveEventService.Business");
+using var activity = activitySource.StartActivity("CustomOperation");
+// business logic
 ```
 
-### Adding Custom Annotations and Metadata
+### Adding Custom Attributes (OpenTelemetry)
 
 ```csharp
-using Amazon.XRay.Recorder.Core;
+using System.Diagnostics;
 
-// Add annotations (indexed, searchable)
-AWSXRayRecorder.Instance.AddAnnotation("UserId", userId);
-AWSXRayRecorder.Instance.AddAnnotation("EventId", eventId);
-AWSXRayRecorder.Instance.AddAnnotation("RegistrationStatus", "confirmed");
-
-// Add metadata (not indexed, for detailed information)
-AWSXRayRecorder.Instance.AddMetadata("EventDetails", new
-{
-    EventName = eventEntity.Name,
-    Capacity = eventEntity.Capacity,
-    CurrentRegistrations = eventEntity.Registrations.Count
-});
+var activitySource = new ActivitySource("LiveEventService.Business");
+using var activity = activitySource.StartActivity("ProcessRegistration");
+activity?.SetTag("user.id", userId);
+activity?.SetTag("event.id", eventId);
+activity?.SetTag("registration.status", "confirmed");
 ```
 
 ### HTTP Client Instrumentation
 
-For external HTTP calls, use the X-Ray HTTP handler:
+HttpClient is instrumented via OpenTelemetry’s HttpClient instrumentation automatically.
 
-```csharp
-var httpClient = new HttpClient(new HttpClientXRayTracingHandler(new HttpClientHandler()));
-var response = await httpClient.GetAsync("https://example.com/api");
-```
-
-## Verifying X-Ray is Working
+## Verifying Tracing is Working
 
 ### Check Application Logs
 
@@ -153,8 +120,8 @@ X-Ray generates trace and span IDs that appear in your application logs:
 # View recent API logs
 docker logs liveevent-api --tail 50
 
-# Look for X-Ray trace information
-docker logs liveevent-api 2>&1 | grep -E "(Root=|Parent=|traceId)"
+# Look for OTLP exporter or trace activity
+docker logs liveevent-api 2>&1 | grep -i otlp
 ```
 
 Expected log output showing X-Ray traces:
@@ -162,11 +129,11 @@ Expected log output showing X-Ray traces:
 2024-01-20T10:30:45.123Z [INF] HTTP GET /health responded 200 in 45.2ms (Root=1-65a2b4d5-1234567890abcdef; Parent=abcdef1234567890; Sampled=1)
 ```
 
-### Check LocalStack X-Ray Service
+### Check ADOT Collector
 
 ```bash
-# Verify X-Ray service is running in LocalStack
-curl http://localhost:4566/_localstack/health | grep xray
+# Verify Collector health
+curl http://adot-collector:13133/healthz
 
 # Check X-Ray traces (requires awslocal CLI)
 awslocal xray get-trace-summaries --time-range-type TimeRangeByStartTime --start-time 2024-01-20T00:00:00 --end-time 2024-01-20T23:59:59
@@ -322,8 +289,8 @@ The following issues have been **completely resolved**:
 ### Current Status Verification
 
 ```bash
-# Check X-Ray is working
-docker logs liveevent-api --tail 50 | grep -E "(Root=|Parent=|traceId)"
+# Check OTLP exporter activity
+docker logs liveevent-api --tail 50 | grep -i otlp
 
 # Verify LocalStack X-Ray service
 curl http://localhost:4566/_localstack/health | jq '.services.xray'
@@ -350,8 +317,8 @@ If traces aren't appearing:
 
 3. **Verify Configuration**:
    ```bash
-   # Check X-Ray service name is set
-   docker exec liveevent-api printenv | grep XRAY
+# Check OTEL variables are set
+docker exec liveevent-api printenv | grep OTEL
    ```
 
 ### High Latency

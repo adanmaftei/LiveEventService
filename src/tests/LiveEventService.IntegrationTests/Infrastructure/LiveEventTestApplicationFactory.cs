@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Testcontainers.LocalStack;
 using Testcontainers.PostgreSql;
+using DotNet.Testcontainers.Builders;
 using LiveEventService.Infrastructure.Data;
 using LiveEventService.Core.Common;
 using HotChocolate.AspNetCore;
@@ -21,6 +22,7 @@ namespace LiveEventService.IntegrationTests.Infrastructure;
 
 public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private static readonly SemaphoreSlim s_containerStartLock = new(1, 1);
     private readonly PostgreSqlContainer _postgresContainer;
     private readonly LocalStackContainer _localStackContainer;
 
@@ -32,6 +34,9 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
             .WithUsername("postgres")
             .WithPassword("postgres")
             .WithCleanUp(true)
+            .WithWaitStrategy(Wait.ForUnixContainer()
+                .UntilPortIsAvailable(5432)
+                .UntilCommandIsCompleted("pg_isready -U postgres"))
             .Build();
 
         _localStackContainer = new LocalStackBuilder()
@@ -41,6 +46,7 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
             .WithEnvironment("PERSISTENCE", "0")
             .WithPortBinding(4566, true)
             .WithCleanUp(true)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(4566))
             .Build();
     }
 
@@ -58,7 +64,16 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
             // Add test database context
             services.AddDbContext<LiveEventDbContext>(options =>
             {
-                options.UseNpgsql(_postgresContainer.GetConnectionString());
+                options.UseNpgsql(
+                    _postgresContainer.GetConnectionString(),
+                    npgsqlOptions =>
+                    {
+                        npgsqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 5,
+                            maxRetryDelay: TimeSpan.FromSeconds(10),
+                            errorCodesToAdd: null);
+                        npgsqlOptions.CommandTimeout(30);
+                    });
             });
 
             // Remove existing authentication services
@@ -147,11 +162,16 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
 
     public async Task InitializeAsync()
     {
-        await _postgresContainer.StartAsync();
-        await _localStackContainer.StartAsync();
-
-        // Wait a bit for LocalStack to be ready
-        await Task.Delay(5000);
+        await s_containerStartLock.WaitAsync();
+        try
+        {
+            await _postgresContainer.StartAsync();
+            await _localStackContainer.StartAsync();
+        }
+        finally
+        {
+            s_containerStartLock.Release();
+        }
     }
 
     public new async Task DisposeAsync()

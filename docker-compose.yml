@@ -31,6 +31,8 @@ services:
         condition: service_healthy
       localstack:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - DOTNET_ENVIRONMENT=Development
@@ -42,11 +44,25 @@ services:
       - AWS__UserPoolId=us-east-1_000000001
       - AWS__S3BucketName=local-bucket
       - AWS__ServiceURL=http://localstack:4566
+      - ConnectionStrings__Redis=redis:6379
+      # OpenTelemetry export to ADOT Collector
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_SERVICE_NAME=LiveEventService
+      - OTEL_RESOURCE_ATTRIBUTES=service.version=local
     ports:
       - "5000:80"
       - "5001:80"
     networks:
       - liveevent-network
+  redis:
+    image: redis:7
+    container_name: liveevent-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - liveevent-network
+
 
   pgadmin:
     image: dpage/pgadmin4
@@ -84,6 +100,35 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  otel-collector:
+    image: public.ecr.aws/aws-observability/aws-otel-collector:latest
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317" # OTLP gRPC (optional: expose for local tools)
+      - "4318:4318" # OTLP HTTP (optional)
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - AWS_REGION=us-east-1
+    networks:
+      - liveevent-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+    networks:
+      - liveevent-network
 
 networks:
   liveevent-network:

@@ -9,7 +9,7 @@ This application is operational for local development and testing with:
 - ✅ PostgreSQL database with automatic migrations  
 - ✅ AWS service mocking via LocalStack
 - ✅ Serilog structured logging with correlation IDs
-- ✅ AWS X-Ray distributed tracing
+- ✅ OpenTelemetry metrics (Prometheus) and tracing via OTLP → ADOT Collector/X-Ray
 - ✅ Health checks (PostgreSQL and AWS Cognito configuration)
 - ✅ Swagger (Development) and GraphQL endpoint
 
@@ -155,10 +155,10 @@ curl -H "X-Correlation-ID: test-123" http://localhost:5000/health
 - Request/response logging with timing
 - CloudWatch integration ready for production
 
-### AWS X-Ray Distributed Tracing  
-- Complete request tracing across all components
-- SQL query tracing and performance monitoring
-- LocalStack integration for development
+### OpenTelemetry Tracing (via ADOT → X-Ray)
+- Request tracing across components (ASP.NET Core + HttpClient instrumentation)
+- Prometheus metrics endpoint exposed; Prometheus included in docker-compose
+- OTLP exporter configured to ADOT Collector; ADOT exports to AWS X-Ray
 
 ### Entity Framework Migrations
 - Automatic database schema creation

@@ -60,6 +60,9 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
 | **PostgreSQL** | 5432 | Direct connection | ✅ **Working** | postgres/postgres |
 | **pgAdmin** | 5050 | http://localhost:5050 | ✅ **Working** | admin@example.com / admin |
 | **LocalStack** | 4566 | http://localhost:4566/_localstack/health | ✅ **Working** | test/test |
+| **Prometheus** | 9090 | http://localhost:9090 | ✅ **Working** | - |
+| **ADOT Collector** | 4317/4318 | OTLP gRPC/HTTP endpoints | ✅ **Working** | - |
+| **Redis** | 6379 | Direct connection | ✅ **Working** | - |
 
 ## Fully Working Features
 
@@ -71,8 +74,9 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
   - Entity Framework migrations automatically applied
   - Database schema with test data seeded
   - Serilog request logging with correlation IDs
-  - AWS X-Ray distributed tracing
-  - Health checks (PostgreSQL + Cognito)
+  - OpenTelemetry metrics (Prometheus scraping) and tracing via OTLP → ADOT Collector/X-Ray
+  - Distributed cache (Redis) enabled; Testing uses a disabled in-memory cache
+  - Health checks (PostgreSQL + Cognito + S3 when `AWS:S3BucketName` set)
   - CORS configured for frontend integration
 
 ### 🗄️ PostgreSQL Database
@@ -107,14 +111,13 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
   - User agent and IP tracking
   - Machine name and environment context
 
-### 🔍 AWS X-Ray Distributed Tracing
-- **Status**: ✅ **Working correctly**
+### 🔍 Observability (OpenTelemetry)
+- **Status**: ✅ **Working**
 - **Features**:
-  - Trace IDs generated for all requests
-  - SQL query tracing enabled
-  - HTTP request tracing
-  - AWS service call tracing
-  - LocalStack integration for development
+  - OTEL metrics with Prometheus scraping endpoint
+  - OTLP exporter configured (use ADOT Collector to ship to AWS X-Ray)
+  - Prometheus available at `http://localhost:9090` for metrics exploration
+  - ASP.NET Core and HttpClient instrumentation
 
 ### 🏥 Health Checks
 - **Status**: ✅ **Operational**
@@ -122,7 +125,8 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
 - **Checks in code**:
   - PostgreSQL database connectivity
   - AWS Cognito configuration validation
-  - S3 health check: not currently added
+  - AWS S3 bucket reachability (enabled when `AWS:S3BucketName` is configured; LocalStack supported)
+  - Redis connectivity (when configured)
 
 ## API Endpoints
 
@@ -179,6 +183,10 @@ environment:
   - ASPNETCORE_URLS=http://+:80
   - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=LiveEventDB;Username=postgres;Password=postgres;
   - AWS__ServiceURL=http://localstack:4566
+  - AWS__S3BucketName=local-bucket
+  - ConnectionStrings__Redis=redis:6379
+  - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+  - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 ```
 
 ## Development Workflow

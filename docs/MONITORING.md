@@ -9,9 +9,9 @@ The monitoring and health check system is **completely working** with:
 - ✅ Real-time health status reporting via `/health` endpoint
 - ✅ PostgreSQL database connectivity monitoring
 - ✅ AWS Cognito configuration validation
-- S3 health check: not currently added
+- ✅ S3 bucket reachability (enabled when `AWS:S3BucketName` is configured)
 - ✅ Structured logging integration for health events
-- ✅ X-Ray distributed tracing for health check requests
+- ✅ OpenTelemetry metrics & tracing; export via OTLP (ADOT → X-Ray)
 
 ## Overview
 
@@ -91,24 +91,15 @@ healthChecksBuilder.AddCheck("AWS Cognito", () =>
 }, tags: new[] { "aws", "cognito" });
 ```
 
-#### 3. S3 Health Check (Production Only)
+#### 3. AWS S3 Health Check (LocalStack-aware)
 - **Purpose**: Validates S3 bucket accessibility
-- **Implementation**: Conditionally enabled for production environments
-- **Development**: Disabled due to LocalStack compatibility requirements
-- **Tags**: `["aws", "s3"]`
+- **Implementation**: Custom `S3BucketHealthCheck` lists up to 1 object
+- **Development**: Works with LocalStack when `AWS:ServiceURL` is set and `AWS:S3BucketName` provided
+- **Tags**: `["aws", "s3", "ready"]`
 
-```csharp
-// Conditional configuration for production
-if (!builder.Environment.IsDevelopment())
-{
-    healthChecksBuilder.AddS3(options =>
-    {
-        options.BucketName = builder.Configuration["AWS:S3BucketName"] ?? string.Empty;
-    },
-    name: "AWS S3",
-    tags: new[] { "aws", "s3" });
-}
-```
+Configuration notes:
+- Set `AWS:ServiceURL` to `http://localhost:4566` for LocalStack
+- Set `AWS:S3BucketName` to your local bucket name (e.g., `local-bucket`)
 
 ## Health Check Usage
 

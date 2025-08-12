@@ -3,15 +3,20 @@ using Microsoft.Extensions.Logging;
 
 namespace LiveEventService.Infrastructure.Data;
 
-public sealed class OutboxProcessor
+         using Amazon.SimpleNotificationService;
+
+         public sealed class OutboxProcessor
 {
     private readonly LiveEventDbContext _dbContext;
     private readonly ILogger<OutboxProcessor> _logger;
 
-    public OutboxProcessor(LiveEventDbContext dbContext, ILogger<OutboxProcessor> logger)
+             private readonly IAmazonSimpleNotificationService _sns;
+
+             public OutboxProcessor(LiveEventDbContext dbContext, ILogger<OutboxProcessor> logger, IAmazonSimpleNotificationService sns)
     {
         _dbContext = dbContext;
         _logger = logger;
+                 _sns = sns;
     }
 
     public async Task<int> ProcessPendingAsync(CancellationToken cancellationToken)
@@ -41,8 +46,32 @@ public sealed class OutboxProcessor
 
                 _logger.LogDebug("Processing outbox message {MessageId} of type {EventType}", message.Id, type.Name);
 
-                // Placeholder: publish to external bus / rehydrate and handle
-                message.Status = OutboxStatus.Processed;
+                         // Publish to SNS (topic per event type). In LocalStack/AWS, ensure topics exist
+                         var typeName = type.Name;
+                         var topicName = $"liveevent-{typeName}";
+                         try
+                         {
+                             var topic = await _sns.FindTopicAsync(topicName);
+                             if (topic == null)
+                             {
+                                 var created = await _sns.CreateTopicAsync(topicName);
+                                 topic = await _sns.FindTopicAsync(topicName);
+                             }
+                             if (topic != null)
+                             {
+                                 await _sns.PublishAsync(topic.TopicArn, message.Payload, typeName);
+                             }
+                             else
+                             {
+                                 _logger.LogWarning("SNS topic {TopicName} not found and could not be created", topicName);
+                             }
+                             message.Status = OutboxStatus.Processed;
+                         }
+                         catch (Exception pubEx)
+                         {
+                             _logger.LogError(pubEx, "SNS publish failed for message {MessageId}", message.Id);
+                             throw;
+                         }
                 message.LastError = null;
                 processed++;
             }

@@ -6,11 +6,11 @@ The Live Event Service API includes:
 - ✅ Minimal API endpoints for Events, Registrations, and Users
 - ✅ Admin endpoints (confirm, cancel, publish, unpublish)
 - ✅ Swagger UI (Development)
-- ✅ Health checks (PostgreSQL and AWS Cognito configuration)
+- ✅ Health checks (PostgreSQL, AWS Cognito, and AWS S3 when configured)
 - ✅ JWT authentication wiring (Cognito config; tests use test auth)
 - ✅ CORS policy sourced from `AllowedOrigins`
 - ✅ Serilog structured logging with correlation IDs
-- ✅ AWS X-Ray tracing
+- ✅ OpenTelemetry metrics (Prometheus) and tracing via OTLP → ADOT Collector/X-Ray
 
 ## Overview
 
@@ -94,7 +94,7 @@ GET /health
 ### Health Check Components
 - **PostgreSQL (RDS)**: Database connectivity and responsiveness
 - **AWS Cognito**: Configuration presence validation (User Pool, Region)
-- S3 health check: not currently added in code
+- **AWS S3**: Bucket reachability when `AWS:S3BucketName` is set (LocalStack supported)
 
 ### Testing Health Checks
 ```bash
@@ -274,6 +274,7 @@ Access at: http://localhost:5000/graphql (development only)
 - **Queries**: Fetch events, users, registrations
 - **Mutations**: Create, update, delete operations
 - **Subscriptions**: Real-time updates (when implemented)
+ - **Performance**: Execution timeout (10s), strict validation; DataLoader eliminates N+1 for organizer name resolution
 
 ### Example GraphQL Query
 ```graphql

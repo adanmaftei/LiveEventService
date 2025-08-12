@@ -8,11 +8,19 @@ using LiveEventService.Infrastructure;
 using LiveEventService.Infrastructure.Data;
 using Serilog;
 using LiveEventService.API.GraphQL.Types;
-using Amazon.XRay.Recorder.Core;
-using Amazon.XRay.Recorder.Handlers.AwsSdk;
 using Serilog.Context;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using System.Net.Http;
+using Microsoft.Extensions.Http.Resilience;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
+using OpenTelemetry;
+using StackExchange.Redis;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using LiveEventService.API.GraphQL.DataLoaders;
 
 var builder = WebApplication.CreateBuilder(args);
 var isTesting = builder.Environment.IsEnvironment("Testing");
@@ -24,9 +32,6 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB
 });
 
-// Configure AWS X-Ray
-AWSXRayRecorder.InitializeInstance(configuration: builder.Configuration);
-AWSSDKHandler.RegisterXRayForAllServices();
 
 // Configure Serilog with CloudWatch
 builder.Host.UseSerilog((context, configuration) =>
@@ -45,6 +50,53 @@ builder.Services.AddInfrastructureServices(builder.Configuration, isTesting);
 
 // Add API-specific services
 builder.Services.AddScoped<IEventRegistrationNotifier, EventRegistrationNotifier>();
+
+// Add a resilient HttpClient for outbound calls (using Microsoft.Extensions.Http.Resilience)
+builder.Services
+    .AddHttpClient("Resilient")
+    .ConfigureHttpClient(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(10);
+    })
+    .AddStandardResilienceHandler();
+
+// OpenTelemetry metrics & tracing (Prometheus + OTLP)
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddProcessInstrumentation()
+            .AddPrometheusExporter();
+    })
+    .WithTracing(tracing =>
+    {
+        tracing
+            .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("LiveEventService"))
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddOtlpExporter();
+    });
+
+// Distributed cache (Redis in non-testing; no-op in Testing)
+if (!isTesting)
+{
+    var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["ConnectionStrings:Redis"];
+    if (!string.IsNullOrWhiteSpace(redisConnection))
+    {
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisConnection;
+            options.InstanceName = "liveevent:";
+        });
+    }
+}
+else
+{
+    builder.Services.AddSingleton<IDistributedCache, DisabledDistributedCache>();
+}
 
 // Add Swagger services
 builder.Services.AddEndpointsApiExplorer();
@@ -65,9 +117,22 @@ builder.Services
     .AddType<UserType>()
     .AddAuthorization()
     .AddInMemorySubscriptions()
+    // HotChocolate v15: use validation rules to limit depth/complexity if needed
     .AddFiltering()
     .AddSorting()
-    .AddProjections();
+    .AddProjections()
+    .ModifyOptions(opt =>
+    {
+        // Keep validation strict; depth/complexity rules will be wired via document options below
+        opt.StrictValidation = true;
+    })
+    .ModifyRequestOptions(opt =>
+    {
+        // Put a sane upper bound on query execution
+        opt.ExecutionTimeout = TimeSpan.FromSeconds(10);
+        opt.IncludeExceptionDetails = builder.Environment.IsDevelopment();
+    })
+    .AddDataLoader<UserByIdentityIdDataLoader>();
 
 // Add rate limiting (disabled in Testing environment)
 if (!isTesting)
@@ -202,8 +267,10 @@ if (!isTesting)
     app.UseRateLimiter();
 }
 
-// Configure X-Ray tracing middleware
-app.UseXRay("LiveEventService");
+// Traces are emitted via OpenTelemetry OTLP exporter to the ADOT Collector (configured via env)
+
+// Expose Prometheus metrics
+app.MapPrometheusScrapingEndpoint("/metrics");
 
 // Configure health check endpoints
 app.MapHealthChecks(RoutePaths.Health, new()

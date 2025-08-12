@@ -4,6 +4,8 @@ using LiveEventService.Application.Common.Models;
 using LiveEventService.Application.Common.Interfaces;
 using AutoMapper;
 using LiveEventService.Application.Features.Events.Queries.ListEvents;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 using LiveEventService.Application.Features.Users.Queries.GetUsersByIdentityIds;
 
 namespace LiveEventService.Application.Features.Events.Event.List;
@@ -13,19 +15,34 @@ public class ListEventsQueryHandler : IQueryHandler<ListEventsQuery, BaseRespons
     private readonly IEventRepository _eventRepository;
     private readonly IUserRepository _userRepository;
     private readonly IMapper _mapper;
+    private readonly IDistributedCache _cache;
 
     public ListEventsQueryHandler(
         IEventRepository eventRepository,
         IUserRepository userRepository,
-        IMapper mapper)
+        IMapper mapper,
+        IDistributedCache cache)
     {
         _eventRepository = eventRepository;
         _userRepository = userRepository;
         _mapper = mapper;
+        _cache = cache;
     }
 
     public async Task<BaseResponse<EventListDto>> Handle(ListEventsQuery request, CancellationToken cancellationToken)
     {
+        // Try cache first
+        string cacheKey = $"events:list:v1:p{request.PageNumber}:s{request.PageSize}:pub{request.IsPublished}:up{request.IsUpcoming}:org{request.OrganizerId ?? "anon"}";
+        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+        if (!string.IsNullOrEmpty(cached))
+        {
+            var cachedDto = JsonSerializer.Deserialize<BaseResponse<EventListDto>>(cached);
+            if (cachedDto != null)
+            {
+                return cachedDto;
+            }
+        }
+
         // Build specification
         var spec = new ListEventsSpecification(request.IsPublished, request.OrganizerId, request.IsUpcoming);
         spec.ApplyPaging((request.PageNumber - 1) * request.PageSize, request.PageSize);
@@ -66,6 +83,12 @@ public class ListEventsQueryHandler : IQueryHandler<ListEventsQuery, BaseRespons
             PageSize = request.PageSize
         };
 
-        return BaseResponse<EventListDto>.Succeeded(result);
+        var response = BaseResponse<EventListDto>.Succeeded(result);
+        var serialized = JsonSerializer.Serialize(response);
+        await _cache.SetStringAsync(cacheKey, serialized, new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2)
+        }, cancellationToken);
+        return response;
     }
 }

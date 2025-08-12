@@ -16,8 +16,9 @@ Based on the current implementation and logs analysis:
 
 2. **Database Query Patterns**
    - No caching layer for frequently accessed data
-   - Potential N+1 queries in registration listings
+   - Potential N+1 queries in registration listings (add DataLoader)
    - Indexes present; verify coverage for hot paths
+   - Add compiled queries for hottest endpoints
 
 3. **Connection Management**
    - No connection pooling optimization
@@ -141,7 +142,7 @@ NotificationService.API
 3. **Event Sourcing**: Prepare for event sourcing implementation
 4. **Database Per Service**: Plan database separation
 
-### 2. **Event Sourcing Implementation**
+### 2. **Event Sourcing (Future Consideration)**
 
 **Current State-Based Model:**
 ```csharp

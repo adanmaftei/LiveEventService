@@ -79,7 +79,7 @@ This document tracks the implementation of performance improvements for the Live
 - [ ] Add health checks for background service
 - [ ] Update dependency injection configuration
 
-### **Priority 2: HybridCache Implementation (.NET 9)**
+### **Priority: HybridCache/Redis Implementation (.NET 9)**
 
 #### **2.1 Cache Infrastructure**
 - [ ] Add `Microsoft.Extensions.Caching.HybridCache` package
@@ -110,7 +110,7 @@ This document tracks the implementation of performance improvements for the Live
 - [ ] Add cache invalidation in domain event handlers
 - [ ] Implement cache warming strategies
 
-### **Priority 3: Database Query Optimization**
+### **Priority: Database Query Optimization**
 
 #### **3.1 Database Indexes**
 - [ ] Verify and augment EF Core migrations for performance indexes:
@@ -137,7 +137,7 @@ This document tracks the implementation of performance improvements for the Live
   ON Users (Email);
   ```
 
-- [ ] Ensure `AsNoTracking()` for read-only queries:
+- [ ] Ensure `AsNoTracking()` for read-only queries and introduce compiled queries for hottest paths:
   - [ ] `GetRegistrationsForEventAsync`
   - [ ] `GetEventAsync`
   - [ ] `GetUserAsync`
@@ -153,10 +153,10 @@ This document tracks the implementation of performance improvements for the Live
 - [ ] Add connection pool monitoring
 - [ ] Implement connection health checks
 
-### **Priority 4: Improved Logging**
+### **Priority: Improved Logging & Metrics**
 
 #### **4.1 Structured Logging Enhancements**
-- [ ] Add performance metrics logging:
+- [ ] Add performance metrics logging and metrics emission (OpenTelemetry):
   - [ ] Request duration tracking
   - [ ] Database query duration
   - [ ] Cache hit/miss ratios

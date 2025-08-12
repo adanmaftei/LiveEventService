@@ -1,4 +1,7 @@
 using LiveEventService.Application.Features.Events.Event;
+using LiveEventService.API.GraphQL.DataLoaders;
+using LiveEventService.Application.Common.Interfaces;
+using LiveEventService.Core.Users.User;
 
 namespace LiveEventService.API.GraphQL.Types;
 
@@ -47,5 +50,26 @@ public class EventType : ObjectType<EventDto>
         descriptor
             .Field(e => e.UpdatedAt)
             .Description("The date and time when the event was last updated");
+
+        // Organizer name resolved via DataLoader to batch across selection sets
+        descriptor
+            .Field("organizerName")
+            .Type<StringType>()
+            .Description("The organizer display name")
+            .Resolve(async (ctx, ct) =>
+            {
+                var evt = ctx.Parent<EventDto>();
+                if (string.IsNullOrWhiteSpace(evt.OrganizerId))
+                {
+                    return string.Empty;
+                }
+                var loader = ctx.DataLoader<UserByIdentityIdDataLoader>();
+                var user = await loader.LoadAsync(evt.OrganizerId, ct);
+                if (user == null)
+                {
+                    return string.Empty;
+                }
+                return $"{user.FirstName} {user.LastName}".Trim();
+            });
     }
 }

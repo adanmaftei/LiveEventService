@@ -31,13 +31,19 @@ The system uses domain events to decouple business logic and enable real-time no
 ## Transactional Outbox (Implemented)
 
 - The DbContext writes a lean outbox entry for each raised domain event into the `OutboxMessages` table in the same transaction as the state change.
-- A background outbox processor service scans pending messages and processes them. Currently, entries are recorded primarily for operational traceability and future external integrations.
-- In the Testing environment, the outbox processor is disabled to avoid cross-test interference; in Development/Production, it runs as a hosted service.
+- A background outbox processor service scans pending messages and processes them. In Development/Production, the processor publishes messages to AWS SNS (or LocalStack SNS locally), using a topic per event type. Topics are created on demand if missing.
+- In the Testing environment, the outbox processor is disabled to avoid cross-test interference. Outbox rows are still written, enabling assertions and observability without side effects.
 
-## GraphQL Subscriptions
+## GraphQL Subscriptions & Performance Guardrails
 
 - Clients can subscribe to `eventRegistration_{eventId}` topics to receive real-time updates about registrations for a specific event.
 - Actions include: `created`, `promoted`, `cancelled`.
+
+### Performance Guardrails (HotChocolate v15)
+
+- Execution timeout: 10 seconds per request.
+- Strict validation enabled; introspection disabled outside Development/Testing.
+- DataLoader for `organizerName` in `Event` type batches user lookups and prevents N+1 queries.
 
 ### Subscription Schema
 
