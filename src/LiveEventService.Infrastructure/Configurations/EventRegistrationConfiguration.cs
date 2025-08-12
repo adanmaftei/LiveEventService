@@ -33,7 +33,7 @@ public class EventRegistrationConfiguration : IEntityTypeConfiguration<EventRegi
         builder.HasOne(er => er.User)
             .WithMany(u => u.EventRegistrations)
             .HasForeignKey(er => er.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
             
         // Basic indexes only (remove unique constraint temporarily)
         builder.HasIndex(er => er.EventId);

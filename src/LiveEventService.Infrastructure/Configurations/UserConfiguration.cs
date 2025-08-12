@@ -45,7 +45,7 @@ public class UserConfiguration : IEntityTypeConfiguration<UserEntity>
         builder.HasMany(u => u.EventRegistrations)
             .WithOne(er => er.User)
             .HasForeignKey(er => er.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
             
         // Note: OrganizedEvents relationship is not configured via EF
         // because Event.OrganizerId is a string (external identity) 
