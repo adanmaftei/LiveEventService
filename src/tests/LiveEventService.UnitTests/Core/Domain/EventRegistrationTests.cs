@@ -278,7 +278,9 @@ public class EventRegistrationTests : TestBase
 
         // Assert
         AssertEqual(5, registration2.PositionInQueue);
-        AssertNotNull(registration2.UpdatedAt);
+        // Note: UpdateWaitlistPosition doesn't set UpdatedAt, only domain events
+        AssertCollectionCount(registration2.DomainEvents, 2); // Created + PositionChanged
+        AssertTrue(registration2.DomainEvents.Any(e => e is WaitlistPositionChangedDomainEvent));
     }
 
     [Fact]
@@ -292,7 +294,7 @@ public class EventRegistrationTests : TestBase
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() => registration.UpdateWaitlistPosition(1));
-        AssertTrue(exception.Message.Contains("Only waitlisted registrations can have their position updated"));
+        AssertTrue(exception.Message.Contains("Cannot set position for non-waitlisted registration"));
     }
 
     [Fact]
@@ -398,5 +400,274 @@ public class EventRegistrationTests : TestBase
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() => new EventRegistration(@event, user!));
         AssertTrue(exception.ParamName?.Contains("user", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    // ===== NEW WAITLIST FUNCTIONALITY TESTS =====
+
+    [Fact]
+    public void AddToWaitlist_WhenNotWaitlisted_ShouldSetStatusToWaitlisted()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 100, "UTC", "Test Location", "organizer-123");
+        var user = Fixture.Create<User>();
+        var registration = new EventRegistration(@event, user);
+        registration.ClearDomainEvents(); // Clear initial event
+
+        // Act
+        registration.AddToWaitlist(5);
+
+        // Assert
+        AssertEqual(RegistrationStatus.Waitlisted, registration.Status);
+        AssertEqual(5, registration.PositionInQueue);
+        AssertCollectionCount(registration.DomainEvents, 1);
+        AssertTrue(registration.DomainEvents.First() is RegistrationWaitlistedDomainEvent);
+    }
+
+    [Fact]
+    public void AddToWaitlist_WhenAlreadyWaitlisted_ShouldDoNothing()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
+        var user1 = Fixture.Create<User>();
+        var user2 = Fixture.Create<User>();
+        
+        var registration1 = new EventRegistration(@event, user1);
+        @event.AddRegistration(registration1);
+        
+        var registration2 = new EventRegistration(@event, user2);
+        AssertEqual(RegistrationStatus.Waitlisted, registration2.Status);
+        registration2.ClearDomainEvents(); // Clear initial event
+
+        // Act
+        registration2.AddToWaitlist(10);
+
+        // Assert
+        AssertEqual(RegistrationStatus.Waitlisted, registration2.Status);
+        AssertCollectionEmpty(registration2.DomainEvents); // Should not add new event
+    }
+
+    [Fact]
+    public void AddToWaitlist_WithNullPosition_ShouldSetStatusToWaitlisted()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 100, "UTC", "Test Location", "organizer-123");
+        var user = Fixture.Create<User>();
+        var registration = new EventRegistration(@event, user);
+        registration.ClearDomainEvents(); // Clear initial event
+
+        // Act
+        registration.AddToWaitlist(null);
+
+        // Assert
+        AssertEqual(RegistrationStatus.Waitlisted, registration.Status);
+        AssertNull(registration.PositionInQueue);
+        AssertCollectionCount(registration.DomainEvents, 1);
+        AssertTrue(registration.DomainEvents.First() is RegistrationWaitlistedDomainEvent);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(-10)]
+    public void UpdateWaitlistPosition_WithInvalidPosition_ShouldThrowArgumentException(int invalidPosition)
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
+        var user1 = Fixture.Create<User>();
+        var user2 = Fixture.Create<User>();
+        
+        var registration1 = new EventRegistration(@event, user1);
+        @event.AddRegistration(registration1);
+        
+        var registration2 = new EventRegistration(@event, user2);
+        AssertEqual(RegistrationStatus.Waitlisted, registration2.Status);
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => registration2.UpdateWaitlistPosition(invalidPosition));
+        AssertTrue(exception.Message.Contains("Position must be positive"));
+        AssertEqual("position", exception.ParamName);
+    }
+
+    [Fact]
+    public void UpdateWaitlistPosition_WithSamePosition_ShouldNotRaiseDomainEvent()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
+        var user1 = Fixture.Create<User>();
+        var user2 = Fixture.Create<User>();
+        
+        var registration1 = new EventRegistration(@event, user1);
+        @event.AddRegistration(registration1);
+        
+        var registration2 = new EventRegistration(@event, user2);
+        registration2.UpdateWaitlistPosition(5);
+        registration2.ClearDomainEvents(); // Clear previous events
+
+        // Act
+        registration2.UpdateWaitlistPosition(5); // Same position
+
+        // Assert
+        AssertEqual(5, registration2.PositionInQueue);
+        AssertCollectionEmpty(registration2.DomainEvents); // Should not raise event for same position
+    }
+
+    [Fact]
+    public void UpdateWaitlistPosition_WithDifferentPosition_ShouldRaiseDomainEvent()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
+        var user1 = Fixture.Create<User>();
+        var user2 = Fixture.Create<User>();
+        
+        var registration1 = new EventRegistration(@event, user1);
+        @event.AddRegistration(registration1);
+        
+        var registration2 = new EventRegistration(@event, user2);
+        registration2.UpdateWaitlistPosition(5);
+        registration2.ClearDomainEvents(); // Clear previous events
+
+        // Act
+        registration2.UpdateWaitlistPosition(3); // Different position
+
+        // Assert
+        AssertEqual(3, registration2.PositionInQueue);
+        AssertCollectionCount(registration2.DomainEvents, 1);
+        AssertTrue(registration2.DomainEvents.First() is WaitlistPositionChangedDomainEvent);
+        
+        var domainEvent = registration2.DomainEvents.First() as WaitlistPositionChangedDomainEvent;
+        AssertNotNull(domainEvent);
+        AssertEqual(@event.Id, domainEvent!.EventId);
+        AssertEqual(registration2.Id, domainEvent.RegistrationId);
+        AssertEqual(5, domainEvent.OldPosition);
+        AssertEqual(3, domainEvent.NewPosition);
+    }
+
+    [Fact]
+    public void RemoveFromWaitlist_WhenWaitlisted_ShouldSetStatusToCancelled()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
+        var user1 = Fixture.Create<User>();
+        var user2 = Fixture.Create<User>();
+        
+        var registration1 = new EventRegistration(@event, user1);
+        @event.AddRegistration(registration1);
+        
+        var registration2 = new EventRegistration(@event, user2);
+        registration2.UpdateWaitlistPosition(1);
+        registration2.ClearDomainEvents(); // Clear previous events
+
+        // Act
+        registration2.RemoveFromWaitlist("User requested removal");
+
+        // Assert
+        AssertEqual(RegistrationStatus.Cancelled, registration2.Status);
+        AssertNull(registration2.PositionInQueue);
+        AssertCollectionCount(registration2.DomainEvents, 1);
+        AssertTrue(registration2.DomainEvents.First() is WaitlistRemovalDomainEvent);
+        
+        var domainEvent = registration2.DomainEvents.First() as WaitlistRemovalDomainEvent;
+        AssertNotNull(domainEvent);
+        AssertEqual(registration2, domainEvent!.Registration);
+        AssertEqual("User requested removal", domainEvent.Reason);
+    }
+
+    [Fact]
+    public void RemoveFromWaitlist_WhenNotWaitlisted_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 100, "UTC", "Test Location", "organizer-123");
+        var user = Fixture.Create<User>();
+        var registration = new EventRegistration(@event, user);
+        AssertEqual(RegistrationStatus.Confirmed, registration.Status);
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() => registration.RemoveFromWaitlist());
+        AssertTrue(exception.Message.Contains("Registration is not on the waitlist"));
+    }
+
+    [Fact]
+    public void RemoveFromWaitlist_WithNullReason_ShouldSetReasonToNull()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
+        var user1 = Fixture.Create<User>();
+        var user2 = Fixture.Create<User>();
+        
+        var registration1 = new EventRegistration(@event, user1);
+        @event.AddRegistration(registration1);
+        
+        var registration2 = new EventRegistration(@event, user2);
+        registration2.UpdateWaitlistPosition(1);
+        registration2.ClearDomainEvents(); // Clear previous events
+
+        // Act
+        registration2.RemoveFromWaitlist((string?)null);
+
+        // Assert
+        AssertEqual(RegistrationStatus.Cancelled, registration2.Status);
+        AssertCollectionCount(registration2.DomainEvents, 1);
+        AssertTrue(registration2.DomainEvents.First() is WaitlistRemovalDomainEvent);
+        
+        var domainEvent = registration2.DomainEvents.First() as WaitlistRemovalDomainEvent;
+        AssertNotNull(domainEvent);
+        AssertNull(domainEvent!.Reason);
+    }
+
+    [Fact]
+    public void IsWaitlisted_WhenWaitlistedWithZeroPosition_ShouldReturnFalse()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
+        var user1 = Fixture.Create<User>();
+        var user2 = Fixture.Create<User>();
+        
+        var registration1 = new EventRegistration(@event, user1);
+        @event.AddRegistration(registration1);
+        
+        var registration2 = new EventRegistration(@event, user2);
+        // Manually set invalid position (this would normally be prevented by UpdateWaitlistPosition)
+        typeof(EventRegistration).GetProperty("PositionInQueue")!.SetValue(registration2, 0);
+
+        // Act & Assert
+        AssertFalse(registration2.IsWaitlisted());
+    }
+
+    [Fact]
+    public void IsWaitlisted_WhenWaitlistedWithNegativePosition_ShouldReturnFalse()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
+        var user1 = Fixture.Create<User>();
+        var user2 = Fixture.Create<User>();
+        
+        var registration1 = new EventRegistration(@event, user1);
+        @event.AddRegistration(registration1);
+        
+        var registration2 = new EventRegistration(@event, user2);
+        // Manually set invalid position (this would normally be prevented by UpdateWaitlistPosition)
+        typeof(EventRegistration).GetProperty("PositionInQueue")!.SetValue(registration2, -1);
+
+        // Act & Assert
+        AssertFalse(registration2.IsWaitlisted());
+    }
+
+    [Fact]
+    public void IsWaitlisted_WhenCancelled_ShouldReturnFalse()
+    {
+        // Arrange
+        var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
+        var user1 = Fixture.Create<User>();
+        var user2 = Fixture.Create<User>();
+        
+        var registration1 = new EventRegistration(@event, user1);
+        @event.AddRegistration(registration1);
+        
+        var registration2 = new EventRegistration(@event, user2);
+        registration2.UpdateWaitlistPosition(1);
+        registration2.Cancel();
+
+        // Act & Assert
+        AssertFalse(registration2.IsWaitlisted());
     }
 }

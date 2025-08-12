@@ -1,5 +1,3 @@
-using LiveEventService.Core.Common;
-
 namespace LiveEventService.Core.Common;
 
 public interface IDomainEventDispatcher

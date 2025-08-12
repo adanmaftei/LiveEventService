@@ -61,7 +61,9 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
             .FirstOrDefaultAsync(cancellationToken);
             
         if (currentRegistration == null)
+        {
             throw new InvalidOperationException($"Registration {registrationId} not found");
+        }
 
         var position = await _dbContext.EventRegistrations
             .Where(r => r.EventId == eventId && 

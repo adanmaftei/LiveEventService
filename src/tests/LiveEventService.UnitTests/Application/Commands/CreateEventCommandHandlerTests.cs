@@ -4,7 +4,6 @@ using LiveEventService.Application.Features.Events.Event;
 using LiveEventService.Core.Events;
 using LiveEventService.Core.Users.User;
 using LiveEventService.UnitTests.Common;
-using Moq;
 
 namespace LiveEventService.UnitTests.Application.Commands;
 

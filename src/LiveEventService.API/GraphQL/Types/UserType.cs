@@ -1,4 +1,3 @@
-using HotChocolate.Types;
 using LiveEventService.Application.Features.Users.User;
 
 namespace LiveEventService.API.GraphQL.Types;

@@ -1,9 +1,7 @@
 using LiveEventService.Application.Common.Models;
 using LiveEventService.Application.Common.Interfaces;
-using LiveEventService.Application.Features.Events.Queries.GetEventRegistrations;
 using LiveEventService.Core.Common;
 using EventRegistrationEntity = LiveEventService.Core.Registrations.EventRegistration.EventRegistration;
-using LiveEventService.Core.Registrations.EventRegistration;
 using IUserRepository = LiveEventService.Core.Users.User.IUserRepository;
 using MediatR;
 
@@ -49,35 +47,15 @@ public class CancelEventRegistrationCommandHandler : ICommandHandler<CancelEvent
         {
             var user = await _userRepository.GetByIdentityIdAsync(request.UserId, cancellationToken);
             if (user == null || registration.UserId != user.Id)
-                return BaseResponse<bool>.Failed("Not authorized to cancel this registration");
-        }
-
-        var wasConfirmed = registration.Status == RegistrationStatus.Confirmed;
-        registration.Cancel();
-        
-        await _registrationRepository.UpdateAsync(registration, cancellationToken);
-
-        // If this was a confirmed registration, promote the next waitlisted registration
-        if (wasConfirmed)
-        {
-            // Get all waitlisted registrations for this event, ordered by PositionInQueue
-            var waitlisted = (await _registrationRepository.ListAsync(
-                new GetEventRegistrationsSpecification(registration.EventId, RegistrationStatus.Waitlisted.ToString(), null),
-                cancellationToken)).OrderBy(r => r.PositionInQueue).ToList();
-            if (waitlisted.Any())
             {
-                var promote = waitlisted.First();
-                promote.Confirm();
-                await _registrationRepository.UpdateAsync(promote, cancellationToken);
-                // Update positions for remaining waitlisted
-                int pos = 1;
-                foreach (var w in waitlisted.Skip(1))
-                {
-                    w.UpdateWaitlistPosition(pos++);
-                    await _registrationRepository.UpdateAsync(w, cancellationToken);
-                }
+                return BaseResponse<bool>.Failed("Not authorized to cancel this registration");
             }
         }
+
+        // Cancel the registration - domain events will handle waitlist promotion
+        registration.Cancel();
+        await _registrationRepository.UpdateAsync(registration, cancellationToken);
+
         return BaseResponse<bool>.Succeeded(true, "Registration cancelled");
     }
 }

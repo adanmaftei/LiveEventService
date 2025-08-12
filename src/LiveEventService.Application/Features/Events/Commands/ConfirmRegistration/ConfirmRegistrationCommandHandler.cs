@@ -25,13 +25,19 @@ public class ConfirmRegistrationCommandHandler : ICommandHandler<ConfirmRegistra
     {
         var registration = await _registrationRepository.GetByIdAsync(request.RegistrationId, cancellationToken);
         if (registration == null)
+        {
             return BaseResponse<EventRegistrationDto>.Failed("Registration not found");
+        }
 
         if (registration.Status == RegistrationStatus.Confirmed)
+        {
             return BaseResponse<EventRegistrationDto>.Failed("Registration is already confirmed");
+        }
 
         if (registration.Status != RegistrationStatus.Waitlisted && registration.Status != RegistrationStatus.Pending)
+        {
             return BaseResponse<EventRegistrationDto>.Failed("Only waitlisted or pending registrations can be confirmed");
+        }
 
         // Confirm the registration
         registration.Confirm();

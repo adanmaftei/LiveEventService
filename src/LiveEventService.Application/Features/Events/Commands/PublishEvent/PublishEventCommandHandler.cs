@@ -23,10 +23,14 @@ public class PublishEventCommandHandler : ICommandHandler<PublishEventCommand, B
     {
         var eventEntity = await _eventRepository.GetByIdAsync(request.EventId, cancellationToken);
         if (eventEntity == null)
+        {
             return BaseResponse<EventDto>.Failed("Event not found");
+        }
 
         if (eventEntity.IsPublished)
+        {
             return BaseResponse<EventDto>.Failed("Event is already published");
+        }
 
         // Publish the event
         eventEntity.Publish();

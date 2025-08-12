@@ -1,6 +1,10 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text;
+using LiveEventService.Application.Features.Events.EventRegistration;
 using LiveEventService.Infrastructure.Data;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LiveEventService.IntegrationTests.Infrastructure;
 public abstract class BaseLiveEventsTests : IClassFixture<LiveEventTestApplicationFactory>, IDisposable
@@ -130,6 +134,115 @@ public abstract class BaseLiveEventsTests : IClassFixture<LiveEventTestApplicati
 
         dbContext.Events.AddRange(events);
         await dbContext.SaveChangesAsync();
+    }
+
+    protected async Task<Guid> CreateEventWithCapacity(int capacity)
+    {
+        var eventData = TestDataBuilder.Commands.CreateEventCommand(
+            name: $"Test Event - Capacity {capacity}",
+            capacity: capacity);
+
+        var response = await _authenticatedAdminClient.PostAsJsonAsync("/api/events", eventData);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // Parse the response properly
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var jsonDoc = JsonDocument.Parse(responseContent);
+        var dataElement = jsonDoc.RootElement.GetProperty("data");
+        var idElement = dataElement.GetProperty("id");
+        var eventId = Guid.Parse(idElement.GetString()!);
+
+        // Publish the event so registrations are accepted
+        var publishResponse = await _authenticatedAdminClient.PostAsync($"/api/events/{eventId}/publish", null);
+        publishResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        return eventId;
+    }
+
+    protected async Task<Guid> CreateUserAndRegisterForEvent(Guid eventId, string email, string firstName, string lastName)
+    {
+        // Create user directly in database with a unique identity ID
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<LiveEventDbContext>();
+
+        var identityId = Guid.NewGuid().ToString();
+        var user = TestDataBuilder.CreateUser(
+            identityId: identityId,
+            email: email,
+            firstName: firstName,
+            lastName: lastName
+        );
+
+        dbContext.Users.Add(user);
+        await dbContext.SaveChangesAsync();
+
+        // Create a new authenticated client for this user
+        var userClient = _factory.CreateAuthenticatedClient(identityId, "Participant", email);
+
+        // Register for the event using the proper command structure
+        var registrationData = TestDataBuilder.Commands.RegisterForEventCommand(eventId, identityId);
+        var registrationResponse = await userClient.PostAsJsonAsync($"/api/events/{eventId}/register", registrationData);
+        registrationResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        return user.Id;
+    }
+
+    protected async Task<List<EventRegistrationDto>> GetEventRegistrations(Guid eventId)
+    {
+        var response = await _authenticatedAdminClient.GetAsync($"/api/events/{eventId}/registrations");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var jsonDoc = JsonDocument.Parse(responseContent);
+
+        // The API returns BaseResponse<EventRegistrationListDto>
+        var dataElement = jsonDoc.RootElement.GetProperty("data");
+        var itemsElement = dataElement.GetProperty("items");
+
+        // Use proper JSON options for case-insensitive property matching
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        var registrations = JsonSerializer.Deserialize<List<EventRegistrationDto>>(itemsElement.ToString(), options);
+        return registrations ?? new List<EventRegistrationDto>();
+    }
+
+    protected async Task<List<EventRegistrationDto>> GetEventRegistrationsByStatus(Guid eventId, string status)
+    {
+        var response = await _authenticatedAdminClient.GetAsync($"/api/events/{eventId}/registrations?status={status}");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var jsonDoc = JsonDocument.Parse(responseContent);
+
+        // The API returns BaseResponse<EventRegistrationListDto>
+        var dataElement = jsonDoc.RootElement.GetProperty("data");
+        var itemsElement = dataElement.GetProperty("items");
+
+        // Use proper JSON options for case-insensitive property matching
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        var registrations = JsonSerializer.Deserialize<List<EventRegistrationDto>>(itemsElement.ToString(), options);
+        return registrations ?? new List<EventRegistrationDto>();
+    }
+
+    protected async Task<HttpResponseMessage> ExecuteGraphQLQuery(HttpClient client, string query)
+    {
+        var graphqlRequest = new
+        {
+            query = query,
+            variables = new { }
+        };
+
+        var json = JsonSerializer.Serialize(graphqlRequest);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        return await client.PostAsync("/graphql", content);
     }
 
     private async Task CleanupTestData()

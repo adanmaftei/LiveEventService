@@ -1,9 +1,5 @@
-using AutoFixture;
 using AutoFixture.AutoMoq;
-using AutoFixture.Xunit2;
-using FluentAssertions;
 using Microsoft.Extensions.Logging;
-using Moq;
 
 namespace LiveEventService.UnitTests.Common;
 

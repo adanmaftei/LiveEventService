@@ -1,6 +1,8 @@
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Registrations.EventRegistration;
+using LiveEventService.Core.Events;
 using LiveEventService.Infrastructure.Events.EventRegistrationNotifications;
+using LiveEventService.Infrastructure.Events.WaitlistNotifications;
 using MediatR;
 
 namespace LiveEventService.Infrastructure.Data;
@@ -27,6 +29,10 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
                     EventRegistrationCreatedDomainEvent created => new EventRegistrationCreatedNotification(created),
                     EventRegistrationPromotedDomainEvent promoted => new EventRegistrationPromotedNotification(promoted),
                     EventRegistrationCancelledDomainEvent cancelled => new EventRegistrationCancelledNotification(cancelled),
+                    WaitlistPositionChangedDomainEvent positionChanged => new WaitlistPositionChangedNotification(positionChanged),
+                    WaitlistRemovalDomainEvent removal => new WaitlistRemovalNotification(removal),
+                    RegistrationWaitlistedDomainEvent waitlisted => new RegistrationWaitlistedNotification(waitlisted),
+                    EventCapacityIncreasedDomainEvent capacityIncreased => new EventCapacityIncreasedNotification(capacityIncreased),
                     _ => null
                 };
 

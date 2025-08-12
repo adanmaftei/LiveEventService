@@ -23,10 +23,14 @@ public class UnpublishEventCommandHandler : ICommandHandler<UnpublishEventComman
     {
         var eventEntity = await _eventRepository.GetByIdAsync(request.EventId, cancellationToken);
         if (eventEntity == null)
+        {
             return BaseResponse<EventDto>.Failed("Event not found");
+        }
 
         if (!eventEntity.IsPublished)
+        {
             return BaseResponse<EventDto>.Failed("Event is already unpublished");
+        }
 
         // Unpublish the event
         eventEntity.Unpublish();

@@ -51,10 +51,14 @@ public class EventRegistration : Entity
     public void Confirm()
     {
         if (Status == RegistrationStatus.Confirmed)
+        {
             return; // Already confirmed, do nothing
+        }
             
         if (Status != RegistrationStatus.Pending && Status != RegistrationStatus.Waitlisted)
+        {
             throw new InvalidOperationException("Only pending or waitlisted registrations can be confirmed");
+        }
             
         Status = RegistrationStatus.Confirmed;
         PositionInQueue = null; // No longer in queue
@@ -66,18 +70,32 @@ public class EventRegistration : Entity
     public void Cancel()
     {
         if (Status == RegistrationStatus.Cancelled)
+        {
             return; // Already cancelled, do nothing
+        }
+        
+        var wasWaitlisted = Status == RegistrationStatus.Waitlisted;
+        var oldPosition = PositionInQueue;
             
         Status = RegistrationStatus.Cancelled;
+        PositionInQueue = null;
         UpdatedAt = DateTime.UtcNow;
         
         AddDomainEvent(new EventRegistrationCancelledDomainEvent(this));
+        
+        // If this was a waitlisted registration, also raise a waitlist removal event
+        if (wasWaitlisted)
+        {
+            AddDomainEvent(new WaitlistRemovalDomainEvent(this, "Registration cancelled"));
+        }
     }
 
     public void MarkAsAttended()
     {
         if (Status != RegistrationStatus.Confirmed)
+        {
             throw new InvalidOperationException("Only confirmed registrations can be marked as attended");
+        }
             
         Status = RegistrationStatus.Attended;
         UpdatedAt = DateTime.UtcNow;
@@ -86,64 +104,66 @@ public class EventRegistration : Entity
     public void MarkAsNoShow()
     {
         if (Status != RegistrationStatus.Confirmed)
+        {
             throw new InvalidOperationException("Only confirmed registrations can be marked as no-show");
+        }
             
         Status = RegistrationStatus.NoShow;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void AddToWaitlist()
+    public void AddToWaitlist(int? position = null)
     {
+        if (Status == RegistrationStatus.Waitlisted)
+        {
+            return; // Already on waitlist
+        }
+            
         Status = RegistrationStatus.Waitlisted;
-        PositionInQueue = null; // Position will be set later by the service layer
+        PositionInQueue = position; // Position can be set directly or calculated later
+        
+        AddDomainEvent(new RegistrationWaitlistedDomainEvent(this));
     }
-
-    public void UpdateWaitlistPosition(int position)
+    
+    public void UpdateWaitlistPosition(int? position)
     {
         if (Status != RegistrationStatus.Waitlisted)
-            throw new InvalidOperationException("Only waitlisted registrations can have their position updated");
+        {
+            throw new InvalidOperationException("Cannot set position for non-waitlisted registration");
+        }
             
+        if (position.HasValue && position <= 0)
+        {
+            throw new ArgumentException("Position must be positive", nameof(position));
+        }
+            
+        var oldPosition = PositionInQueue;
         PositionInQueue = position;
-        UpdatedAt = DateTime.UtcNow;
+        
+        if (oldPosition != position)
+        {
+            AddDomainEvent(new WaitlistPositionChangedDomainEvent(
+                EventId, 
+                Id, 
+                oldPosition, 
+                position));
+        }
+    }
+    
+    public void RemoveFromWaitlist(string reason = null)
+    {
+        if (Status != RegistrationStatus.Waitlisted)
+        {
+            throw new InvalidOperationException("Registration is not on the waitlist");
+        }
+            
+        var oldPosition = PositionInQueue;
+        Status = RegistrationStatus.Cancelled;
+        PositionInQueue = null;
+        
+        AddDomainEvent(new WaitlistRemovalDomainEvent(this, reason));
     }
     
     // Business logic methods (not EF properties)
     public bool IsWaitlisted() => Status == RegistrationStatus.Waitlisted && PositionInQueue.HasValue && PositionInQueue > 0;
 }
-
-public enum RegistrationStatus
-{
-    Pending,    // Initial state
-    Confirmed,  // Registration is confirmed
-    Waitlisted, // On waitlist due to event being full
-    Cancelled,  // Registration was cancelled
-    Attended,   // User attended the event
-    NoShow      // User didn't attend the event
-} 
-
-public class EventRegistrationCreatedDomainEvent : DomainEvent
-{
-    public EventRegistration Registration { get; }
-    public EventRegistrationCreatedDomainEvent(EventRegistration registration)
-    {
-        Registration = registration;
-    }
-}
-
-public class EventRegistrationPromotedDomainEvent : DomainEvent
-{
-    public EventRegistration Registration { get; }
-    public EventRegistrationPromotedDomainEvent(EventRegistration registration)
-    {
-        Registration = registration;
-    }
-}
-
-public class EventRegistrationCancelledDomainEvent : DomainEvent
-{
-    public EventRegistration Registration { get; }
-    public EventRegistrationCancelledDomainEvent(EventRegistration registration)
-    {
-        Registration = registration;
-    }
-} 

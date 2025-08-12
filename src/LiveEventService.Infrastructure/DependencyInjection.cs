@@ -3,15 +3,16 @@ using LiveEventService.Core.Events;
 using LiveEventService.Infrastructure.Data;
 using LiveEventService.Infrastructure.Users;
 using LiveEventService.Infrastructure.Events;
-using IUserRepository = LiveEventService.Core.Users.User.IUserRepository;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using LiveEventService.Core.Common;
-using EventRegistrationEntity = LiveEventService.Core.Registrations.EventRegistration.EventRegistration;
 using LiveEventService.Infrastructure.Events.EventRegistrationNotifications;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using MediatR;
+using LiveEventService.Infrastructure.Events.WaitlistNotifications;
+using LiveEventService.Core.Registrations.EventRegistration;
+using LiveEventService.Core.Users.User;
 
 namespace LiveEventService.Infrastructure;
 
@@ -38,7 +39,7 @@ public static class DependencyInjection
         services.AddScoped<IEventRepository, EventRepository>();
 
         // Register generic repository for EventRegistration
-        services.AddScoped<IRepository<EventRegistrationEntity>, RepositoryBase<EventRegistrationEntity>>();
+        services.AddScoped<IRepository<EventRegistration>, RepositoryBase<EventRegistration>>();
         
         // Register domain event dispatcher
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
@@ -47,6 +48,12 @@ public static class DependencyInjection
         services.AddScoped<INotificationHandler<EventRegistrationCreatedNotification>, EventRegistrationCreatedDomainEventHandler>();
         services.AddScoped<INotificationHandler<EventRegistrationPromotedNotification>, EventRegistrationPromotedDomainEventHandler>();
         services.AddScoped<INotificationHandler<EventRegistrationCancelledNotification>, EventRegistrationCancelledDomainEventHandler>();
+        
+        // Register waitlist domain event handlers
+        services.AddScoped<INotificationHandler<EventCapacityIncreasedNotification>, EventCapacityIncreasedDomainEventHandler>();
+        services.AddScoped<INotificationHandler<RegistrationWaitlistedNotification>, RegistrationWaitlistedDomainEventHandler>();
+        services.AddScoped<INotificationHandler<WaitlistPositionChangedNotification>, WaitlistPositionChangedDomainEventHandler>();
+        services.AddScoped<INotificationHandler<WaitlistRemovalNotification>, WaitlistRemovalDomainEventHandler>();
 
         // Add AWS Cognito authentication
         services.AddAuthentication(options =>

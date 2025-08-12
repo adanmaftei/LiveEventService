@@ -65,7 +65,9 @@ public static class EventEndpoints
             HttpContext httpContext) =>
         {
             if (id != command.EventId)
+            {
                 return Results.BadRequest("ID in route does not match ID in the request body");
+            }
             command.UserId = httpContext.User.Identity?.Name ?? string.Empty;
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });

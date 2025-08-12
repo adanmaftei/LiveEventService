@@ -1,4 +1,3 @@
-using LiveEventService.Core.Registrations.EventRegistration;
 using LiveEventService.Core.Common;
 using MediatR;
 
