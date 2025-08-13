@@ -524,7 +524,8 @@ public class LiveEventServiceStack : Stack
             }),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
-                StreamPrefix = "LiveEventAPI"
+                StreamPrefix = "LiveEventAPI",
+                LogRetention = RetentionDays.ONE_MONTH
             }),
             Environment = new Dictionary<string, string>
             {
@@ -764,6 +765,14 @@ service:
                         "ConnectionStrings__DefaultConnection")
                 }
             }
+        });
+
+        // Dedicated CloudWatch Log Group for audit logs with 90-day retention
+        var auditLogGroup = new LogGroup(this, "AuditLogGroup", new LogGroupProps
+        {
+            LogGroupName = "/live-event-service/audit",
+            Retention = RetentionDays.THREE_MONTHS,
+            RemovalPolicy = RemovalPolicy.RETAIN
         });
 
         // Configure auto scaling with cost optimization

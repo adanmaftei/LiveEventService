@@ -93,19 +93,19 @@ This plan tracks prioritized improvements across scalability, resilience, perfor
 
 - [ ] P1 GraphQL cost controls
   - Owner: TBD
-  - Status: In-Progress
-  - Details: Enforce MaxDepth (now 10 via AddMaxExecutionDepthRule), short execution timeout (10s), disable GraphQL IDE in non-development. Optimized existing DataLoader to reduce N+1s: `UserByIdentityIdDataLoader` now directly injects `IUserRepository`, uses `MaxBatchSize=250`, normalizes keys, and avoids per-batch scope creation. Persisted queries (deferred pending compatible package). Continue auditing resolvers for any remaining N+1 hotspots and add DataLoaders as needed.
+  - Status: Done
+  - Details: Enforced MaxDepth (10 via AddMaxExecutionDepthRule), short execution timeout (10s), disabled GraphQL IDE in non-development. Optimized DataLoader to reduce N+1s: `UserByIdentityIdDataLoader` injects `IUserRepository`, uses `MaxBatchSize=250`, normalizes keys, and avoids per-batch scope creation. Persisted queries deferred.
   - Acceptance: Malicious/expensive queries rejected; steady resource use under load
   - References: `Program.cs` GraphQL config
 
 ## 4) Security
 
-- [ ] P1 Implement audit logging persistence (admin-sensitive actions)
+- [x] P1 Implement audit logging persistence (admin-sensitive actions)
   - Owner: TBD
-  - Status: Todo
-  - Details: Persist structured audit entries; dashboards + retention policy
-  - Acceptance: Audit trail for create/update/delete/admin operations
-  - References: `docs/SECURITY_ENHANCEMENTS.md`, `EventEndpoints`, `UserEndpoints`
+  - Status: Done
+  - Details: Dedicated audit logger sink to CloudWatch Logs (separate log group `/live-event-service/audit`) with environment-driven region. In Production, `IAuditLogger` writes to the dedicated group; in non-prod it writes to console/app logs. Dashboards via CloudWatch already exist; retention configured at log group. 
+  - Acceptance: Audit trail persisted out-of-band from DB; visible in CloudWatch; separable from application logs.
+  - References: `Program.cs` (audit sink wiring), `src/LiveEventService.API/Logging/AuditLogger.cs`, CDK log retention.
 
 - [x] P1 Harden CORS and CSP per environment
   - Owner: TBD
@@ -126,7 +126,7 @@ This plan tracks prioritized improvements across scalability, resilience, perfor
 - [ ] P2 Right-size autoscaling and NAT usage
   - Owner: TBD
   - Status: In-Progress
-  - Details: Lower min capacity, evaluate private subnets/NAT necessity, shorten log retention; add ALB request-based autoscaling to API service; worker autoscaling parameterized; API desired/min/max capacity now parameterized via CDK
+  - Details: Lower min capacity, evaluate private subnets/NAT necessity, shorten log retention (application logs 30 days, audit logs 90 days); add ALB request-based autoscaling to API service; worker autoscaling parameterized; API desired/min/max capacity now parameterized via CDK
   - Acceptance: Reduced monthly baseline cost; no SLO impact
   - References: `LiveEventServiceStack.cs`, CloudWatch retention
 

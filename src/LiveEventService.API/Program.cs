@@ -110,7 +110,32 @@ builder.Services.AddCors(options =>
 
 // Add API-specific services
 builder.Services.AddScoped<IEventRegistrationNotifier, EventRegistrationNotifier>();
-builder.Services.AddSingleton<IAuditLogger>(sp => new SerilogAuditLogger(Log.Logger));
+// Dedicated audit logger sink (e.g., CloudWatch Logs) separate from application logs
+if (builder.Environment.IsProduction() && !isTesting)
+{
+    var region = builder.Configuration["AWS:CloudWatch:Region"]
+                 ?? builder.Configuration["AWS:Region"]
+                 ?? "us-east-1";
+    var auditLogGroup = builder.Configuration["AWS:CloudWatch:AuditLogGroup"]
+                        ?? "/live-event-service/audit";
+
+    var cwClient = new AmazonCloudWatchLogsClient(RegionEndpoint.GetBySystemName(region));
+    var auditSerilog = new LoggerConfiguration()
+        .Enrich.FromLogContext()
+        .WriteTo.AmazonCloudWatch(
+            logGroup: auditLogGroup,
+            logStreamPrefix: "audit-",
+            cloudWatchClient: cwClient,
+            textFormatter: new JsonFormatter(),
+            createLogGroup: true)
+        .CreateLogger();
+
+    builder.Services.AddSingleton<IAuditLogger>(sp => new SerilogAuditLogger(auditSerilog));
+}
+else
+{
+    builder.Services.AddSingleton<IAuditLogger>(sp => new SerilogAuditLogger(Log.Logger));
+}
 builder.Services.AddSingleton<LiveEventService.API.Utilities.IIdempotencyStore, LiveEventService.API.Utilities.IdempotencyStore>();
 
 // Add a resilient HttpClient for outbound calls (using Microsoft.Extensions.Http.Resilience)
