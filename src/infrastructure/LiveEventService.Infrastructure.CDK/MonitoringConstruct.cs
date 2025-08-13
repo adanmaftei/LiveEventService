@@ -3,7 +3,6 @@ using Amazon.CDK.AWS.CloudWatch;
 using Amazon.CDK.AWS.CloudWatch.Actions;
 using Amazon.CDK.AWS.SNS;
 using Amazon.CDK.AWS.SNS.Subscriptions;
-using Amazon.CDK.AWS.APIGateway;
 using Amazon.CDK.AWS.ECS.Patterns;
 using Amazon.CDK.AWS.RDS;
 using Constructs;
@@ -37,9 +36,7 @@ public class MonitoringConstruct : Construct
             DefaultInterval = Duration.Days(7)
         });
 
-        // API Gateway Widgets
-        var apiGatewayWidgets = CreateApiGatewayWidgets(props.ApiGateway);
-        dashboard.AddWidgets(apiGatewayWidgets);
+        // Edge widgets: API Gateway removed; ALB is fronting the service. Widgets/alarms focus on ECS and RDS.
 
         // ECS Service Widgets
         var ecsWidgets = CreateEcsWidgets(props.EcsService);
@@ -53,45 +50,7 @@ public class MonitoringConstruct : Construct
         SetupAlarms(props, alarmTopic);
     }
 
-    private IWidget[] CreateApiGatewayWidgets(IRestApi api)
-    {
-        return new IWidget[]
-        {
-            new GraphWidget(new GraphWidgetProps
-            {
-                Title = "API Gateway - 4XX Errors",
-                Left = new[] { new Metric(new MetricProps {
-                    Namespace = "AWS/ApiGateway",
-                    MetricName = "4XXError",
-                    DimensionsMap = new Dictionary<string, string> { ["ApiName"] = api.RestApiName },
-                    Statistic = "Sum",
-                    Period = Duration.Minutes(1)
-                })}
-            }),
-            new GraphWidget(new GraphWidgetProps
-            {
-                Title = "API Gateway - 5XX Errors",
-                Left = new[] { new Metric(new MetricProps {
-                    Namespace = "AWS/ApiGateway",
-                    MetricName = "5XXError",
-                    DimensionsMap = new Dictionary<string, string> { ["ApiName"] = api.RestApiName },
-                    Statistic = "Sum",
-                    Period = Duration.Minutes(1)
-                })}
-            }),
-            new GraphWidget(new GraphWidgetProps
-            {
-                Title = "API Gateway - Latency",
-                Left = new[] { new Metric(new MetricProps {
-                    Namespace = "AWS/ApiGateway",
-                    MetricName = "Latency",
-                    DimensionsMap = new Dictionary<string, string> { ["ApiName"] = api.RestApiName },
-                    Statistic = "p95",
-                    Period = Duration.Minutes(1)
-                })}
-            })
-        };
-    }
+    // API Gateway widgets removed
 
     private IWidget[] CreateEcsWidgets(ApplicationLoadBalancedFargateService service)
     {
@@ -184,23 +143,7 @@ public class MonitoringConstruct : Construct
 
     private void SetupAlarms(MonitoringConstructProps props, ITopic alarmTopic)
     {
-        // API Gateway Alarms
-        var api5xxAlarm = new Alarm(this, "Api5xxAlarm", new AlarmProps
-        {
-            AlarmDescription = "API Gateway 5XX errors > 1% of requests over 5 minutes",
-            Metric = new Metric(new MetricProps
-            {
-                Namespace = "AWS/ApiGateway",
-                MetricName = "5XXError",
-                DimensionsMap = new Dictionary<string, string> { ["ApiName"] = props.ApiGateway.RestApiName },
-                Statistic = "Sum",
-                Period = Duration.Minutes(5)
-            }),
-            Threshold = 1,
-            EvaluationPeriods = 1,
-            ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD,
-            TreatMissingData = TreatMissingData.NOT_BREACHING
-        });
+        // Edge (API Gateway) alarms removed; focus on ECS/RDS alarms
 
         // ECS Alarms
         var ecsCpuAlarm = new Alarm(this, "EcsCpuAlarm", new AlarmProps
@@ -257,38 +200,19 @@ public class MonitoringConstruct : Construct
             TreatMissingData = TreatMissingData.NOT_BREACHING
         });
 
-        // Cost guardrail: CloudWatch Logs retention already shorter; create 4XX rate warning alarm
-        var api4xxAlarm = new Alarm(this, "Api4xxAlarm", new AlarmProps
-        {
-            AlarmDescription = "API Gateway 4XX errors > 5% over 5 minutes",
-            Metric = new Metric(new MetricProps
-            {
-                Namespace = "AWS/ApiGateway",
-                MetricName = "4XXError",
-                DimensionsMap = new Dictionary<string, string> { ["ApiName"] = props.ApiGateway.RestApiName },
-                Statistic = "Sum",
-                Period = Duration.Minutes(5)
-            }),
-            Threshold = 5,
-            EvaluationPeriods = 1,
-            ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD,
-            TreatMissingData = TreatMissingData.NOT_BREACHING
-        });
+        // Cost guardrail: API 4XX alarm removed with API Gateway
 
         // Add actions to alarms
         var alarmAction = new SnsAction(alarmTopic);
-        api5xxAlarm.AddAlarmAction(alarmAction);
         ecsCpuAlarm.AddAlarmAction(alarmAction);
         ecsMemoryAlarm.AddAlarmAction(alarmAction);
         rdsCpuAlarm.AddAlarmAction(alarmAction);
         rdsConnectionsAlarm.AddAlarmAction(alarmAction);
-        api4xxAlarm.AddAlarmAction(alarmAction);
     }
 }
 
 public class MonitoringConstructProps
 {
-    public IRestApi ApiGateway { get; set; } = null!;
     public ApplicationLoadBalancedFargateService EcsService { get; set; } = null!;
     public IDatabaseInstance Database { get; set; } = null!;
     public string AlarmEmail { get; set; } = null!;

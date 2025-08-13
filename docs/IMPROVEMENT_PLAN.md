@@ -91,7 +91,7 @@ This plan tracks prioritized improvements across scalability, resilience, perfor
   - Acceptance: Reduced query latency under load; planner uses index scans for common filters
   - References: EF configurations and migrations (`EventConfiguration`, `EventRegistrationConfiguration`, `20250807122320_AddPerformanceIndexes`)
 
-- [ ] P1 GraphQL cost controls
+- [x] P1 GraphQL cost controls
   - Owner: TBD
   - Status: Done
   - Details: Enforced MaxDepth (10 via AddMaxExecutionDepthRule), short execution timeout (10s), disabled GraphQL IDE in non-development. Optimized DataLoader to reduce N+1s: `UserByIdentityIdDataLoader` injects `IUserRepository`, uses `MaxBatchSize=250`, normalizes keys, and avoids per-batch scope creation. Persisted queries deferred.
@@ -116,28 +116,28 @@ This plan tracks prioritized improvements across scalability, resilience, perfor
 
 ## 5) Cost Optimization
 
-- [ ] P1 Simplify edge stack (choose ALB or API Gateway) and revisit WAF scope
+- [x] P1 Simplify edge stack (choose ALB or API Gateway) and revisit WAF scope
   - Owner: TBD
-  - Status: Todo
-  - Details: If staying on ECS/Fargate with ALB, remove API Gateway proxy; or swap to API Gateway + Lambda
-  - Acceptance: 30–50% edge cost reduction without functional loss
-  - References: `src/infrastructure/*CDK*`, ALB+APIGW+WAF
+  - Status: Done
+  - Details: Chosen ALB-only. Removed API Gateway proxy and usage plan; associated WAF with ALB; monitoring updated to drop API Gateway widgets/alarms; outputs switched to `AlbDnsName`. Request-based autoscaling and CPU autoscaling on ECS retained.
+  - Acceptance: Edge cost reduced without functional loss; WAF protection active on ALB
+  - References: `src/infrastructure/LiveEventService.Infrastructure.CDK/LiveEventServiceStack.cs`, `MonitoringConstruct.cs`
 
-- [ ] P2 Right-size autoscaling and NAT usage
+- [x] P2 Right-size autoscaling and NAT usage
   - Owner: TBD
-  - Status: In-Progress
-  - Details: Lower min capacity, evaluate private subnets/NAT necessity, shorten log retention (application logs 30 days, audit logs 90 days); add ALB request-based autoscaling to API service; worker autoscaling parameterized; API desired/min/max capacity now parameterized via CDK
+  - Status: Done
+  - Details: Lowered API min capacity; shortened log retention (application logs 30 days, audit logs 90 days); added ALB request-based autoscaling to API service; worker autoscaling parameterized; API desired/min/max capacity parameterized via CDK. Added CDK parameter `NatGateways` (0 for dev, 1 for prod). Added VPC Endpoints: Interface (SQS, Secrets Manager, CloudWatch Logs, X-Ray, ECR API, ECR DKR, STS) and Gateway (S3) to reduce NAT data processing. API defaults tuned (desired=1, min=0, max=3).
   - Acceptance: Reduced monthly baseline cost; no SLO impact
   - References: `LiveEventServiceStack.cs`, CloudWatch retention
 
 ## 6) Observability
 
-- [ ] P2 Start with CloudWatch logs/metrics + X-Ray; defer AMP/AMG unless required
+- [x] P2 Start with CloudWatch logs/metrics + X-Ray; defer AMP/AMG unless required
   - Owner: TBD
-  - Status: Todo
-  - Details: Keep local Prometheus/Loki for dev; tune production exporters for cost
-  - Acceptance: Reduced spend with adequate visibility
-  - References: `observability/*`, CDK ADOT/AMP/AMG
+  - Status: Done
+  - Details: ADOT collector exports traces to X-Ray and metrics to CloudWatch EMF only. AMP remote-write and Grafana provisioning removed from infra to cut cost. Use CloudWatch dashboards/alarms.
+  - Acceptance: Traces visible in X-Ray; key service metrics viewable in CloudWatch. No AMP/AMG resources deployed.
+  - References: `src/infrastructure/LiveEventService.Infrastructure.CDK/LiveEventServiceStack.cs`
 
 ## 7) CI/CD
 

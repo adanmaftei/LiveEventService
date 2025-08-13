@@ -33,11 +33,20 @@ public class LiveEventServiceStack : Stack
     internal LiveEventServiceStack(Construct scope, string id, IStackProps? props = null)
         : base(scope, id, props)
     {
+        // Parameters to right-size networking costs
+        var natGatewaysParam = new CfnParameter(this, "NatGateways", new CfnParameterProps
+        {
+            Type = "Number",
+            Default = 1,
+            MinValue = 0,
+            MaxValue = 2,
+            Description = "Number of NAT Gateways (0 for dev/cost-saving; 1 for prod)"
+        });
         // Create a VPC
         var vpc = new Vpc(this, "LiveEventVPC", new VpcProps
         {
             MaxAzs = 2,
-            NatGateways = 1,
+            NatGateways = natGatewaysParam.ValueAsNumber,
             SubnetConfiguration = new[]
             {
                 new SubnetConfiguration
@@ -53,6 +62,54 @@ public class LiveEventServiceStack : Stack
                     CidrMask = 24
                 }
             }
+        });
+
+        // Add VPC Interface Endpoint for SQS to minimize NAT data processing costs
+        vpc.AddInterfaceEndpoint("SqsVpcEndpoint", new InterfaceVpcEndpointOptions
+        {
+            Service = InterfaceVpcEndpointAwsService.SQS,
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+
+        // Add VPC Interface Endpoints to reduce NAT usage for common AWS services
+        vpc.AddInterfaceEndpoint("SecretsManagerVpcEndpoint", new InterfaceVpcEndpointOptions
+        {
+            Service = InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+        vpc.AddInterfaceEndpoint("CloudWatchLogsVpcEndpoint", new InterfaceVpcEndpointOptions
+        {
+            Service = InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+        vpc.AddInterfaceEndpoint("XRayVpcEndpoint", new InterfaceVpcEndpointOptions
+        {
+            Service = InterfaceVpcEndpointAwsService.XRAY,
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+
+        // ECR (API and Docker registry) endpoints for ECS image pulls without NAT
+        vpc.AddInterfaceEndpoint("EcrApiVpcEndpoint", new InterfaceVpcEndpointOptions
+        {
+            Service = InterfaceVpcEndpointAwsService.ECR,
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+        vpc.AddInterfaceEndpoint("EcrDkrVpcEndpoint", new InterfaceVpcEndpointOptions
+        {
+            Service = InterfaceVpcEndpointAwsService.ECR_DOCKER,
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+        // STS for temporary credentials without NAT
+        vpc.AddInterfaceEndpoint("StsVpcEndpoint", new InterfaceVpcEndpointOptions
+        {
+            Service = InterfaceVpcEndpointAwsService.STS,
+            Subnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+        // S3 Gateway endpoint for ECR layer downloads and other S3 access without NAT
+        vpc.AddGatewayEndpoint("S3GatewayEndpoint", new GatewayVpcEndpointOptions
+        {
+            Service = GatewayVpcEndpointAwsService.S3,
+            Subnets = new[] { new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS } }
         });
 
         // Create a Cognito User Pool for authentication
@@ -489,27 +546,7 @@ public class LiveEventServiceStack : Stack
             }
         });
 
-        // Amazon Managed Prometheus (AMP) workspace for scalable metrics storage
-        var ampWorkspace = new Amazon.CDK.AWS.APS.CfnWorkspace(this, "AmpWorkspace", new Amazon.CDK.AWS.APS.CfnWorkspaceProps
-        {
-            Alias = "liveeventservice"
-        });
-
-        // IAM permission for ADOT to remote write to AMP
-        var ampWorkspaceArn = Arn.Format(new ArnComponents
-        {
-            Service = "aps",
-            Resource = "workspace",
-            Region = this.Region,
-            Account = this.Account,
-            ResourceName = ampWorkspace.AttrWorkspaceId,
-            Partition = this.Partition
-        }, this);
-        taskDefinition.TaskRole.AddToPrincipalPolicy(new PolicyStatement(new PolicyStatementProps
-        {
-            Actions = new[] { "aps:RemoteWrite" },
-            Resources = new[] { ampWorkspaceArn }
-        }));
+        // Observability: use X-Ray + CloudWatch EMF only (AMP/Grafana deferred)
 
         // Grant task role permissions for observability exporters
         taskDefinition.TaskRole.AddManagedPolicy(ManagedPolicy.FromAwsManagedPolicyName("CloudWatchAgentServerPolicy"));
@@ -564,16 +601,9 @@ exporters:
     region: ${AWS_REGION}
   awsemf:
     region: ${AWS_REGION}
-  prometheusremotewrite:
-    endpoint: ${PROM_REMOTE_WRITE_ENDPOINT}
-    auth:
-      authenticator: sigv4auth
 processors:
   batch: {}
-extensions:
-  sigv4auth:
 service:
-  extensions: [sigv4auth]
   pipelines:
     traces:
       receivers: [otlp]
@@ -582,7 +612,7 @@ service:
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [awsemf, prometheusremotewrite]
+      exporters: [awsemf]
 ";
 
         _ = taskDefinition.AddContainer("ADOTCollector", new ContainerDefinitionOptions
@@ -596,101 +626,31 @@ service:
             Environment = new Dictionary<string, string>
             {
                 ["AWS_REGION"] = this.Region,
-                ["AWS_OTEL_COLLECTOR_CONFIG_CONTENT"] = adotCollectorConfig,
-                // Remote write endpoint for AMP
-                ["PROM_REMOTE_WRITE_ENDPOINT"] = Fn.Sub($"https://aps-workspaces.${{AWS::Region}}.amazonaws.com/workspaces/{ampWorkspace.AttrWorkspaceId}/api/v1/remote_write")
+                ["AWS_OTEL_COLLECTOR_CONFIG_CONTENT"] = adotCollectorConfig
             }
         });
 
-        // Amazon Managed Grafana workspace
-        var amg = new Amazon.CDK.AWS.Grafana.CfnWorkspace(this, "AmgWorkspace", new Amazon.CDK.AWS.Grafana.CfnWorkspaceProps
-        {
-            AccountAccessType = "CURRENT_ACCOUNT",
-            AuthenticationProviders = new[] { "AWS_SSO" },
-            Name = "liveeventservice",
-            PermissionType = "SERVICE_MANAGED",
-            RoleArn = null // using AWS SSO; service-managed permissions
-        });
+        // Amazon Managed Grafana workspace (deferred to reduce cost)
 
         // S3 bucket to host dashboard JSONs
-        var dashboardsBucket = new Bucket(this, "DashboardsBucket", new BucketProps
-        {
-            BlockPublicAccess = BlockPublicAccess.BLOCK_ALL,
-            Encryption = BucketEncryption.S3_MANAGED,
-            RemovalPolicy = RemovalPolicy.RETAIN
-        });
+        // Dashboards bucket (deferred)
 
         // Upload local dashboards as assets
-        var overviewAsset = new Asset(this, "OverviewDashboardAsset", new AssetProps
-        {
-            Path = "../../observability/grafana/dashboards/liveevent-overview.json"
-        });
-        var outboxAsset = new Asset(this, "OutboxDashboardAsset", new AssetProps
-        {
-            Path = "../../observability/grafana/dashboards/liveevent-queue.json"
-        });
-        var cacheAsset = new Asset(this, "CacheDashboardAsset", new AssetProps
-        {
-            Path = "../../observability/grafana/dashboards/cache-efficiency.json"
-        });
+        // Grafana dashboard assets (deferred)
 
         // Grant read to the Lambda provisioner
-        overviewAsset.GrantRead(new ServicePrincipal("lambda.amazonaws.com"));
-        outboxAsset.GrantRead(new ServicePrincipal("lambda.amazonaws.com"));
-        cacheAsset.GrantRead(new ServicePrincipal("lambda.amazonaws.com"));
+        // Asset grants (deferred)
 
         // Custom resource Lambda to import dashboards and create Prometheus datasource
-        var provisioner = new Function(this, "GrafanaProvisioner", new FunctionProps
-        {
-            Runtime = Runtime.PYTHON_3_12,
-            Handler = "grafana_provisioner.handler",
-            Code = Code.FromAsset("Lambda"),
-            Timeout = Duration.Minutes(5),
-            Environment = new Dictionary<string, string>
-            {
-                ["AMP_WORKSPACE_ID"] = ampWorkspace.AttrWorkspaceId
-            }
-        });
+        // Provisioner Lambda (deferred)
 
         // Permissions to call AWS Grafana API and read S3 assets
-        provisioner.AddToRolePolicy(new PolicyStatement(new PolicyStatementProps
-        {
-            Actions = new[] { "grafana:CreateWorkspaceApiKey" },
-            Resources = new[] { amg.AttrId }
-        }));
-        provisioner.AddToRolePolicy(new PolicyStatement(new PolicyStatementProps
-        {
-            Actions = new[] { "s3:GetObject" },
-            Resources = new[]
-            {
-                Fn.Sub($"${{{overviewAsset.S3ObjectUrl}}}"),
-                Fn.Sub($"${{{outboxAsset.S3ObjectUrl}}}"),
-                Fn.Sub($"${{{cacheAsset.S3ObjectUrl}}}")
-            }
-        }));
+        // Provisioner permissions (deferred)
 
         // Custom resource that triggers the Lambda
-        var provider = new Provider(this, "GrafanaProvisionerProvider", new ProviderProps
-        {
-            OnEventHandler = provisioner
-        });
+        // Custom resource provider (deferred)
 
-        _ = new CustomResource(this, "GrafanaProvisioning", new CustomResourceProps
-        {
-            ServiceToken = provider.ServiceToken,
-            Properties = new Dictionary<string, object>
-            {
-                ["GRAFANA_WORKSPACE_ID"] = amg.AttrId,
-                ["GRAFANA_ENDPOINT"] = amg.AttrEndpoint,
-                ["AMP_WORKSPACE_ID"] = ampWorkspace.AttrWorkspaceId,
-                ["DASHBOARD_URIS"] = string.Join(",", new[]
-                {
-                    overviewAsset.S3ObjectUrl,
-                    outboxAsset.S3ObjectUrl,
-                    cacheAsset.S3ObjectUrl
-                })
-            }
-        });
+        // Grafana provisioning custom resource (deferred)
 
         // Request or create an ACM certificate for HTTPS
         var certificate = new Certificate(this, "LiveEventCertificate", new CertificateProps
@@ -703,7 +663,7 @@ service:
         var apiDesiredCountParam = new CfnParameter(this, "ApiDesiredCount", new CfnParameterProps
         {
             Type = "Number",
-            Default = 2,
+            Default = 1,
             MinValue = 0,
             MaxValue = 200,
             Description = "Desired number of API tasks"
@@ -711,7 +671,7 @@ service:
         var apiMinCapacityParam = new CfnParameter(this, "ApiMinCapacity", new CfnParameterProps
         {
             Type = "Number",
-            Default = 1,
+            Default = 0,
             MinValue = 0,
             MaxValue = 200,
             Description = "Minimum number of API tasks"
@@ -719,7 +679,7 @@ service:
         var apiMaxCapacityParam = new CfnParameter(this, "ApiMaxCapacity", new CfnParameterProps
         {
             Type = "Number",
-            Default = 5,
+            Default = 3,
             MinValue = 1,
             MaxValue = 500,
             Description = "Maximum number of API tasks"
@@ -804,64 +764,7 @@ service:
         // Allow the service to access the database
         database.Connections.AllowDefaultPortFrom(service.Service.Connections, "Allow database access from ECS service");
 
-        // Create a usage plan for API Gateway throttling
-        var api = new RestApi(this, "LiveEventAPI", new RestApiProps
-        {
-            RestApiName = "Live Event Service API",
-            Description = "API for the Live Event Service",
-            DefaultCorsPreflightOptions = new CorsOptions
-            {
-                AllowOrigins = new[] { "*" },
-                AllowMethods = new[] { "GET", "POST", "PUT", "DELETE", "OPTIONS" },
-                AllowHeaders = new[] { "Content-Type", "Authorization" },
-                MaxAge = Duration.Days(1)
-            },
-            DeployOptions = new StageOptions
-            {
-                StageName = "v1",
-                ThrottlingRateLimit = 100,  // Steady-state rate (requests per second)
-                ThrottlingBurstLimit = 200, // Burst capacity
-                TracingEnabled = true,
-                LoggingLevel = MethodLoggingLevel.INFO,
-                DataTraceEnabled = true,
-                MetricsEnabled = true
-            },
-            // Enable request validation
-            DefaultMethodOptions = new MethodOptions
-            {
-                RequestValidatorOptions = new RequestValidatorOptions
-                {
-                    ValidateRequestBody = true,
-                    ValidateRequestParameters = true
-                }
-            }
-        });
-
-        // Add a usage plan with throttling
-        var plan = api.AddUsagePlan("LiveEventServiceUsagePlan", new UsagePlanProps
-        {
-            Name = "LiveEventServiceUsagePlan",
-            Throttle = new ThrottleSettings
-            {
-                RateLimit = 100,    // Requests per second
-                BurstLimit = 200    // Maximum burst capacity
-            },
-            Quota = new QuotaSettings
-            {
-                Limit = 10000,      // Total requests per month
-                Period = Period.MONTH,
-                Offset = 0
-            }
-        });
-
-        // Apply the usage plan to all API methods
-        plan.AddApiStage(new UsagePlanPerApiStage
-        {
-            Api = api,
-            Stage = api.DeploymentStage
-        });
-
-        // Create a Web Application Firewall (WAF) for the API Gateway
+        // Create a Web Application Firewall (WAF) for the ALB
         var webAcl = new CfnWebACL(this, "LiveEventWebACL", new CfnWebACLProps
         {
             DefaultAction = new CfnWebACL.RuleActionProperty { Allow = new object() },
@@ -919,53 +822,24 @@ service:
             }
         });
 
-        // Associate the WAF with the API Gateway
-        var webAclAssociation = new CfnWebACLAssociation(this, "WebAclAssociation", new CfnWebACLAssociationProps
+        // Associate the WAF with the Application Load Balancer
+        _ = new CfnWebACLAssociation(this, "WebAclAlbAssociation", new CfnWebACLAssociationProps
         {
-            ResourceArn = $"arn:aws:apigateway:{this.Region}::/restapis/{api.RestApiId}/stages/{api.DeploymentStage.StageName}",
+            ResourceArn = service.LoadBalancer.LoadBalancerArn,
             WebAclArn = webAcl.AttrArn
         });
-
-        // Add a resource proxy to the ECS service
-        var proxy = api.Root.AddResource("{proxy+}");
-        proxy.AddMethod(
-            "ANY",
-            new HttpIntegration($"http://{service.LoadBalancer.LoadBalancerDnsName}/{proxy}", new HttpIntegrationProps
-            {
-                HttpMethod = "ANY",
-                Proxy = true,
-                Options = new IntegrationOptions
-                {
-                    RequestParameters = new Dictionary<string, string>
-                    {
-                        ["integration.request.path.proxy"] = "method.request.path.proxy",
-                        ["integration.request.header.X-Forwarded-For"] = "context.identity.sourceIp"
-                    }
-                }
-            }),
-            new MethodOptions
-            {
-                AuthorizationType = AuthorizationType.COGNITO,
-                Authorizer = new CognitoUserPoolsAuthorizer(this, "CognitoAuthorizer", new CognitoUserPoolsAuthorizerProps
-                {
-                    CognitoUserPools = new[] { userPool }
-                })
-            }
-        );
 
         // Output important values
         new CfnOutput(this, "UserPoolId", new CfnOutputProps { Value = userPool.UserPoolId });
         new CfnOutput(this, "UserPoolClientId", new CfnOutputProps { Value = userPoolClient.UserPoolClientId });
         new CfnOutput(this, "IdentityPoolId", new CfnOutputProps { Value = identityPool.Ref });
-        new CfnOutput(this, "ApiUrl", new CfnOutputProps { Value = api.Url });
-        new CfnOutput(this, "ApiId", new CfnOutputProps { Value = api.RestApiId });
+        new CfnOutput(this, "AlbDnsName", new CfnOutputProps { Value = service.LoadBalancer.LoadBalancerDnsName });
         new CfnOutput(this, "DomainEventsQueueUrl", new CfnOutputProps { Value = domainEventsQueue.QueueUrl });
         new CfnOutput(this, "DomainEventsDlqUrl", new CfnOutputProps { Value = dlq.QueueUrl });
 
         // Set up monitoring
         var monitoring = new MonitoringConstruct(this, "Monitoring", new MonitoringConstructProps
         {
-            ApiGateway = api,
             EcsService = service,
             Database = database,
             AlarmEmail = "alerts@example.com" // Replace with actual alert email
