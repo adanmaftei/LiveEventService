@@ -17,6 +17,9 @@ src/LiveEventService.IntegrationTests/
 │   └── EventEndpointsTests.cs                # REST API integration tests
 └── GraphQL/
     └── EventGraphQLTests.cs                  # GraphQL integration tests
+└── Sqs/
+    ├── SqsFlowTests.cs                       # SQS-backed domain event flow
+    └── SqsMultiPromotionTests.cs             # FIFO promotion with multiple users
 ```
 
 ### 🔧 **Key Components**
@@ -24,7 +27,7 @@ src/LiveEventService.IntegrationTests/
 #### **LiveEventTestApplicationFactory**
 - **Purpose**: Main test infrastructure that sets up the entire application for testing
 - **Features**:
-  - Starts shared PostgreSQL and LocalStack containers once per test run (thread-safe start)
+- Starts shared PostgreSQL and LocalStack containers once per test run (thread-safe start)
   - Creates an isolated Postgres database per test class to enable safe parallelization
   - Replaces real authentication with test authentication
   - Configures EF Core to point to the per-class database and ensures schema creation
@@ -164,6 +167,11 @@ public async Task WaitlistRegistration_WhenMultiplePeopleRegisterSimultaneously_
 - **Concurrency testing** - Handles race conditions in waitlist management
 
 ### 🔍 **GraphQL Tests** (`EventGraphQLTests`)
+### 📨 **SQS Domain Event Tests** (`SqsFlowTests`, `SqsMultiPromotionTests`)
+
+These tests use a dedicated `SqsTestApplicationFactory` that provisions SQS queues in LocalStack and runs an in-process worker to consume messages, verifying:
+- End-to-end promotion on cancellation (single waitlisted user)
+- FIFO promotions across multiple waitlisted users
 
 **Covers:**
 - ✅ GraphQL queries and mutations

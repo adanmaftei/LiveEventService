@@ -11,14 +11,13 @@ This document outlines performance and scalability improvements for the Live Eve
 Based on the current implementation and logs analysis:
 
 1. **Domain Event Processing**
-   - MediatR handlers publish notifications; some operations still run inline
-   - Transactional outbox implemented; background outbox processor runs in non-testing environments
+   - Transactional outbox implemented
+   - SQS-backed worker consumes domain events (LocalStack in tests)
 
 2. **Database Query Patterns**
-   - No caching layer for frequently accessed data
-   - Potential N+1 queries in registration listings (add DataLoader)
-   - Indexes present; verify coverage for hot paths
-   - Add compiled queries for hottest endpoints
+   - Read-through caching implemented for hot reads (events/users)
+   - DataLoader added to eliminate GraphQL N+1 (organizer name)
+   - Baseline hot-path indexes added; status filter sargability fixed
 
 3. **Connection Management**
    - No connection pooling optimization
@@ -26,7 +25,7 @@ Based on the current implementation and logs analysis:
 
 ## 🚀 **Phase 1: Immediate Performance Gains**
 
-### 1. **Async Domain Event Processing**
+### 1. **Async Domain Event Processing** (Completed via SQS worker)
 
 **Current Issue:**
 ```csharp
@@ -62,7 +61,7 @@ public class DomainEventBackgroundService : BackgroundService
 3. Use `IMessageQueue` interface for event queuing
 4. Implement retry logic and dead letter queues
 
-### 2. **Caching Strategy**
+### 2. **Caching Strategy** (Read-through implemented; continue tuning TTLs)
 
 **Redis Integration:**
 ```csharp
@@ -85,7 +84,7 @@ public class RedisCacheService : ICacheService
 - **Waitlist Positions**: Cache current waitlist state for 1 minute
 - **Registration Counts**: Cache confirmed registration counts
 
-### 3. **Database Query Optimization**
+### 3. **Database Query Optimization** (Indexes added; sargability fixed)
 
 **Add Database Indexes:**
 ```sql

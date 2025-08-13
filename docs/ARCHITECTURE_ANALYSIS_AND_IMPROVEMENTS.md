@@ -32,21 +32,21 @@ The Live Event Service demonstrates **exemplary architecture** with Clean Archit
 ### ⚠️ **Identified Gaps & Improvement Opportunities**
 
 #### **Performance & Scalability**
-- [ ] Caching layer not implemented (all reads hit DB)
+- [x] Caching layer implemented for hot reads (read-through) and invalidation on writes
 - [ ] Query optimization: ensure `AsNoTracking()` and consider compiled queries for hottest paths
-- [ ] GraphQL potential N+1 without DataLoader
+- [x] GraphQL N+1 mitigated with DataLoader (organizer lookup)
 - [ ] Read replicas not in use for scale-out reads
 - [ ] Connection pooling not tuned for peak concurrency
 
 #### **Security**
 - [x] Baseline implemented: HTTPS/HSTS (prod), security headers, rate limiting, CORS
-- [ ] Comprehensive audit logging for admin actions
+- [x] Audit logging via dedicated CloudWatch sink for admin-sensitive actions
 - [ ] Secret management via AWS Secrets Manager/SSM
 - [ ] CSP report endpoint + report-only rollout
 
 #### **Resilience**
 - [x] Transactional outbox implemented (in-DB persistence)
-- [ ] Outbox delivery to external bus (SNS/SQS/Kafka) with idempotency/DLQ
+- [x] Outbox delivery via SQS worker with DLQ and autoscaling
 - [ ] Transient fault handling with Polly (retry/jitter, circuit breaker, timeouts)
 - [ ] Business/operational metrics and alerts beyond basic health checks
 
@@ -54,17 +54,17 @@ The Live Event Service demonstrates **exemplary architecture** with Clean Archit
 
 ## 🚀 Prioritized Improvement Roadmap
 
-### **Phase 1: Foundation & Critical Reliability (Weeks 1-4)**
+### **Phase 1: Foundation & Critical Reliability (Completed)**
 
 #### **🟢 Priority A: Quick Wins (Low effort, High impact)**
 1) Resilience policies with Polly (retry with jitter, timeout, circuit breaker) for outbound dependencies (AWS SDK, Redis) and Npgsql execution strategy for transient faults.
 2) EF performance passes: ensure `AsNoTracking()` on read paths; introduce compiled queries for event list/details and registrations queries.
-3) GraphQL DataLoader and depth/complexity limits to eliminate N+1 and protect backend.
+3) GraphQL DataLoader and depth limits to eliminate N+1 and protect backend. (Completed)
 4) OpenTelemetry metrics (ASP.NET Core, EF, HttpClient) + /metrics exposure and basic dashboards/alerts.
 
 #### **🟡 Priority B: Medium effort, High impact**
-5) Redis cache-aside for hot reads (events list/details, registration counts) with invalidation on writes and stampede protection.
-6) Outbox delivery to SNS/SQS (or Kafka) with idempotency keys and DLQ; processor publishes and tracks lag.
+5) Cache-aside for hot reads (events list/details, registration counts) with invalidation on writes. (Completed baseline)
+6) Outbox delivery to SQS with DLQ; worker processes domain events. (Completed)
 
 #### **🔵 Priority C: Medium–High effort**
 7) Read replicas (Aurora/RDS) and a replica `DbContext` for read-only queries.

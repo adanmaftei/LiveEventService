@@ -111,10 +111,10 @@ aws s3api get-object \
 | Static Content    | 5 minutes    | 1 minute     |
 | Configuration     | 15 minutes   | 1 minute     |
 
-### Multi-Region Deployment
-- Primary region: us-east-1 (N. Virginia)
-- Secondary region: us-west-2 (Oregon)
-- Route 53 DNS failover configured for automatic traffic redirection
+### Multi-Region Deployment (Future)
+- Primary region: us-east-1 (current deployment target)
+- Secondary region: us-west-2 (future)
+- Route 53 DNS failover: planned; not currently provisioned in CDK
 
 ### Failover Procedure
 1. **Detection**: CloudWatch Alarms trigger on service degradation

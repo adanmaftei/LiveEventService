@@ -23,7 +23,7 @@ This plan tracks prioritized improvements across scalability, resilience, perfor
     - SQS queue + DLQ provisioned; worker consumes and deletes after successful processing; failures retried via visibility timeout
     - Dedicated SQS integration tests against LocalStack pass end-to-end (enqueue, worker handles, observable state change)
     - Baseline integration suite remains independent of SQS; SQS tests use separate fixture to avoid flakiness
-  - References: `src/LiveEventService.Application/Common/InMemoryMessageQueue.cs`, `DomainEventBackgroundService`, `MediatRDomainEventDispatcher`, `src/LiveEventService.Infrastructure/Messaging/SqsMessageQueue.cs`, `src/LiveEventService.Worker/*`, `src/tests/LiveEventService.IntegrationTests/Infrastructure/Sqs/SqsTestApplicationFactory.cs`, `src/tests/LiveEventService.IntegrationTests/Sqs/SqsFlowTests.cs`, `src/tests/LiveEventService.IntegrationTests/Sqs/SqsMultiPromotionTests.cs`
+  - References: `src/LiveEventService.Application/Common/InMemoryMessageQueue.cs`, `DomainEventBackgroundService`, `MediatRDomainEventDispatcher`, `src/LiveEventService.Infrastructure/Messaging/SqsMessageQueue.cs`, `src/LiveEventService.Worker/*`, `tests/LiveEventService.IntegrationTests/Infrastructure/Sqs/SqsTestApplicationFactory.cs`, `tests/LiveEventService.IntegrationTests/Sqs/SqsFlowTests.cs`, `tests/LiveEventService.IntegrationTests/Sqs/SqsMultiPromotionTests.cs`
   - Notes: Config flag `Performance:BackgroundProcessing:UseInProcess` added to allow disabling in-proc background service during transition; `AWS:SQS:UseSqsForDomainEvents` flips to SQS producer; new worker at `src/LiveEventService.Worker/`. CDK provisions SQS + DLQ and queue alarms (age, depth, DLQ) wired to SNS; LocalStack init creates both queues. Tests run an in-process SQS worker and use strongly-typed DTOs (no dynamic).
 
 - [x] P0 Make GraphQL subscriptions scalable (Redis backplane)
@@ -66,7 +66,7 @@ This plan tracks prioritized improvements across scalability, resilience, perfor
 
 ## 3) Performance
 
-- [x] P1 Add read-through caching for event detail/user lookups
+- [x] P1 Add read-through caching for event detail/user lookups (API/GraphQL via Redis IDistributedCache)
   - Owner: TBD
   - Status: Done (event detail + user detail + event list)
   - Details: Added `CacheHelper` + read-through cache for event detail (5m TTL), user detail (10m TTL), event list (2m TTL)

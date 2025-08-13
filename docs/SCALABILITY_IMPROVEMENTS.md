@@ -7,6 +7,7 @@ This document outlines scalability enhancements for the Live Event Service.
 ### ✅ Current State
 - Docker Compose for local; proposed ECS features listed here are future-state
 - Database connection pooling: default EF Core/Npgsql
+- Baseline read-through caching at the API/GraphQL layer via Redis (IDistributedCache)
 
 ### ⚠️ Scalability Limitations
 - Single DB instance (local dev): no read replicas

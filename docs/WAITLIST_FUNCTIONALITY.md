@@ -33,9 +33,8 @@ The Live Event Service provides comprehensive waitlist functionality that automa
 
 **Waitlist Management:**
 - ✅ View waitlist positions and details
-- ✅ Manually adjust waitlist positions
-- ✅ Remove users from waitlist
 - ✅ Monitor waitlist statistics
+- 📝 Future: manual position adjustments and explicit waitlist removals (beyond confirm/cancel) may be introduced as dedicated endpoints
 
 ### Participant Role (`RoleNames.Participant`)
 
@@ -311,27 +310,19 @@ public async Task<IActionResult> GetEvent(Guid eventId)
 
 ## Performance Considerations
 
-### Database Indexes
+### Database Indexes (Implemented)
 
 The following indexes are implemented to optimize waitlist performance:
 
 ```sql
--- For waitlist position calculations
-CREATE INDEX IX_EventRegistrations_EventId_Status_CreatedAt 
-ON EventRegistrations (EventId, Status, CreatedAt);
-
--- For waitlist queries with pagination
-CREATE INDEX IX_EventRegistrations_EventId_Status_PositionInQueue 
-ON EventRegistrations (EventId, Status, PositionInQueue);
-
--- For user-specific queries
-CREATE INDEX IX_EventRegistrations_UserId_Status 
-ON EventRegistrations (UserId, Status);
+-- For registration lists and ordering
+CREATE INDEX IX_EventRegistrations_EventId_Status_RegistrationDate
+ON EventRegistrations (EventId, Status, RegistrationDate);
 ```
 
 ### Caching Strategy
 
-- No caching layer is implemented yet. Planned caching will avoid caching waitlist positions due to frequent changes.
+- Read-through caching is in place for event and user reads; waitlist positions are not cached due to frequent changes.
 
 ## Best Practices
 

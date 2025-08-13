@@ -30,9 +30,20 @@ The system uses domain events to decouple business logic and enable real-time no
 
 ## Transactional Outbox (Implemented)
 
-- The DbContext writes a lean outbox entry for each raised domain event into the `OutboxMessages` table in the same transaction as the state change.
-- A background outbox processor service scans pending messages and processes them. In Development/Production, the processor publishes messages to AWS SNS (or LocalStack SNS locally), using a topic per event type. Topics are created on demand if missing.
-- In the Testing environment, the outbox processor is disabled to avoid cross-test interference. Outbox rows are still written, enabling assertions and observability without side effects.
+- The DbContext writes an outbox entry for each raised domain event into the `OutboxMessages` table in the same transaction as the state change.
+- A background outbox processor service scans pending messages and publishes them to external channels. Currently it publishes to AWS SNS topics (one topic per event type) for decoupled fan-out.
+- In Testing, behavior can be adjusted to avoid cross-test interference.
+
+## Domain Event Delivery vs Outbox: Two Complementary Flows
+
+- Domain Event Delivery (for in-app reactions and the dedicated worker):
+  - In-process by default via `InMemoryMessageQueue` + `DomainEventBackgroundService`.
+  - When `AWS:SQS:UseSqsForDomainEvents=true`, domain events are enqueued to SQS by the API and consumed by `LiveEventService.Worker`.
+    - Configure queue name with `AWS:SQS:QueueName` (default: `liveevent-domain-events`).
+
+- Transactional Outbox (for cross-service notifications):
+  - Outbox entries are persisted atomically with state changes and later published to SNS topics by the Outbox Processor.
+  - This ensures durability and at-least-once delivery without coupling request latency to external publishes.
 
 ## GraphQL Subscriptions & Performance Guardrails
 
@@ -42,7 +53,8 @@ The system uses domain events to decouple business logic and enable real-time no
 ### Performance Guardrails (HotChocolate v15)
 
 - Execution timeout: 10 seconds per request.
-- Strict validation enabled; introspection disabled outside Development/Testing.
+- Strict validation enabled; IDE disabled outside Development.
+- Max execution depth: 10 via validation rule.
 - DataLoader for `organizerName` in `Event` type batches user lookups and prevents N+1 queries.
 
 ### Subscription Schema

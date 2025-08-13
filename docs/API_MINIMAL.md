@@ -8,7 +8,7 @@ The Live Event Service API includes:
 - ✅ Swagger UI (Development)
 - ✅ Health checks (PostgreSQL, AWS Cognito, and AWS S3 when configured)
 - ✅ JWT authentication wiring (Cognito config; tests use test auth)
-- ✅ CORS policy sourced from `AllowedOrigins`
+- ✅ CORS policy sourced from `Security:Cors:AllowedOrigins` (allow-all in Development/Testing when unset)
 - ✅ Serilog structured logging with correlation IDs
 - ✅ OpenTelemetry metrics (Prometheus) and tracing via OTLP → ADOT Collector/X-Ray
 
@@ -25,7 +25,7 @@ The Events REST API is implemented using .NET 9 Minimal APIs directly in `Progra
 - **API Base URL**: http://localhost:5000
 - **Swagger UI**: http://localhost:5000/swagger/index.html
 - **Health Check**: http://localhost:5000/health
-- **GraphQL Playground**: http://localhost:5000/graphql
+- **GraphQL Playground**: http://localhost:5000/graphql (Development only)
 
 ## REST API Endpoints
 
@@ -62,7 +62,7 @@ The Events REST API is implemented using .NET 9 Minimal APIs directly in `Progra
 |--------|----------------------|---------------------------------------|--------|
 | GET    | `/health`           | Health check with service status     | ✅ Working |
 | GET    | `/swagger`          | API documentation (Swagger UI)       | ✅ Working |
-| GET    | `/graphql`          | GraphQL playground (development)     | ✅ Working |
+| GET    | `/graphql`          | GraphQL endpoint (playground in development) | ✅ Working |
 
 ## Health Check Details
 
@@ -217,10 +217,9 @@ curl -H "Authorization: Bearer <your-jwt-token>" http://localhost:5000/api/event
 ```
 
 ### Role-Based Access Control
-- **Admin**: Full access to all endpoints
-- **Organizer**: Event management (create, update, delete events)
-- **Authenticated**: Basic read access and event registration
-- **Anonymous**: Health check only
+- **Admin**: Full access to event and user management endpoints (create/update/delete events, publish/unpublish, list registrations and waitlist, confirm/cancel registrations)
+- **Participant**: Authenticate to register for events and manage own profile; read published events
+- **Anonymous**: Public reads (health check, published events and details)
 
 ### Development & Tests
 - Local development uses Cognito config; integration tests replace auth with a test scheme.
@@ -239,11 +238,15 @@ curl -H "Authorization: Bearer <your-jwt-token>" http://localhost:5000/api/event
 ### Error Response Format
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
-  "title": "Bad Request",
-  "status": 400,
-  "detail": "The request is invalid",
-  "traceId": "0HMV0000000000000000000000000000000"
+  "message": "An unexpected error occurred.",
+  "errors": ["... details (optional) ..."]
+}
+```
+For validation failures (HTTP 400), the response is:
+```json
+{
+  "message": "Validation failed",
+  "errors": ["<validation error 1>", "<validation error 2>"]
 }
 ```
 
@@ -301,9 +304,9 @@ query GetEvents {
 ## CORS Configuration
 
 ### Allowed Origins
-Currently configured for frontend development:
-- `http://localhost:3000` (React/Vue.js development server)
-- `http://localhost:5001` (Alternative frontend port)
+Configured via `Security:Cors:AllowedOrigins`.
+- Development/Testing: if unset, all origins are allowed by default to simplify local development.
+- Production: set explicit origins, for example `https://app.example.com`.
 
 ### CORS Headers
 - `Access-Control-Allow-Origin`
@@ -341,7 +344,7 @@ All requests are logged with:
     - Events and Users endpoints: "general"
     - Registration endpoints: "registration"
     - GraphQL (`/graphql`): "general"
-    - Health endpoints (`/health`, `/health/ready`, `/health/live`): "general"
+    - Health endpoints (`/health`, `/health/ready`, `/health/live`): not rate-limited
 
 ## Development Workflow
 
@@ -379,14 +382,12 @@ open http://localhost:5000/graphql
 ### Immediate Development
 1. **Frontend Integration**: Connect React/Vue.js app to API
 2. **Authentication Testing**: Test with real JWT tokens
-3. **Data Validation**: Add comprehensive input validation
-4. **Error Handling**: Implement global exception handling
+3. **Data Validation**: Expand input validation coverage
+4. **API Versioning**: Implement versioning strategy as the API surface grows
 
 ### Production Readiness
-1. **Rate Limiting**: Add request rate limiting
-2. **API Versioning**: Implement versioning strategy
-3. **Caching**: Add response caching where appropriate
-4. **Documentation**: Generate OpenAPI spec for client generation
+1. **Caching**: Evaluate response caching where appropriate
+2. **Documentation**: Generate OpenAPI spec for client generation
 
 ## Support Resources
 

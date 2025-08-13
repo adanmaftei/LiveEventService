@@ -5,14 +5,13 @@ This document outlines cost optimization strategies for the Live Event Service t
 ## Current Cost Analysis
 
 ### Monthly Cost Breakdown (Estimated)
-- **ECS Fargate**: $30-40 (2 tasks × 1GB RAM × 0.5 vCPU)
-- **RDS PostgreSQL**: $15-20 (t3.micro, 20GB storage)
-- **API Gateway**: $3-5 (10K requests/month)
-- **CloudWatch**: $5-10 (basic monitoring)
+- **ECS Fargate**: $20-35 (scaled by ALB request-count + CPU)
+- **RDS PostgreSQL**: $15-25 (t3.micro/small, storage tiered)
+- **ALB + WAF**: $5-12 (traffic dependent)
+- **CloudWatch**: $5-10 (log retention tuned: app 30d, audit 90d)
 - **Cognito**: $1-2 (1K MAU)
-- **WAF**: $5 (regional)
-- **X-Ray**: $2-5 (basic tracing)
-- **Total**: $60-90/month
+- **X-Ray**: $2-5 (sampling)
+- **Total**: $48-84/month
 
 ## High-Impact Cost Optimizations
 
@@ -163,17 +162,10 @@ var spotTaskDefinition = new FargateTaskDefinition(this, "SpotTaskDef", new Farg
 
 ## Low-Impact Optimizations
 
-### 8. API Gateway Optimization
+### 8. ALB Optimization
 
-#### Request Caching
-```csharp
-// Enable caching for GET requests
-DefaultMethodOptions = new MethodOptions
-{
-    CachingEnabled = true,
-    CacheTtl = Duration.Minutes(5)
-}
-```
+#### Target tracking
+- Prefer request-count-per-target scaled with CPU for bursty traffic.
 
 ### 9. X-Ray Sampling
 

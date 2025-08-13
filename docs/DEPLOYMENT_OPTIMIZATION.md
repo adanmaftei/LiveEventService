@@ -8,8 +8,8 @@ This document outlines deployment optimization strategies for the Live Event Ser
 - **Infrastructure as Code**: AWS CDK for reproducible deployments
 - **CI/CD Pipeline**: GitHub Actions with automated testing and deployment
 - **Containerization**: Docker with multi-stage builds
-- **Auto-scaling**: ECS Fargate with CPU-based scaling
-- **Load balancing**: Application Load Balancer with health checks
+- **Auto-scaling**: ECS Fargate with CPU and ALB request-based scaling
+- **Load balancing**: Application Load Balancer with health checks (WAF associated)
 - **Security**: WAF, Cognito, encryption at rest and in transit
 - **Monitoring**: CloudWatch dashboards and alarms
 
@@ -75,17 +75,10 @@ Notes:
 - Pair capacity settings with autoscaling policies (CPU and ALB request-count-per-target) already configured in the stack.
 - Review CloudWatch alarms and adjust thresholds if you significantly change capacity.
 
-### 1. Blue-Green Deployment Strategy
+### 1. Blue-Green Deployment Strategy (future consideration)
 
 #### Current Configuration
-```csharp
-// Basic rolling deployment
-var service = new ApplicationLoadBalancedFargateService(this, "LiveEventService", new ApplicationLoadBalancedFargateServiceProps
-{
-    DesiredCount = 2,
-    CircuitBreaker = new DeploymentCircuitBreaker { Rollback = true }
-});
-```
+Note: The current stack uses ALB + ECS Fargate with rolling deployments and a deployment circuit breaker. The following blue/green patterns are future considerations and are not provisioned by the current CDK stack.
 
 #### Recommended Implementation
 ```csharp
@@ -142,26 +135,10 @@ var trafficShifting = new CfnListenerRule(this, "TrafficShifting", new CfnListen
 - Risk mitigation through gradual traffic shifting
 - **Deployment Reliability**: 99.9%+ uptime during deployments
 
-### 2. Canary Deployment Strategy
+### 2. Canary Deployment Strategy (future consideration)
 
 #### Implementation
-```csharp
-// Canary deployment with gradual traffic shifting
-var canaryDeployment = new CfnDeployment(this, "CanaryDeployment", new CfnDeploymentProps
-{
-    RestApiId = api.RestApiId,
-    StageName = "v1",
-    DeploymentCanarySettings = new CfnDeployment.DeploymentCanarySettingsProperty
-    {
-        PercentTraffic = 10.0,  // Start with 10% traffic
-        StageVariableOverrides = new Dictionary<string, string>
-        {
-            ["lambdaAlias"] = "canary"
-        },
-        UseStageCache = false
-    }
-});
-```
+Note: The current stack uses ALB + ECS Fargate. If adopting API Gateway in the future, canary deployments can be configured there (example omitted here to avoid confusion with the current ALB architecture).
 
 #### GitHub Actions Integration
 ```yaml

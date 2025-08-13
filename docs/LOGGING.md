@@ -10,6 +10,7 @@ The logging system is **completely working** with:
 - ✅ Request/response logging with timing and context
 - ✅ Console output for development
 - ✅ CloudWatch integration automatically enabled in Production
+- ✅ Dedicated audit log sink (separate CloudWatch Logs group) for admin-sensitive actions
 - ✅ Automatic correlation ID generation and tracking
 
 ## Overview
@@ -70,7 +71,7 @@ builder.Host.UseSerilog((context, configuration) =>
 
 ### Production Configuration
 
-CloudWatch logging is now wired in startup and turns on automatically when `ASPNETCORE_ENVIRONMENT=Production`.
+CloudWatch logging is wired in startup and turns on automatically when `ASPNETCORE_ENVIRONMENT=Production`. Audit logs use a separate logger and log group.
 
 Required settings (can be left as defaults):
 
@@ -87,7 +88,7 @@ Required settings (can be left as defaults):
 ```
 
 Notes:
-- In Production, logs go to both Console and CloudWatch Logs.
+- In Production, logs go to both Console and CloudWatch Logs; audit logs go to a dedicated log group.
 - In non‑production, only Console is enabled by default.
 
 ## Request Logging with Correlation IDs

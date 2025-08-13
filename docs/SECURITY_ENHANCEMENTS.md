@@ -17,7 +17,6 @@ This document outlines critical security improvements for the Live Event Service
 - Rate limiting: general policy and stricter registration policy
 
 ### ⏳ Not Yet Implemented (Planned)
-- Audit logging of admin-sensitive actions
 - Field-level encryption at rest (KMS-backed)
 - Advanced input sanitization/content filtering
 
@@ -104,7 +103,7 @@ public class CreateEventCommandValidator : AbstractValidator<CreateEventCommand>
 }
 ```
 
-### 3. **Comprehensive Audit Logging**
+### 3. **Comprehensive Audit Logging** (Implemented via dedicated CloudWatch sink)
 
 **Audit Log Model:**
 ```csharp
@@ -133,35 +132,7 @@ public interface IAuditService
     Task<List<AuditLog>> GetAuditTrailAsync(string resourceId, DateTime? from = null);
 }
 
-public class AuditService : IAuditService
-{
-    private readonly ILogger<AuditService> _logger;
-    private readonly ApplicationDbContext _context;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-
-    public async Task LogAsync(string action, string resource, string resourceId, 
-        Dictionary<string, object>? metadata = null)
-    {
-        var context = _httpContextAccessor.HttpContext;
-        var auditLog = new AuditLog
-        {
-            Id = Guid.NewGuid(),
-            UserId = context?.User?.Identity?.Name ?? "anonymous",
-            Action = action,
-            Resource = resource,
-            ResourceId = resourceId,
-            IpAddress = GetClientIpAddress(context),
-            UserAgent = context?.Request.Headers["User-Agent"].ToString(),
-            Timestamp = DateTime.UtcNow,
-            RequestId = context?.TraceIdentifier,
-            CorrelationId = context?.Request.Headers["X-Correlation-ID"].ToString(),
-            Metadata = metadata ?? new Dictionary<string, object>()
-        };
-
-        _context.AuditLogs.Add(auditLog);
-        await _context.SaveChangesAsync();
-    }
-}
+// In Production, audit logs are written to a dedicated CloudWatch log group (`/live-event-service/audit`) via a separate Serilog logger.
 ```
 
 ### 4. **Data Encryption at Rest**
@@ -241,8 +212,7 @@ public class SecurityHeadersMiddleware
         // X-Content-Type-Options
         context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
         
-        // X-XSS-Protection
-        context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
+        // Note: modern browsers ignore X-XSS-Protection; CSP + output encoding are preferred.
         
         // Referrer Policy
         context.Response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin");

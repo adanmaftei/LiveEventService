@@ -9,7 +9,7 @@ This application is operational for local development and testing with:
 - ✅ PostgreSQL database with automatic migrations  
 - ✅ AWS service mocking via LocalStack
 - ✅ Serilog structured logging with correlation IDs
-- ✅ OpenTelemetry metrics (Prometheus) and tracing via OTLP → ADOT Collector/X-Ray
+- ✅ OpenTelemetry metrics (Prometheus) and tracing via OTLP → ADOT Collector → AWS X-Ray
 - ✅ Health checks (PostgreSQL and AWS Cognito configuration)
 - ✅ Swagger (Development) and GraphQL endpoint
 
@@ -29,8 +29,8 @@ This application is operational for local development and testing with:
 
 - **Backend**: .NET 9, C#
 - **Database**: PostgreSQL with Entity Framework Core
-- **API**: REST, GraphQL (HotChocolate)
-- **Infrastructure**: AWS (ECS, RDS, Cognito, API Gateway, etc.)
+- **API**: REST (Minimal APIs) and GraphQL (HotChocolate)
+- **Infrastructure**: AWS (ECS Fargate, ALB + WAF, RDS, Cognito, SQS)
 - **CI/CD**: GitHub Actions
 - **Containerization**: Docker
 - **Monitoring**: AWS CloudWatch, X-Ray
@@ -58,7 +58,7 @@ curl http://localhost:5000/health
 **That's it!** 🎉 Access your services:
 - **API Health**: http://localhost:5000/health
 - **Swagger UI**: http://localhost:5000/swagger/index.html
-- **GraphQL Playground**: http://localhost:5000/graphql
+- **GraphQL Playground**: http://localhost:5000/graphql (Development only)
 - **Database Admin**: http://localhost:5050 (admin@example.com / admin)
 
 ### Option 2: Development Mode
@@ -138,7 +138,7 @@ This structure makes it easy to find all code for a feature and enables true fea
 
 ### Authentication
 
-The API uses JWT tokens from AWS Cognito (mocked via LocalStack in development):
+The API uses JWT tokens from AWS Cognito (tests use a test auth handler; LocalStack used in dev):
 
 ```bash
 # Health check (no auth required)
@@ -147,6 +147,12 @@ curl http://localhost:5000/health
 # With correlation ID for tracing
 curl -H "X-Correlation-ID: test-123" http://localhost:5000/health
 ```
+
+### CORS
+
+- CORS is environment-driven via `Security:Cors:AllowedOrigins`.
+- In Development/Testing, or when no allowed origins are configured, the API allows all origins by default.
+- In Production, set `Security:Cors:AllowedOrigins` to the list of trusted frontend origins.
 
 ## 🔧 Advanced Features
 
@@ -158,7 +164,7 @@ curl -H "X-Correlation-ID: test-123" http://localhost:5000/health
 ### OpenTelemetry Tracing (via ADOT → X-Ray)
 - Request tracing across components (ASP.NET Core + HttpClient instrumentation)
 - Prometheus metrics endpoint exposed; Prometheus included in docker-compose
-- OTLP exporter configured to ADOT Collector; ADOT exports to AWS X-Ray
+- OTLP exporter configured to ADOT Collector; ADOT exports to AWS X-Ray. In production, container logs flow to CloudWatch via ECS log driver, and audit logs go to a dedicated log group.
 
 ### Entity Framework Migrations
 - Automatic database schema creation
@@ -182,14 +188,14 @@ cdk bootstrap
 cdk deploy
 ```
 
-Note: CI/CD workflows are not included in this repository. See `docs/CICD.md` for a proposed workflow.
+CI/CD workflows are included. See `docs/CICD.md` for details (lint/format check, unit + integration tests, deploy with EF migrations, health smoke test).
 
 ## Monitoring & Observability
 
 - **Health Checks**: `/health` endpoint with PostgreSQL and AWS Cognito config checks
 - **Logging**: Structured Serilog with correlation ID tracking
-- **Tracing**: AWS X-Ray distributed tracing for performance monitoring
-- **Metrics**: AWS CloudWatch integration ready for production
+- **Tracing**: AWS X-Ray via ADOT Collector
+- **Metrics**: CloudWatch EMF in production; Prometheus locally
 
 ## Development Workflow
 
@@ -232,6 +238,7 @@ dotnet test /p:CollectCoverage=true
 - 🔍 **[Tracing](docs/TRACING.md)** - AWS X-Ray distributed tracing
 - 🏥 **[Monitoring](docs/MONITORING.md)** - Health checks and CloudWatch
 - 🔗 **[API Documentation](docs/API_MINIMAL.md)** - Minimal API implementation
+  - 📋 **[Improvement Plan](docs/IMPROVEMENT_PLAN.md)** - Source of truth for improvements and status
 - 🛡️ **[Compliance](docs/COMPLIANCE.md)** - GDPR and privacy considerations
 - 🔄 **[Backup & DR](docs/BACKUP_AND_DR.md)** - Backup and disaster recovery
  - 🛡️ **[Security Enhancements](docs/SECURITY_ENHANCEMENTS.md)** - Security baseline (HTTPS/HSTS, headers, rate limiting) + next steps

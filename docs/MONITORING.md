@@ -165,15 +165,11 @@ curl -w "Total time: %{time_total}s\n" -s http://localhost:5000/health > /dev/nu
 
 - Traces: exported via OTLP to ADOT Collector → AWS X-Ray
 - Metrics: exported via OTLP to ADOT Collector → CloudWatch EMF (service, infrastructure)
-- Optional: Long-term metrics → Amazon Managed Prometheus (AMP) and dashboards via Amazon Managed Grafana (AMG)
-- Logs: container logs to CloudWatch Logs (short retention for cost control). Serilog structured logs support correlation IDs.
-- Dashboard and alarms provisioned via CDK (API Gateway, ECS Fargate, RDS). Email alerts via SNS.
+- Logs: container logs to CloudWatch Logs (short retention for cost control). Serilog structured logs support correlation IDs. Dedicated audit logs go to a separate log group.
+- Dashboard and alarms provisioned via CDK (ALB/ECS Fargate/RDS). Email alerts via SNS.
 
-### Enabling AMP/AMG (optional)
-1. Provision an AMP workspace and AMG workspace (or reuse existing).
-2. Set `PROM_REMOTE_WRITE_ENDPOINT` for ADOT Collector.
-3. Give ADOT Collector IAM `aps:RemoteWrite` to the AMP workspace.
-4. In AMG, add the AMP data source and build dashboards from custom metrics like `events_created_total`.
+### AMP/AMG
+Deferrred in the current stack to reduce cost. Use CloudWatch Dashboards and Logs Insights instead.
 
 ### Serilog Integration
 Health check requests are automatically logged with:

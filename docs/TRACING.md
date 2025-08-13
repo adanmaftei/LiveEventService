@@ -9,7 +9,7 @@ The Live Event Service implements comprehensive distributed tracing using AWS X-
 ## Current Status
 
 - ✅ OpenTelemetry SDK integrated for ASP.NET Core and HttpClient
-- ✅ Metrics: Prometheus endpoint exposed for scraping
+- ✅ Metrics: Prometheus endpoint exposed for scraping (local); CloudWatch EMF in production
 - ✅ Tracing: OTLP exporter configured (endpoint provided via environment, e.g. ADOT Collector)
 - ✅ Local development: Prometheus metrics available; traces sent to local/remote collector when configured
 
@@ -26,7 +26,7 @@ builder.Services.AddOpenTelemetry()
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation()
             .AddProcessInstrumentation()
-            .AddPrometheusExporter();
+            .AddPrometheusExporter(); // local metrics
     })
     .WithTracing(tracing =>
     {
@@ -185,43 +185,13 @@ docker logs liveevent-api --tail 20 | grep "test-trace-123"
 
 ## Integration with Logging
 
-X-Ray traces are automatically correlated with Serilog logs through correlation IDs:
-
-```csharp
-// Correlation IDs from HTTP headers are included in both X-Ray traces and logs
-app.Use(async (context, next) =>
-{
-    var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault() ?? Guid.NewGuid().ToString();
-    
-    // This correlation ID appears in both logs and X-Ray traces
-    using (LogContext.PushProperty("CorrelationId", correlationId))
-    {
-        // X-Ray automatically picks up this context
-        AWSXRayRecorder.Instance.AddAnnotation("CorrelationId", correlationId);
-        await next(context);
-    }
-});
-```
+Traces are correlated with Serilog logs using the `X-Correlation-ID` header and request logging enrichment in the application.
 
 ## Performance Analysis
 
 ### SQL Query Tracing
 
-Entity Framework queries are automatically traced:
-
-```csharp
-// This query will appear as a subsegment in X-Ray
-var events = await _dbContext.Events
-    .Where(e => e.IsPublished)
-    .OrderBy(e => e.StartDate)
-    .ToListAsync();
-```
-
-The trace will show:
-- SQL query text
-- Execution time
-- Number of rows returned
-- Database connection details
+EF Core tracing can be added via EF Core instrumentation packages for OpenTelemetry. The current setup includes ASP.NET Core and HttpClient instrumentation.
 
 ### HTTP Request Performance
 

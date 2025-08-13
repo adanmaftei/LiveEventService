@@ -83,15 +83,13 @@ Under GDPR, users have the following rights regarding their personal data:
 
 ## Third-Party Processors
 
-We use the following third-party processors who may process user data:
+Current infrastructure provider:
 
 | Processor | Purpose | Data Processed | Location |
 |-----------|---------|----------------|----------|
-| AWS | Cloud Infrastructure | All service data | Multiple regions |
-| SendGrid | Email notifications | Email addresses, names | United States |
-| Stripe | Payment processing | Payment information | United States |
+| AWS | Cloud Infrastructure | Service data (compute, storage, networking) | Multiple regions |
 
-All third-party processors are vetted for GDPR compliance and have signed Data Processing Agreements (DPAs).
+Note: Email and payment providers (e.g., SendGrid, Stripe) are not currently integrated. If added in the future, they will be vetted for GDPR compliance and DPAs will be established prior to use.
 
 ## Contact Information
 
@@ -108,8 +106,8 @@ This policy is reviewed annually or when significant changes to our processing a
 ## Implementation Details
 
 ### Technical Implementation
-- Data retention is implemented using AWS RDS automated backups and snapshots
-- Data subject requests are processed through the [Admin Portal] with audit logging
+- Data retention is implemented using AWS RDS automated backups and snapshots (retention tuned per environment)
+- Audit logs for admin actions are written to a dedicated CloudWatch Logs group
 - All data processing activities are logged in AWS CloudTrail
 - Regular data protection impact assessments are conducted
 

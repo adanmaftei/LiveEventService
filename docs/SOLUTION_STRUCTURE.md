@@ -73,9 +73,9 @@ LiveEventService.sln
 ├── 📁 tests/                        # Test Projects
 │   ├── 🧪 LiveEventService.UnitTests
 │   └── 🔗 LiveEventService.IntegrationTests
-├── 📁 Documentation/                 # All Documentation Files
-├── 📁 DevOps/                       # CI/CD & Container Files
-└── 📁 Configuration/                 # Project Configuration Files
+├── 📁 docs/                         # All documentation files
+├── 📁 .github/workflows/            # CI/CD workflows
+└── 📁 observability/                # Local observability configs (Prometheus, Grafana, Loki, ADOT)
 ```
 
 ### 🏗️ **Project Structure Details**
@@ -183,10 +183,10 @@ LiveEventService.UnitTests/
 #### **LiveEventService.IntegrationTests**
 ```
 LiveEventService.IntegrationTests/
-├── Controllers/                   # API Controller Tests
-├── GraphQL/                       # GraphQL Integration Tests
-├── Database/                      # Database Integration Tests
-└── Authentication/                # Auth Integration Tests
+├── Infrastructure/                # Test host factories (incl. SQS)
+├── Sqs/                           # SQS integration tests
+├── GraphQL/                       # GraphQL integration tests
+└── Api/                           # REST API tests
 ```
 
 ## Domain Event Flow Architecture

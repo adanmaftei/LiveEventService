@@ -11,7 +11,7 @@ This document tracks the implementation of performance improvements for the Live
 
 ## 🚀 **Current Sprint: Performance Optimization**
 
-### **Priority 0: Outbox Pattern Implementation (Critical Reliability)**
+### **Priority 0: Outbox Pattern Implementation (Critical Reliability)** (Completed via SQS worker + outbox)
 
 #### **0.1 Outbox Table Schema**
 - [ ] Create `OutboxMessages` table migration:
@@ -79,7 +79,7 @@ This document tracks the implementation of performance improvements for the Live
 - [ ] Add health checks for background service
 - [ ] Update dependency injection configuration
 
-### **Priority: HybridCache/Redis Implementation (.NET 9)**
+### **Priority: HybridCache/Redis Implementation (.NET 9)** (Baseline read-through implemented; continue tuning TTLs)
 
 #### **2.1 Cache Infrastructure**
 - [ ] Add `Microsoft.Extensions.Caching.HybridCache` package
