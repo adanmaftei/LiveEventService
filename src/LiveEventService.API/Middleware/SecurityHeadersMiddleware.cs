@@ -1,5 +1,6 @@
 using System.Globalization;
 using LiveEventService.API.Constants;
+using Microsoft.Extensions.Configuration;
 
 namespace LiveEventService.API.Middleware;
 
@@ -7,11 +8,13 @@ public sealed class SecurityHeadersMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly IWebHostEnvironment _environment;
+    private readonly IConfiguration _configuration;
 
-    public SecurityHeadersMiddleware(RequestDelegate next, IWebHostEnvironment environment)
+    public SecurityHeadersMiddleware(RequestDelegate next, IWebHostEnvironment environment, IConfiguration configuration)
     {
         _next = next;
         _environment = environment;
+        _configuration = configuration;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -28,11 +31,13 @@ public sealed class SecurityHeadersMiddleware
             // A conservative default Permissions-Policy for API-only service
             headers.TryAdd(SecurityHeaderNames.PermissionsPolicy, "geolocation=(), microphone=(), camera=()");
 
-            // Content-Security-Policy is applied only in non-development to avoid interfering with dev tooling
-            if (!_environment.IsDevelopment())
+            // Content-Security-Policy: configurable. Defaults to strict policy when enabled.
+            var cspSection = _configuration.GetSection("Security:Csp");
+            var cspEnabled = cspSection.GetValue<bool?>("Enabled") ?? !_environment.IsDevelopment();
+            if (cspEnabled)
             {
-                // API does not serve HTML; lock down by default
-                headers.TryAdd(SecurityHeaderNames.ContentSecurityPolicy, "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+                var policy = cspSection["Policy"] ?? "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+                headers[SecurityHeaderNames.ContentSecurityPolicy] = policy;
             }
 
             return Task.CompletedTask;

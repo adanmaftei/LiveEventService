@@ -88,6 +88,25 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddInfrastructureServices(builder.Configuration, isTesting);
 
+// CORS configuration (env-driven)
+var allowedOrigins = builder.Configuration.GetSection("Security:Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        if (builder.Environment.IsDevelopment() || isTesting || allowedOrigins.Length == 0)
+        {
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        }
+        else
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+    });
+});
+
 // Add API-specific services
 builder.Services.AddScoped<IEventRegistrationNotifier, EventRegistrationNotifier>();
 builder.Services.AddSingleton<IAuditLogger>(sp => new SerilogAuditLogger(Log.Logger));
@@ -230,16 +249,18 @@ if (!isTesting)
 
 var app = builder.Build();
 
-// Initialize database (configurable; off by default in production)
+// Initialize database only in Development (migrations handled by CI/CD)
 try
 {
-    var initializeOnStartup = builder.Configuration.GetValue<bool?>("Database:InitializeOnStartup")
-        ?? builder.Environment.IsDevelopment();
-    if (isTesting == false && initializeOnStartup)
+    if (!isTesting && builder.Environment.IsDevelopment())
     {
-        Log.Information("Starting database initialization...");
-        await DatabaseInitializer.InitializeDatabaseAsync(app.Services);
-        Log.Information("Database initialization completed successfully.");
+        var initializeOnStartup = builder.Configuration.GetValue<bool?>("Database:InitializeOnStartup") ?? true;
+        if (initializeOnStartup)
+        {
+            Log.Information("Starting database initialization (Development only)...");
+            await DatabaseInitializer.InitializeDatabaseAsync(app.Services);
+            Log.Information("Database initialization completed successfully.");
+        }
     }
 }
 catch (Exception ex)

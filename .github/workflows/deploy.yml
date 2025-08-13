@@ -22,6 +22,27 @@ permissions:
   id-token: write
 
 jobs:
+  # Lint/Format check (no code changes)
+  lint-format:
+    name: Lint / Format
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Install dotnet-format tool
+      run: |
+        dotnet tool install -g dotnet-format
+        echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+    - name: Verify code formatting
+      run: dotnet format --verify-no-changes --severity error
+
   # Unit Tests Job
   unit-tests:
     name: Unit Tests
@@ -74,12 +95,12 @@ jobs:
       env:
         TESTCONTAINERS_RYUK_DISABLED: true
 
-  # Build and Deploy Job - depends on tests passing
+  # Build and Deploy Job - depends on lint and tests passing
   build-and-deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
     environment: production
-    needs: [unit-tests, integration-tests]
+    needs: [lint-format, unit-tests, integration-tests]
     if: github.ref == 'refs/heads/main'
     
     steps:
@@ -110,16 +131,31 @@ jobs:
         npm install -g aws-cdk
         cdk deploy --require-approval never
         
+    - name: Install dotnet-ef tool
+      run: |
+        dotnet tool install -g dotnet-ef
+        echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
     - name: Run database migrations
       run: |
         cd src/LiveEventService.API
         dotnet ef database update --project ../LiveEventService.Infrastructure/LiveEventService.Infrastructure.csproj --context LiveEventDbContext
         
-    - name: Run smoke tests
+    - name: Smoke test (health endpoint)
+      env:
+        API_ENDPOINT: ${{ secrets.API_ENDPOINT }}
       run: |
-        # Add smoke tests to verify deployment
-        echo "Running smoke tests..."
-        # Example: curl -sSf ${{ secrets.API_ENDPOINT }}/health > /dev/null
+        echo "Running smoke test against health endpoint..."
+        if [ -z "$API_ENDPOINT" ]; then
+          echo "API_ENDPOINT secret not set; skipping smoke test."
+          exit 0
+        fi
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_ENDPOINT/health")
+        if [ "$STATUS" -ne 200 ]; then
+          echo "Health check failed with HTTP $STATUS"
+          exit 1
+        fi
+        echo "Health check OK (HTTP $STATUS)"
         
     - name: Notify status
       if: always()
