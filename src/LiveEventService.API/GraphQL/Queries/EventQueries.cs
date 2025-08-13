@@ -4,6 +4,8 @@ using LiveEventService.Application.Features.Events.Event.List;
 using LiveEventService.Application.Features.Events.Event.Get;
 using LiveEventService.Application.Features.Events.EventRegistration.Get;
 using MediatR;
+using LiveEventService.Application.Common.Models;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace LiveEventService.API.Events;
 
@@ -12,9 +14,17 @@ public class EventQueries
 {
     public async Task<EventDto> GetEvent(
         [Service] IMediator mediator,
+        [Service] IDistributedCache cache,
         Guid id,
         CancellationToken cancellationToken)
     {
+        var cacheKey = $"event:{id}:graphql";
+        var (hit, cached) = await API.Utilities.CacheHelper.TryGetAsync<BaseResponse<EventDto>>(cache, cacheKey, cancellationToken);
+        if (hit && cached?.Data != null)
+        {
+            return cached.Data;
+        }
+
         var query = new GetEventQuery { EventId = id };
         var result = await mediator.Send(query, cancellationToken);
         
@@ -22,7 +32,8 @@ public class EventQueries
         {
             throw new GraphQLException(result.Errors?.FirstOrDefault() ?? "Event not found");
         }
-        
+
+        await API.Utilities.CacheHelper.SetAsync(cache, cacheKey, result, TimeSpan.FromMinutes(5), cancellationToken);
         return result.Data;
     }
     

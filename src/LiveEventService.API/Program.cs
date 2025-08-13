@@ -25,9 +25,10 @@ using Amazon;
 using Amazon.CloudWatchLogs;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.AwsCloudWatch;
-using LiveEventService.Application.Common;
 using LiveEventService.API.Logging;
 using LiveEventService.Infrastructure.Telemetry;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 var isTesting = builder.Environment.IsEnvironment("Testing");
@@ -68,6 +69,21 @@ builder.Host.UseSerilog((context, configuration) =>
 
 Log.Information("Starting web application");
 
+// Trust proxy headers when running behind ALB/API Gateway
+var knownProxies = builder.Configuration.GetSection("Networking:KnownProxies").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    foreach (var ip in knownProxies)
+    {
+        if (IPAddress.TryParse(ip, out var parsed))
+        {
+            options.KnownProxies.Add(parsed);
+        }
+    }
+});
+
 // Add services to the container.
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddInfrastructureServices(builder.Configuration, isTesting);
@@ -75,6 +91,7 @@ builder.Services.AddInfrastructureServices(builder.Configuration, isTesting);
 // Add API-specific services
 builder.Services.AddScoped<IEventRegistrationNotifier, EventRegistrationNotifier>();
 builder.Services.AddSingleton<IAuditLogger>(sp => new SerilogAuditLogger(Log.Logger));
+builder.Services.AddSingleton<LiveEventService.API.Utilities.IIdempotencyStore, LiveEventService.API.Utilities.IdempotencyStore>();
 
 // Add a resilient HttpClient for outbound calls (using Microsoft.Extensions.Http.Resilience)
 builder.Services
@@ -129,7 +146,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Add GraphQL services
-builder.Services
+var graphQlBuilder = builder.Services
     .AddGraphQLServer()
     .AddQueryType(d => d.Name("Query"))
         .AddTypeExtension<EventQueries>()
@@ -141,9 +158,20 @@ builder.Services
         .AddTypeExtension<EventSubscriptions>()
     .AddType<EventType>()
     .AddType<UserType>()
-    .AddAuthorization()
-    .AddInMemorySubscriptions()
+    .AddAuthorization();
+
+// Subscriptions backplane: prefer Redis when configured and not in Testing; otherwise fall back to in-memory
+var redisCfg = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["ConnectionStrings:Redis"];
+if (!isTesting && !string.IsNullOrWhiteSpace(redisCfg))
+{
+    graphQlBuilder = graphQlBuilder.AddRedisSubscriptions(_ => ConnectionMultiplexer.Connect(redisCfg));
+}
+else
+{
+    graphQlBuilder = graphQlBuilder.AddInMemorySubscriptions();
+}
     // HotChocolate v15: use validation rules to limit depth/complexity if needed
+graphQlBuilder
     .AddFiltering()
     .AddSorting()
     .AddProjections()
@@ -158,6 +186,8 @@ builder.Services
         opt.ExecutionTimeout = TimeSpan.FromSeconds(10);
         opt.IncludeExceptionDetails = builder.Environment.IsDevelopment();
     })
+    // Note: HotChocolate v15 does not expose MaxAllowedExecutionDepth/Complexity on SchemaOptions directly.
+    // Keep strict validation and short execution timeout as guardrails; deeper cost analysis can be added via custom rules if needed.
     .AddDataLoader<UserByIdentityIdDataLoader>();
 
 // Add rate limiting (disabled in Testing environment)
@@ -200,10 +230,12 @@ if (!isTesting)
 
 var app = builder.Build();
 
-// Initialize database
+// Initialize database (configurable; off by default in production)
 try
 {
-    if (isTesting == false)
+    var initializeOnStartup = builder.Configuration.GetValue<bool?>("Database:InitializeOnStartup")
+        ?? builder.Environment.IsDevelopment();
+    if (isTesting == false && initializeOnStartup)
     {
         Log.Information("Starting database initialization...");
         await DatabaseInitializer.InitializeDatabaseAsync(app.Services);
@@ -238,6 +270,9 @@ if (!app.Environment.IsDevelopment() && !isTesting)
 {
     app.UseHttpsRedirection();
 }
+
+// Apply forwarded headers early so RemoteIp reflects original client IP behind proxies
+app.UseForwardedHeaders();
 
 // Add correlation ID middleware
 app.Use(async (context, next) =>
@@ -323,20 +358,17 @@ app.MapHealthChecks(RoutePaths.Health, new()
         });
         await context.Response.WriteAsync(result);
     }
-})
-    .RequireRateLimiting(PolicyNames.General);
+});
 
 app.MapHealthChecks(RoutePaths.HealthReady, new()
 {
     Predicate = check => check.Tags.Contains("ready")
-})
-    .RequireRateLimiting(PolicyNames.General);
+});
 
 app.MapHealthChecks(RoutePaths.HealthLive, new()
 {
     Predicate = _ => false
-})
-    .RequireRateLimiting(PolicyNames.General);
+});
 
 // Configure GraphQL endpoint
 var graphQLEndpoint = app.MapGraphQL(RoutePaths.GraphQL);

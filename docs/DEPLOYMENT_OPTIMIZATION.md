@@ -22,6 +22,59 @@ This document outlines deployment optimization strategies for the Live Event Ser
 
 ## High-Priority Deployment Optimizations
 
+### Parameterizing service capacity (CDK parameters)
+
+You can tune API and Worker capacity per environment at deploy time via CDK parameters.
+
+- API parameters: `ApiDesiredCount`, `ApiMinCapacity`, `ApiMaxCapacity`
+- Worker parameters: `WorkerDesiredCount`, `WorkerMinCapacity`, `WorkerMaxCapacity`
+
+Recommended per-environment starting points:
+- Dev: API (desired=1, min=0, max=2); Worker (desired=0, min=0, max=2)
+- Staging: API (desired=1, min=1, max=4); Worker (desired=1, min=0, max=4)
+- Prod: API (desired=2, min=2, max=10); Worker (desired=1, min=1, max=10)
+
+CDK deploy examples:
+
+```bash
+# API-only overrides
+cdk deploy LiveEventServiceStack \
+  --parameters ApiDesiredCount=2 \
+  --parameters ApiMinCapacity=1 \
+  --parameters ApiMaxCapacity=8
+
+# Worker-only overrides
+cdk deploy LiveEventServiceStack \
+  --parameters WorkerDesiredCount=1 \
+  --parameters WorkerMinCapacity=0 \
+  --parameters WorkerMaxCapacity=6
+
+# Override both
+cdk deploy LiveEventServiceStack \
+  --parameters ApiDesiredCount=2 ApiMinCapacity=2 ApiMaxCapacity=10 \
+  --parameters WorkerDesiredCount=1 WorkerMinCapacity=1 WorkerMaxCapacity=10
+```
+
+GitHub Actions snippet:
+
+```yaml
+- name: CDK Deploy (Prod)
+  run: |
+    cdk deploy LiveEventServiceStack \
+      --require-approval never \
+      --parameters ApiDesiredCount=2 \
+      --parameters ApiMinCapacity=2 \
+      --parameters ApiMaxCapacity=10 \
+      --parameters WorkerDesiredCount=1 \
+      --parameters WorkerMinCapacity=1 \
+      --parameters WorkerMaxCapacity=10
+```
+
+Notes:
+- These parameters are surfaced in `LiveEventServiceStack.cs` and control ECS Service desired count and autoscaling bounds.
+- Pair capacity settings with autoscaling policies (CPU and ALB request-count-per-target) already configured in the stack.
+- Review CloudWatch alarms and adjust thresholds if you significantly change capacity.
+
 ### 1. Blue-Green Deployment Strategy
 
 #### Current Configuration

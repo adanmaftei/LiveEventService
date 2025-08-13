@@ -1,4 +1,4 @@
-using LiveEventService.Application.Common;
+using LiveEventService.Core.Common;
 
 namespace LiveEventService.IntegrationTests.Infrastructure;
 

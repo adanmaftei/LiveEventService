@@ -41,12 +41,12 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
         builder.ConfigureServices(services =>
         {
             // Replace audit logger with in-memory implementation for assertions
-            var existingAudit = services.FirstOrDefault(s => s.ServiceType.FullName == typeof(LiveEventService.Application.Common.IAuditLogger).FullName);
+            var existingAudit = services.FirstOrDefault(s => s.ServiceType.FullName == typeof(IAuditLogger).FullName);
             if (existingAudit != null)
             {
                 services.Remove(existingAudit);
             }
-            services.AddSingleton<LiveEventService.Application.Common.IAuditLogger, InMemoryAuditLogger>();
+            services.AddSingleton<IAuditLogger, InMemoryAuditLogger>();
             // Remove the real database context
             var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<LiveEventDbContext>));
             if (descriptor != null)
@@ -120,6 +120,8 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
                 opt.StrictValidation = false; // Allow introspection queries
             });
 
+            // Keep worker out-of-process for integration tests to avoid Docker dependency flakiness
+
             // Override AWS configuration for LocalStack (shared across tests)
             services.Configure<Dictionary<string, string>>(config =>
             {
@@ -148,7 +150,10 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
                 ["AWS:ServiceURL"] = s_localStackContainer!.GetConnectionString(),
                 ["AWS:Region"] = "us-east-1",
                 ["AWS:UserPoolId"] = "us-east-1_000000001",
-                ["AWS:S3BucketName"] = "test-bucket"
+                ["AWS:S3BucketName"] = "test-bucket",
+                ["AWS:SQS:UseSqsForDomainEvents"] = "true",
+                ["AWS:SQS:QueueName"] = "liveevent-domain-events",
+                ["Performance:BackgroundProcessing:UseInProcess"] = "false"
             });
         });
     }

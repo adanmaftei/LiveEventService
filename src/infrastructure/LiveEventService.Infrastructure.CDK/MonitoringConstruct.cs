@@ -12,6 +12,7 @@ namespace LiveEventService.Infrastructure.CDK;
 
 public class MonitoringConstruct : Construct
 {
+    public ITopic AlarmTopic { get; private set; } = null!;
     public MonitoringConstruct(Construct scope, string id, MonitoringConstructProps props) : base(scope, id)
     {
         // Create SNS topic for alerts
@@ -20,6 +21,8 @@ public class MonitoringConstruct : Construct
             DisplayName = "LiveEventServiceAlarms",
             TopicName = "LiveEventServiceAlarms"
         });
+
+        AlarmTopic = alarmTopic;
 
         // Add email subscription if email is provided
         if (!string.IsNullOrEmpty(props.AlarmEmail))

@@ -36,8 +36,12 @@ public static class DependencyInjection
         // Configure background processing options
         services.Configure<BackgroundProcessingOptions>(configuration.GetSection("Performance:BackgroundProcessing"));
         
-        // Register background service
-        services.AddHostedService<DomainEventBackgroundService>();
+        // Register background service (can be disabled via config when using external queue workers)
+        var useInProcess = configuration.GetValue<bool?>("Performance:BackgroundProcessing:UseInProcess") ?? true;
+        if (useInProcess)
+        {
+            services.AddHostedService<DomainEventBackgroundService>();
+        }
 
         // Register domain event dispatcher
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();

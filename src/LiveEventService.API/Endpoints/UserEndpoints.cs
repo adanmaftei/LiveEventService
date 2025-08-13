@@ -6,6 +6,9 @@ using LiveEventService.Core.Common;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using LiveEventService.API.Constants;
+using Microsoft.Extensions.Caching.Distributed;
+using LiveEventService.Application.Common.Models;
+using LiveEventService.Application.Features.Users.User;
 
 namespace LiveEventService.API.Users;
 
@@ -32,22 +35,48 @@ public static class UserEndpoints
 
         endpoints.MapGet("/api/users/me", async (
             [FromServices] IMediator mediator,
-            HttpContext httpContext) =>
+            [FromServices] IDistributedCache cache,
+            HttpContext httpContext,
+            CancellationToken ct) =>
         {
             var userId = httpContext.User.Identity?.Name ?? string.Empty;
+            var cacheKey = $"user:{userId}";
+            var (hit, cached) = await API.Utilities.CacheHelper.TryGetAsync<BaseResponse<UserDto>>(cache, cacheKey, ct);
+            if (hit && cached != null)
+            {
+                return Results.Ok(cached);
+            }
             var query = new GetUserQuery { UserId = userId };
-            var result = await mediator.Send(query);
-            return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
+            var result = await mediator.Send(query, ct);
+            if (result.Success)
+            {
+                await API.Utilities.CacheHelper.SetAsync(cache, cacheKey, result, TimeSpan.FromMinutes(10), ct);
+                return Results.Ok(result);
+            }
+            return Results.BadRequest(new { result.Errors });
         }).RequireAuthorization()
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapGet("/api/users/{id}", async (
             [FromServices] IMediator mediator,
-            string id) =>
+            [FromServices] IDistributedCache cache,
+            string id,
+            CancellationToken ct) =>
         {
+            var cacheKey = $"user:{id}";
+            var (hit, cached) = await API.Utilities.CacheHelper.TryGetAsync<BaseResponse<UserDto>>(cache, cacheKey, ct);
+            if (hit && cached != null)
+            {
+                return Results.Ok(cached);
+            }
             var query = new GetUserQuery { UserId = id };
-            var result = await mediator.Send(query);
-            return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
+            var result = await mediator.Send(query, ct);
+            if (result.Success)
+            {
+                await API.Utilities.CacheHelper.SetAsync(cache, cacheKey, result, TimeSpan.FromMinutes(10), ct);
+                return Results.Ok(result);
+            }
+            return Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
@@ -62,6 +91,7 @@ public static class UserEndpoints
 
         endpoints.MapPut("/api/users/{id}", async (
             [FromServices] IMediator mediator,
+            [FromServices] IDistributedCache cache,
             string id,
             [FromBody] UpdateUserCommand command,
             HttpContext httpContext) =>
@@ -79,6 +109,10 @@ public static class UserEndpoints
                 return Results.BadRequest("ID in route does not match ID in the request body");
             
             var result = await mediator.Send(command);
+            if (result.Success)
+            {
+                await cache.RemoveAsync($"user:{id}", httpContext.RequestAborted);
+            }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization()
         .RequireRateLimiting(PolicyNames.General);

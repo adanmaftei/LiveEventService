@@ -19,7 +19,9 @@ namespace LiveEventService.Infrastructure.Migrations
                     Status = table.Column<int>(nullable: false),
                     TryCount = table.Column<int>(nullable: false),
                     LastError = table.Column<string>(nullable: true),
-                    NextAttemptAt = table.Column<DateTime>(nullable: true)
+                    NextAttemptAt = table.Column<DateTime>(nullable: true),
+                    ClaimedBy = table.Column<string>(nullable: true),
+                    ClaimedAt = table.Column<DateTime>(nullable: true)
                 },
                 constraints: table =>
                 {
@@ -30,6 +32,11 @@ namespace LiveEventService.Infrastructure.Migrations
                 name: "IX_OutboxMessages_Status_NextAttemptAt",
                 table: "OutboxMessages",
                 columns: new[] { "Status", "NextAttemptAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OutboxMessages_Status_ClaimedAt",
+                table: "OutboxMessages",
+                columns: new[] { "Status", "ClaimedAt" });
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

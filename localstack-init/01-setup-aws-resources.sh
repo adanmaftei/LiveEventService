@@ -80,9 +80,23 @@ echo "Creating CloudWatch Log Group..."
 aws --endpoint-url=http://localhost:4566 logs create-log-group \
     --log-group-name "/live-event-service/logs"
 
+# Create SQS queue and DLQ
+echo "Creating SQS queue and DLQ..."
+aws --endpoint-url=http://localhost:4566 sqs create-queue \
+  --queue-name liveevent-domain-events-dlq \
+  --attributes VisibilityTimeout=60
+
+DLQ_URL=$(aws --endpoint-url=http://localhost:4566 sqs get-queue-url --queue-name liveevent-domain-events-dlq --query 'QueueUrl' --output text)
+DLQ_ARN=$(aws --endpoint-url=http://localhost:4566 sqs get-queue-attributes --queue-url $DLQ_URL --attribute-names QueueArn --query 'Attributes.QueueArn' --output text)
+
+aws --endpoint-url=http://localhost:4566 sqs create-queue \
+  --queue-name liveevent-domain-events \
+  --attributes "VisibilityTimeout=30,RedrivePolicy={\"deadLetterTargetArn\":\"$DLQ_ARN\",\"maxReceiveCount\":\"5\"}"
+
 echo "LocalStack setup complete!"
 echo "User Pool ID: $USER_POOL_ID"
 echo "Client ID: $CLIENT_ID"
 echo "S3 Bucket: local-bucket"
 echo "Test User: testuser@example.com / TestPass123!"
 echo "Admin User: admin@example.com / AdminPass123!" 
+echo "SQS Queues: liveevent-domain-events, liveevent-domain-events-dlq"

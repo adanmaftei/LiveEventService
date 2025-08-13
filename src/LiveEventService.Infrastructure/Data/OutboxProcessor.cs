@@ -22,22 +22,40 @@ namespace LiveEventService.Infrastructure.Data;
     public async Task<int> ProcessPendingAsync(CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
-        var messages = await _dbContext.OutboxMessages
+        var candidates = await _dbContext.OutboxMessages
             .Where(m => m.Status == OutboxStatus.Pending && (m.NextAttemptAt == null || m.NextAttemptAt <= now))
             .OrderBy(m => m.CreatedAt)
             .Take(50)
             .ToListAsync(cancellationToken);
 
-        if (messages.Count == 0)
+        if (candidates.Count == 0)
         {
             return 0;
         }
 
+        // Claim messages for this worker to avoid duplicate processing
+        var workerId = Environment.MachineName + ":" + Guid.NewGuid().ToString("n").Substring(0, 8);
+        foreach (var m in candidates)
+        {
+            if (m.Status == OutboxStatus.Pending)
+            {
+                m.Status = OutboxStatus.Processing;
+                m.ClaimedBy = workerId;
+                m.ClaimedAt = DateTime.UtcNow;
+            }
+        }
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
         int processed = 0;
-        foreach (var message in messages)
+        foreach (var message in candidates)
         {
             try
             {
+                if (message.Status != OutboxStatus.Processing)
+                {
+                    // Skip messages that weren't successfully claimed by this worker
+                    continue;
+                }
                 var type = Type.GetType(message.EventType, throwOnError: false);
                 if (type == null)
                 {

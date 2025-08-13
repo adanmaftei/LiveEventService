@@ -24,6 +24,7 @@ using Amazon.CDK.AWS.Lambda;
 // using Amazon.CDK.AWS.Lambda.Python;
 using Amazon.CDK.AWS.S3.Assets;
 using Amazon.CDK.CustomResources;
+using Amazon.CDK.AWS.SQS;
 
 namespace LiveEventService.Infrastructure.CDK;
 
@@ -289,6 +290,193 @@ public class LiveEventServiceStack : Stack
             ClusterName = "LiveEventServiceCluster"
         });
 
+        // Create SQS queue with DLQ for domain events
+        var dlq = new Queue(this, "DomainEventsDLQ", new QueueProps
+        {
+            QueueName = "liveevent-domain-events-dlq",
+            VisibilityTimeout = Duration.Seconds(60),
+            RetentionPeriod = Duration.Days(14)
+        });
+
+        var domainEventsQueue = new Queue(this, "DomainEventsQueue", new QueueProps
+        {
+            QueueName = "liveevent-domain-events",
+            VisibilityTimeout = Duration.Seconds(30),
+            DeadLetterQueue = new DeadLetterQueue { Queue = dlq, MaxReceiveCount = 5 }
+        });
+
+        // SQS CloudWatch alarms (queue lag and DLQ growth)
+        var sqsOldestAgeAlarm = new Alarm(this, "SqsQueueOldestAgeAlarm", new AlarmProps
+        {
+            AlarmName = "LiveEventService-SQS-OldestMessageAgeHigh",
+            AlarmDescription = "Approximate age of oldest message in SQS is high (processing backlog).",
+            Metric = new Metric(new MetricProps
+            {
+                Namespace = "AWS/SQS",
+                MetricName = "ApproximateAgeOfOldestMessage",
+                DimensionsMap = new Dictionary<string, string> { ["QueueName"] = domainEventsQueue.QueueName },
+                Statistic = "Maximum",
+                Period = Duration.Minutes(1)
+            }),
+            Threshold = 300, // 5 minutes
+            EvaluationPeriods = 5,
+            ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD
+        });
+
+        var sqsDepthAlarm = new Alarm(this, "SqsQueueDepthAlarm", new AlarmProps
+        {
+            AlarmName = "LiveEventService-SQS-QueueDepthHigh",
+            AlarmDescription = "Number of visible messages is high (backlog growing).",
+            Metric = new Metric(new MetricProps
+            {
+                Namespace = "AWS/SQS",
+                MetricName = "ApproximateNumberOfMessagesVisible",
+                DimensionsMap = new Dictionary<string, string> { ["QueueName"] = domainEventsQueue.QueueName },
+                Statistic = "Average",
+                Period = Duration.Minutes(1)
+            }),
+            Threshold = 1000,
+            EvaluationPeriods = 5,
+            ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD
+        });
+
+        var sqsDlqAlarm = new Alarm(this, "SqsDlqNotEmptyAlarm", new AlarmProps
+        {
+            AlarmName = "LiveEventService-SQS-DLQ-NotEmpty",
+            AlarmDescription = "Messages are landing in DLQ.",
+            Metric = new Metric(new MetricProps
+            {
+                Namespace = "AWS/SQS",
+                MetricName = "ApproximateNumberOfMessagesVisible",
+                DimensionsMap = new Dictionary<string, string> { ["QueueName"] = dlq.QueueName },
+                Statistic = "Average",
+                Period = Duration.Minutes(1)
+            }),
+            Threshold = 1,
+            EvaluationPeriods = 1,
+            ComparisonOperator = ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD
+        });
+
+        // Parameters for worker desired and scaling capacity (override per env at deploy time)
+        var workerDesiredCountParam = new CfnParameter(this, "WorkerDesiredCount", new CfnParameterProps
+        {
+            Type = "Number",
+            Default = 1,
+            MinValue = 0,
+            MaxValue = 100,
+            Description = "Desired number of LiveEvent worker tasks"
+        });
+        var workerMinCapacityParam = new CfnParameter(this, "WorkerMinCapacity", new CfnParameterProps
+        {
+            Type = "Number",
+            Default = 0,
+            MinValue = 0,
+            MaxValue = 100,
+            Description = "Minimum number of LiveEvent worker tasks"
+        });
+        var workerMaxCapacityParam = new CfnParameter(this, "WorkerMaxCapacity", new CfnParameterProps
+        {
+            Type = "Number",
+            Default = 10,
+            MinValue = 1,
+            MaxValue = 200,
+            Description = "Maximum number of LiveEvent worker tasks"
+        });
+
+        // Worker: Fargate service to process domain events from SQS
+        var workerTaskDef = new FargateTaskDefinition(this, "LiveEventWorkerTaskDef", new FargateTaskDefinitionProps
+        {
+            MemoryLimitMiB = 512,
+            Cpu = 256,
+            RuntimePlatform = new RuntimePlatform
+            {
+                CpuArchitecture = CpuArchitecture.ARM64,
+                OperatingSystemFamily = OperatingSystemFamily.LINUX
+            }
+        });
+
+        // Allow worker to consume from SQS
+        domainEventsQueue.GrantConsumeMessages(workerTaskDef.TaskRole);
+
+        var workerContainer = workerTaskDef.AddContainer("LiveEventWorker", new ContainerDefinitionOptions
+        {
+            Image = ContainerImage.FromAsset("../../LiveEventService.Worker", new AssetImageProps
+            {
+                File = "Dockerfile"
+            }),
+            Logging = LogDriver.AwsLogs(new AwsLogDriverProps
+            {
+                StreamPrefix = "LiveEventWorker",
+                LogRetention = RetentionDays.ONE_MONTH
+            }),
+            Environment = new Dictionary<string, string>
+            {
+                ["ASPNETCORE_ENVIRONMENT"] = "Production",
+                ["AWS_REGION"] = this.Region,
+                ["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "false",
+                // Ensure worker points at the SQS queue in all environments
+                ["AWS__SQS__QueueName"] = domainEventsQueue.QueueName
+            },
+            Secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>
+            {
+                ["ConnectionStrings__DefaultConnection"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
+                    databaseCredentialsSecret,
+                    "ConnectionStrings__DefaultConnection")
+            }
+        });
+
+        // Run worker without a load balancer; private subnets only
+        var workerService = new FargateService(this, "LiveEventWorkerService", new FargateServiceProps
+        {
+            Cluster = cluster,
+            TaskDefinition = workerTaskDef,
+            DesiredCount = workerDesiredCountParam.ValueAsNumber,
+            AssignPublicIp = false,
+            VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+        });
+
+        // Autoscale worker based on SQS backlog indicators
+        var workerScaling = workerService.AutoScaleTaskCount(new EnableScalingProps
+        {
+            MinCapacity = workerMinCapacityParam.ValueAsNumber,
+            MaxCapacity = workerMaxCapacityParam.ValueAsNumber
+        });
+
+        // Target tracking: keep age of oldest message around 60s
+        workerScaling.ScaleToTrackCustomMetric("SqsAgeTarget", new Amazon.CDK.AWS.ECS.TrackCustomMetricProps
+        {
+            TargetValue = 60,
+            Metric = new Metric(new MetricProps
+            {
+                Namespace = "AWS/SQS",
+                MetricName = "ApproximateAgeOfOldestMessage",
+                DimensionsMap = new Dictionary<string, string> { ["QueueName"] = domainEventsQueue.QueueName },
+                Statistic = "Maximum",
+                Period = Duration.Minutes(1)
+            })
+        });
+
+        // Optional safety: step scaling when queue depth spikes
+        workerScaling.ScaleOnMetric("SqsDepthStepScale", new BasicStepScalingPolicyProps
+        {
+            Metric = new Metric(new MetricProps
+            {
+                Namespace = "AWS/SQS",
+                MetricName = "ApproximateNumberOfMessagesVisible",
+                DimensionsMap = new Dictionary<string, string> { ["QueueName"] = domainEventsQueue.QueueName },
+                Statistic = "Average",
+                Period = Duration.Minutes(1)
+            }),
+            ScalingSteps = new[]
+            {
+                new ScalingInterval { Lower = 200, Change = +1 },
+                new ScalingInterval { Lower = 500, Change = +2 },
+                new ScalingInterval { Lower = 1000, Change = +3 }
+            },
+            Cooldown = Duration.Minutes(1),
+            AdjustmentType = AdjustmentType.CHANGE_IN_CAPACITY
+        });
+
         // Create a task definition for the API
         var taskDefinition = new FargateTaskDefinition(this, "LiveEventTaskDef", new FargateTaskDefinitionProps
         {
@@ -346,7 +534,9 @@ public class LiveEventServiceStack : Stack
                 // OpenTelemetry export to local ADOT collector sidecar
                 ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://127.0.0.1:4317",
                 ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "grpc",
-                ["OTEL_SERVICE_NAME"] = "LiveEventService"
+                ["OTEL_SERVICE_NAME"] = "LiveEventService",
+                ["AWS__SQS__UseSqsForDomainEvents"] = "true",
+                ["Performance__BackgroundProcessing__UseInProcess"] = "false"
             },
             Secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>
             {
@@ -508,12 +698,38 @@ service:
             Validation = CertificateValidation.FromDns() // DNS validation is recommended for production
         });
 
+        // Parameters for API desired/min/max capacity (override per env at deploy time)
+        var apiDesiredCountParam = new CfnParameter(this, "ApiDesiredCount", new CfnParameterProps
+        {
+            Type = "Number",
+            Default = 2,
+            MinValue = 0,
+            MaxValue = 200,
+            Description = "Desired number of API tasks"
+        });
+        var apiMinCapacityParam = new CfnParameter(this, "ApiMinCapacity", new CfnParameterProps
+        {
+            Type = "Number",
+            Default = 1,
+            MinValue = 0,
+            MaxValue = 200,
+            Description = "Minimum number of API tasks"
+        });
+        var apiMaxCapacityParam = new CfnParameter(this, "ApiMaxCapacity", new CfnParameterProps
+        {
+            Type = "Number",
+            Default = 5,
+            MinValue = 1,
+            MaxValue = 500,
+            Description = "Maximum number of API tasks"
+        });
+
         // Create a load balanced Fargate service with HTTPS
         var service = new ApplicationLoadBalancedFargateService(this, "LiveEventService", new ApplicationLoadBalancedFargateServiceProps
         {
             Cluster = cluster,
             TaskDefinition = taskDefinition,
-            DesiredCount = 2,
+            DesiredCount = apiDesiredCountParam.ValueAsNumber,
             PublicLoadBalancer = true,
             AssignPublicIp = true,
             HealthCheckGracePeriod = Duration.Minutes(5),
@@ -553,8 +769,8 @@ service:
         // Configure auto scaling with cost optimization
         var scaling = service.Service.AutoScaleTaskCount(new EnableScalingProps
         {
-            MinCapacity = 1,  // Reduced from 2 for cost optimization
-            MaxCapacity = 5   // Reduced from 10 for cost optimization
+            MinCapacity = apiMinCapacityParam.ValueAsNumber,
+            MaxCapacity = apiMaxCapacityParam.ValueAsNumber
         });
 
         scaling.ScaleOnCpuUtilization("CpuScaling", new Amazon.CDK.AWS.ECS.CpuUtilizationScalingProps
@@ -562,6 +778,18 @@ service:
             TargetUtilizationPercent = 70,
             ScaleInCooldown = Duration.Minutes(3),
             ScaleOutCooldown = Duration.Minutes(1)
+        });
+
+        // Also scale API by ALB request count per target for bursty traffic
+        var reqPerTargetMetric = service.TargetGroup.MetricRequestCount(new Amazon.CDK.AWS.CloudWatch.MetricOptions
+        {
+            Period = Duration.Minutes(1)
+        });
+
+        scaling.ScaleToTrackCustomMetric("RequestCountScaling", new Amazon.CDK.AWS.ECS.TrackCustomMetricProps
+        {
+            TargetValue = 1000,
+            Metric = reqPerTargetMetric
         });
 
         // Allow the service to access the database
@@ -722,14 +950,22 @@ service:
         new CfnOutput(this, "IdentityPoolId", new CfnOutputProps { Value = identityPool.Ref });
         new CfnOutput(this, "ApiUrl", new CfnOutputProps { Value = api.Url });
         new CfnOutput(this, "ApiId", new CfnOutputProps { Value = api.RestApiId });
+        new CfnOutput(this, "DomainEventsQueueUrl", new CfnOutputProps { Value = domainEventsQueue.QueueUrl });
+        new CfnOutput(this, "DomainEventsDlqUrl", new CfnOutputProps { Value = dlq.QueueUrl });
 
         // Set up monitoring
-        _ = new MonitoringConstruct(this, "Monitoring", new MonitoringConstructProps
+        var monitoring = new MonitoringConstruct(this, "Monitoring", new MonitoringConstructProps
         {
             ApiGateway = api,
             EcsService = service,
             Database = database,
             AlarmEmail = "alerts@example.com" // Replace with actual alert email
         });
+
+        // Wire SQS alarms to existing SNS alarm topic
+        var sqsAlarmAction = new Amazon.CDK.AWS.CloudWatch.Actions.SnsAction(monitoring.AlarmTopic);
+        sqsOldestAgeAlarm.AddAlarmAction(sqsAlarmAction);
+        sqsDepthAlarm.AddAlarmAction(sqsAlarmAction);
+        sqsDlqAlarm.AddAlarmAction(sqsAlarmAction);
     }
 }

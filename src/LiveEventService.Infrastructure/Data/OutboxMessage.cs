@@ -5,8 +5,9 @@ namespace LiveEventService.Infrastructure.Data;
 public enum OutboxStatus
 {
     Pending = 0,
-    Processed = 1,
-    Failed = 2
+    Processing = 1,
+    Processed = 2,
+    Failed = 3
 }
 
 public class OutboxMessage
@@ -24,6 +25,12 @@ public class OutboxMessage
     public string? LastError { get; set; }
         = null;
     public DateTime? NextAttemptAt { get; set; }
+        = null;
+
+    // Leasing/claiming fields for safe concurrent processing
+    public string? ClaimedBy { get; set; }
+        = null;
+    public DateTime? ClaimedAt { get; set; }
         = null;
 
     public static OutboxMessage FromDomainEvent(object domainEvent, JsonSerializerOptions? options = null)

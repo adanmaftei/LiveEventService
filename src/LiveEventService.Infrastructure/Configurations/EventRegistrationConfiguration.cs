@@ -39,5 +39,7 @@ public class EventRegistrationConfiguration : IEntityTypeConfiguration<EventRegi
         builder.HasIndex(er => er.EventId);
         builder.HasIndex(er => er.UserId);
         builder.HasIndex(er => er.Status);
+        // Composite index to align with common filters + ordering
+        builder.HasIndex(er => new { er.EventId, er.Status, er.RegistrationDate });
     }
 }

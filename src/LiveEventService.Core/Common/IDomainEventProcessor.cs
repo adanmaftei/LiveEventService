@@ -1,6 +1,4 @@
-using LiveEventService.Core.Common;
-
-namespace LiveEventService.Application.Common;
+namespace LiveEventService.Core.Common;
 
 /// <summary>
 /// Interface for processing domain events in the background

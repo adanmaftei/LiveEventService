@@ -48,6 +48,12 @@ namespace LiveEventService.Infrastructure.Migrations
                 name: "IX_Events_IsPublished_StartDate",
                 table: "Events",
                 columns: new[] { "IsPublished", "StartDate" });
+
+            // 5b. Organizer lists by date (OrganizerId + StartDate)
+            migrationBuilder.CreateIndex(
+                name: "IX_Events_OrganizerId_StartDate",
+                table: "Events",
+                columns: new[] { "OrganizerId", "StartDate" });
             
             // 6. Index for event capacity queries (Capacity)
             // Useful for finding events with available capacity
@@ -64,6 +70,12 @@ namespace LiveEventService.Infrastructure.Migrations
                 name: "IX_Users_IsActive",
                 table: "Users",
                 column: "IsActive");
+
+            // 8. Registration filter + sort (EventId, Status, RegistrationDate)
+            migrationBuilder.CreateIndex(
+                name: "IX_EventRegistrations_EventId_Status_RegistrationDate",
+                table: "EventRegistrations",
+                columns: new[] { "EventId", "Status", "RegistrationDate" });
         }
 
         /// <inheritdoc />
@@ -84,6 +96,10 @@ namespace LiveEventService.Infrastructure.Migrations
             migrationBuilder.DropIndex(
                 name: "IX_Events_IsPublished_StartDate",
                 table: "Events");
+
+            migrationBuilder.DropIndex(
+                name: "IX_Events_OrganizerId_StartDate",
+                table: "Events");
             
             // Drop EventRegistrations indexes
             migrationBuilder.Sql("DROP INDEX IF EXISTS \"IX_EventRegistrations_EventId_Waitlisted_Position\"");
@@ -98,6 +114,10 @@ namespace LiveEventService.Infrastructure.Migrations
             
             migrationBuilder.DropIndex(
                 name: "IX_EventRegistrations_EventId_Status_PositionInQueue",
+                table: "EventRegistrations");
+
+            migrationBuilder.DropIndex(
+                name: "IX_EventRegistrations_EventId_Status_RegistrationDate",
                 table: "EventRegistrations");
         }
     }

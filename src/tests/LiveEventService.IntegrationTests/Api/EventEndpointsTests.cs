@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using LiveEventService.IntegrationTests.Infrastructure;
 using LiveEventService.Infrastructure.Data;
-using LiveEventService.Application.Common;
+using LiveEventService.Core.Common;
 
 namespace LiveEventService.IntegrationTests.Api;
 

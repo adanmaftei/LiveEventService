@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace LiveEventService.Application.Common;
+namespace LiveEventService.Core.Common;
 
 public interface IAuditLogger
 {

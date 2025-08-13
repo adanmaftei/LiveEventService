@@ -55,5 +55,8 @@ public class EventConfiguration : IEntityTypeConfiguration<EventEntity>
         builder.HasIndex(e => e.StartDate);
         builder.HasIndex(e => e.IsPublished);
         builder.HasIndex(e => e.OrganizerId);
+        // Composite indexes to support common filtered sorts
+        builder.HasIndex(e => new { e.IsPublished, e.StartDate });
+        builder.HasIndex(e => new { e.OrganizerId, e.StartDate });
     }
 }

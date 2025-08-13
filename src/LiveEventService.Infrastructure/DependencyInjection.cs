@@ -8,7 +8,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using MediatR;
 using LiveEventService.Core.Registrations.EventRegistration;
 using LiveEventService.Core.Users.User;
 using Amazon.S3;
@@ -16,6 +15,8 @@ using Amazon;
 using Amazon.SimpleNotificationService;
 using LiveEventService.Core.Common;
 using LiveEventService.Infrastructure.Telemetry;
+using Amazon.SQS;
+using LiveEventService.Infrastructure.Messaging;
 
 namespace LiveEventService.Infrastructure;
 
@@ -152,6 +153,28 @@ public static class DependencyInjection
             }
             return new AmazonSimpleNotificationServiceClient(cfg);
         });
+
+        // Configure Amazon SQS (LocalStack-aware)
+        services.AddSingleton<IAmazonSQS>(_ =>
+        {
+            var cfg = new AmazonSQSConfig
+            {
+                RegionEndpoint = RegionEndpoint.GetBySystemName(awsRegion),
+            };
+            if (!string.IsNullOrWhiteSpace(serviceUrl))
+            {
+                cfg.ServiceURL = serviceUrl;
+                cfg.UseHttp = serviceUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+            }
+            return new AmazonSQSClient(cfg);
+        });
+
+        // Optionally replace in-memory queue with SQS producer based on configuration
+        var useSqs = configuration.GetValue<bool?>("AWS:SQS:UseSqsForDomainEvents") ?? false;
+        if (useSqs)
+        {
+            services.AddSingleton<IMessageQueue, SqsMessageQueue>();
+        }
 
         if (!string.IsNullOrWhiteSpace(s3BucketName))
         {
