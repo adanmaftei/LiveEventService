@@ -41,7 +41,10 @@ public class SqsTestApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         {
             // Replace EF DbContext with isolated DB per test factory
             var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<LiveEventDbContext>));
-            if (descriptor != null) services.Remove(descriptor);
+            if (descriptor != null)
+            {
+                services.Remove(descriptor);
+            }
 
             services.AddDbContext<LiveEventDbContext>(options =>
             {

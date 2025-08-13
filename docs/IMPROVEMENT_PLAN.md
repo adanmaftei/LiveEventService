@@ -93,8 +93,8 @@ This plan tracks prioritized improvements across scalability, resilience, perfor
 
 - [ ] P1 GraphQL cost controls
   - Owner: TBD
-  - Status: Todo
-  - Details: Enforce MaxDepth/MaxComplexity, persisted queries, DataLoader for N+1 hotspots
+  - Status: In-Progress
+  - Details: Enforce MaxDepth (now 10 via AddMaxExecutionDepthRule), short execution timeout (10s), disable GraphQL IDE in non-development. Optimized existing DataLoader to reduce N+1s: `UserByIdentityIdDataLoader` now directly injects `IUserRepository`, uses `MaxBatchSize=250`, normalizes keys, and avoids per-batch scope creation. Persisted queries (deferred pending compatible package). Continue auditing resolvers for any remaining N+1 hotspots and add DataLoaders as needed.
   - Acceptance: Malicious/expensive queries rejected; steady resource use under load
   - References: `Program.cs` GraphQL config
 

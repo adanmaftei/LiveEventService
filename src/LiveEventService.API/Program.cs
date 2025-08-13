@@ -29,6 +29,7 @@ using LiveEventService.API.Logging;
 using LiveEventService.Infrastructure.Telemetry;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Net;
+using HotChocolate.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 var isTesting = builder.Environment.IsEnvironment("Testing");
@@ -194,6 +195,7 @@ graphQlBuilder
     .AddFiltering()
     .AddSorting()
     .AddProjections()
+    .AddMaxExecutionDepthRule(10)
     .ModifyOptions(opt =>
     {
         // Keep validation strict; depth/complexity rules will be wired via document options below
@@ -204,9 +206,7 @@ graphQlBuilder
         // Put a sane upper bound on query execution
         opt.ExecutionTimeout = TimeSpan.FromSeconds(10);
         opt.IncludeExceptionDetails = builder.Environment.IsDevelopment();
-    })
-    // Note: HotChocolate v15 does not expose MaxAllowedExecutionDepth/Complexity on SchemaOptions directly.
-    // Keep strict validation and short execution timeout as guardrails; deeper cost analysis can be added via custom rules if needed.
+    })    
     .AddDataLoader<UserByIdentityIdDataLoader>();
 
 // Add rate limiting (disabled in Testing environment)
@@ -393,6 +393,10 @@ app.MapHealthChecks(RoutePaths.HealthLive, new()
 
 // Configure GraphQL endpoint
 var graphQLEndpoint = app.MapGraphQL(RoutePaths.GraphQL);
+graphQLEndpoint.WithOptions(new GraphQLServerOptions
+{
+    Tool = { Enable = app.Environment.IsDevelopment() }
+});
 if (!isTesting)
 {
     graphQLEndpoint.RequireRateLimiting(PolicyNames.General);

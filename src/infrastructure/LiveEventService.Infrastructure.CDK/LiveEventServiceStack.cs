@@ -780,8 +780,8 @@ service:
             ScaleOutCooldown = Duration.Minutes(1)
         });
 
-        // Also scale API by ALB request count per target for bursty traffic
-        var reqPerTargetMetric = service.TargetGroup.MetricRequestCount(new Amazon.CDK.AWS.CloudWatch.MetricOptions
+        // Replace the obsolete method call with the recommended property access
+        var reqPerTargetMetric = service.TargetGroup.Metrics.RequestCount(new Amazon.CDK.AWS.CloudWatch.MetricOptions
         {
             Period = Duration.Minutes(1)
         });
