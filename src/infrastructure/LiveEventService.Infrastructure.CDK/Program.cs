@@ -18,8 +18,8 @@ namespace LiveEventService.Infrastructure.CDK
                 {
                     Env = new Amazon.CDK.Environment
                     {
-                        Account = Environment.GetEnvironmentVariable("CDK_DEFAULT_ACCOUNT"),
-                        Region = Environment.GetEnvironmentVariable("CDK_DEFAULT_REGION")
+                        Account = System.Environment.GetEnvironmentVariable("CDK_DEFAULT_ACCOUNT"),
+                        Region = System.Environment.GetEnvironmentVariable("CDK_DEFAULT_REGION")
                     }
                 });
             }
@@ -30,8 +30,8 @@ namespace LiveEventService.Infrastructure.CDK
                 {
                     Env = new Amazon.CDK.Environment
                     {
-                        Account = Environment.GetEnvironmentVariable("CDK_DEFAULT_ACCOUNT"),
-                        Region = Environment.GetEnvironmentVariable("CDK_DEFAULT_REGION")
+                        Account = System.Environment.GetEnvironmentVariable("CDK_DEFAULT_ACCOUNT"),
+                        Region = System.Environment.GetEnvironmentVariable("CDK_DEFAULT_REGION")
                     }
                 });
             }

@@ -14,7 +14,7 @@
     <PackageReference Include="AspNetCore.HealthChecks.Aws.S3" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
     <PackageReference Include="AWSSDK.CloudWatchLogs" Version="4.0.7.3" />
-    <PackageReference Include="AWSSDK.CognitoIdentityProvider" Version="4.0.1.15" />
+    <PackageReference Include="AWSSDK.CognitoIdentityProvider" Version="4.0.2" />
     <PackageReference Include="AWSSDK.Core" Version="4.0.0.21" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.2.1" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.6.4" />
@@ -44,7 +44,7 @@
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageReference Include="Serilog.Sinks.AwsCloudWatch" Version="4.4.42" />
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.7.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.8.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="9.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.3" />
