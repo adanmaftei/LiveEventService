@@ -15,4 +15,4 @@ public class ListUsersSpecification : BaseSpecification<UserEntity>
             (!isActive.HasValue || u.IsActive == isActive.Value);
         ApplyOrderBy(u => u.LastName);
     }
-} 
+}

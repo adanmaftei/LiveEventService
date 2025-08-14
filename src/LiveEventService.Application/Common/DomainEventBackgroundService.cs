@@ -32,7 +32,7 @@ public class DomainEventBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Domain event background service started with max concurrency: {MaxConcurrency}", 
+        _logger.LogInformation("Domain event background service started with max concurrency: {MaxConcurrency}",
             _options.MaxConcurrency);
 
         var tasks = new List<Task>();
@@ -110,7 +110,7 @@ public class DomainEventBackgroundService : BackgroundService
             // Find the appropriate processor for this event type
             using var scope = _serviceProvider.CreateScope();
             var processors = scope.ServiceProvider.GetServices<IDomainEventProcessor>();
-            
+
             var processor = processors.FirstOrDefault(p => p.CanProcess(eventType));
             if (processor == null)
             {
@@ -122,21 +122,21 @@ public class DomainEventBackgroundService : BackgroundService
             await ProcessWithRetryAsync(processor, domainEvent, cancellationToken);
 
             var duration = DateTime.UtcNow - startTime;
-            _logger.LogDebug("Successfully processed domain event {EventType} in {Duration}ms", 
+            _logger.LogDebug("Successfully processed domain event {EventType} in {Duration}ms",
                 eventType.Name, duration.TotalMilliseconds);
         }
         catch (Exception ex)
         {
             var duration = DateTime.UtcNow - startTime;
-            _logger.LogError(ex, "Failed to process domain event {EventType} after {Duration}ms", 
+            _logger.LogError(ex, "Failed to process domain event {EventType} after {Duration}ms",
                 eventType.Name, duration.TotalMilliseconds);
-            
+
             // Could implement dead letter queue here for failed events
             throw;
         }
     }
 
-    private async Task ProcessWithRetryAsync(IDomainEventProcessor processor, DomainEvent domainEvent, 
+    private async Task ProcessWithRetryAsync(IDomainEventProcessor processor, DomainEvent domainEvent,
         CancellationToken cancellationToken)
     {
         var eventType = domainEvent.GetType();
@@ -153,11 +153,11 @@ public class DomainEventBackgroundService : BackgroundService
             catch (Exception ex) when (retryCount < _options.MaxRetryAttempts)
             {
                 retryCount++;
-                _logger.LogWarning(ex, "Attempt {RetryCount} failed for domain event {EventType}, retrying in {Delay}s", 
+                _logger.LogWarning(ex, "Attempt {RetryCount} failed for domain event {EventType}, retrying in {Delay}s",
                     retryCount, eventType.Name, delay);
 
                 await Task.Delay(TimeSpan.FromSeconds(delay), cancellationToken);
-                
+
                 if (_options.UseExponentialBackoff)
                 {
                     delay *= 2; // Exponential backoff
@@ -200,4 +200,4 @@ public class BackgroundProcessingOptions
     /// Whether to use exponential backoff for retries
     /// </summary>
     public bool UseExponentialBackoff { get; set; } = true;
-} 
+}

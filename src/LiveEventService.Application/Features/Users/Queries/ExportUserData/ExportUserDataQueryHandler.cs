@@ -53,7 +53,7 @@ public class ExportUserDataQueryHandler : IQueryHandler<ExportUserDataQuery, Bas
 
         var json = JsonSerializer.Serialize(export, new JsonSerializerOptions
         {
-            WriteIndented = true,            
+            WriteIndented = true,
         });
 
         return BaseResponse<ExportUserDataResult>.Succeeded(new ExportUserDataResult { Json = json });

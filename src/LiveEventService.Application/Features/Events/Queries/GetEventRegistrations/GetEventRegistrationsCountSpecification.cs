@@ -14,7 +14,7 @@ public class GetEventRegistrationsCountSpecification : BaseSpecification<EventRe
             er.EventId == eventId &&
             (string.IsNullOrEmpty(status) || er.Status.ToString() == status) &&
             (!userId.HasValue || er.UserId == userId.Value);
-            
+
         // No includes for count operations - much faster
         ApplyOrderBy(er => er.RegistrationDate);
     }

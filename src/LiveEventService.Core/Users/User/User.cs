@@ -58,4 +58,4 @@ public class User : Entity
         LastName = string.Empty;
         PhoneNumber = string.Empty;
     }
-} 
+}

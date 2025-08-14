@@ -1,5 +1,5 @@
-using HotChocolate.Subscriptions;
 using HotChocolate.Execution;
+using HotChocolate.Subscriptions;
 using LiveEventService.Application.Features.Events.Event;
 
 namespace LiveEventService.API.Events;

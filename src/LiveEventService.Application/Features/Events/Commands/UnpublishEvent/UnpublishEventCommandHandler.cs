@@ -41,4 +41,4 @@ public class UnpublishEventCommandHandler : ICommandHandler<UnpublishEventComman
 
         return BaseResponse<EventDto>.Succeeded(eventDto, "Event unpublished successfully");
     }
-} 
+}

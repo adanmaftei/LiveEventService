@@ -48,4 +48,4 @@ public class ConfirmRegistrationCommandHandler : ICommandHandler<ConfirmRegistra
 
         return BaseResponse<EventRegistrationDto>.Succeeded(registrationDto, "Registration confirmed successfully");
     }
-} 
+}

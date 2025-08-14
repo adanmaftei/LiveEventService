@@ -158,7 +158,8 @@ This structure makes it easy to find all code for a feature and enables true fea
 ### Health Checks
 
 - **Endpoint**: `GET /health` - Returns service health status
-- **Checks**: PostgreSQL connectivity, AWS Cognito configuration
+- **Readiness**: `GET /health/ready` includes checks tagged `ready` (PostgreSQL, SQS when enabled, Redis, S3 when configured)
+- **Liveness**: `GET /health/live` returns 200 with no checks (kept minimal)
 
 ### Authentication
 
@@ -173,6 +174,43 @@ curl -H "X-Correlation-ID: test-123" http://localhost:5000/health
 ```
 
 ### CORS
+### Configuration (Typed Options)
+
+- `AWS` → `LiveEventService.Infrastructure.Configuration.AwsOptions`
+  - `Region`, `ServiceURL`, `UserPoolId`, `S3BucketName`
+  - `CloudWatch:Region|LogGroup|AuditLogGroup`
+  - `Jwt:Audiences[]`
+  - `Sqs:UseSqsForDomainEvents`, `Sqs:QueueName`
+- `Security:Cors` → `LiveEventService.API.Configuration.CorsOptions`
+- `Security` → `LiveEventService.API.Configuration.SecurityOptions`
+- `Database` → `LiveEventService.API.Configuration.DatabaseOptions`
+- `Redis` or `ConnectionStrings:Redis` → `LiveEventService.API.Configuration.RedisOptions`
+- `GraphQL` → `LiveEventService.API.Configuration.GraphQLOptions`
+
+Example `appsettings.Development.json` snippet:
+
+```json
+{
+  "AWS": {
+    "Region": "us-east-1",
+    "ServiceURL": "http://localhost:4566",
+    "UserPoolId": "local-user-pool",
+    "S3BucketName": "liveevent-bucket",
+    "CloudWatch": {
+      "Region": "us-east-1",
+      "LogGroup": "/live-event-service/logs",
+      "AuditLogGroup": "/live-event-service/audit"
+    },
+    "Jwt": { "Audiences": ["api://local"] },
+    "Sqs": { "UseSqsForDomainEvents": true, "QueueName": "liveevent-domain-events" }
+  },
+  "GraphQL": { "MaxExecutionDepth": 10, "ExecutionTimeoutSeconds": 10, "StrictValidation": true },
+  "Security": { "Cors": { "AllowedOrigins": ["http://localhost:5173"] } },
+  "Database": { "InitializeOnStartup": true },
+  "ConnectionStrings": { "DefaultConnection": "Host=localhost;Port=5432;Database=liveevents;Username=postgres;Password=postgres", "Redis": "localhost:6379" }
+}
+```
+
 
 - CORS is environment-driven via `Security:Cors:AllowedOrigins`.
 - In Development/Testing, or when no allowed origins are configured, the API allows all origins by default.

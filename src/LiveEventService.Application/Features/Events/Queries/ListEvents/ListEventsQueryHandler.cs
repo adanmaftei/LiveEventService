@@ -57,7 +57,7 @@ public class ListEventsQueryHandler : IQueryHandler<ListEventsQuery, BaseRespons
         // Get organizer details for each event using specification-based query (no change tracking)
         var organizerIds = events.Select(e => e.OrganizerId).Distinct().ToList();
         var organizerLookup = new Dictionary<string, User>();
-        
+
         if (organizerIds.Any())
         {
             var organizerSpec = new GetUsersByIdentityIdsSpecification(organizerIds);

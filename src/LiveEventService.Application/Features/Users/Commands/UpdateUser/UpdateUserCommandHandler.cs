@@ -34,10 +34,10 @@ public class UpdateUserCommandHandler : ICommandHandler<UpdateUserCommand, BaseR
             request.User.PhoneNumber ?? string.Empty);
 
         await _userRepository.UpdateAsync(user, cancellationToken);
-        
+
         // Map to DTO
         var userDto = _mapper.Map<UserDto>(user);
-        
+
         return BaseResponse<UserDto>.Succeeded(userDto, "User updated successfully");
     }
 }

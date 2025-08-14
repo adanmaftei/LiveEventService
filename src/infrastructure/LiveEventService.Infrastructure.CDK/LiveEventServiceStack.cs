@@ -347,7 +347,7 @@ public class LiveEventServiceStack : Stack
         // Create an ECS cluster with container insights and capacity providers
         var cluster = new Cluster(this, "LiveEventCluster", new ClusterProps
         {
-            Vpc = vpc,            
+            Vpc = vpc,
             EnableFargateCapacityProviders = true,
             ClusterName = "LiveEventServiceCluster"
         });
@@ -1127,65 +1127,65 @@ service:
         sqsDepthAlarm.AddAlarmAction(sqsAlarmAction);
         sqsDlqAlarm.AddAlarmAction(sqsAlarmAction);
 
-		// Optional: Aurora PostgreSQL Global Database (primary cluster in this region)
-		var enableAuroraGlobal = new CfnParameter(this, "EnableAuroraGlobal", new CfnParameterProps
-		{
-			Type = "String",
-			Default = "false",
-			AllowedValues = new[] { "true", "false" },
-			Description = "Create Aurora PostgreSQL Global Database primary cluster alongside RDS (for cutover)."
-		});
-		var auroraGlobalId = new CfnParameter(this, "AuroraGlobalClusterId", new CfnParameterProps
-		{
-			Type = "String",
-			Default = "liveevent-global-cluster",
-			Description = "Identifier for the Aurora Global Database"
-		});
+        // Optional: Aurora PostgreSQL Global Database (primary cluster in this region)
+        var enableAuroraGlobal = new CfnParameter(this, "EnableAuroraGlobal", new CfnParameterProps
+        {
+            Type = "String",
+            Default = "false",
+            AllowedValues = new[] { "true", "false" },
+            Description = "Create Aurora PostgreSQL Global Database primary cluster alongside RDS (for cutover)."
+        });
+        var auroraGlobalId = new CfnParameter(this, "AuroraGlobalClusterId", new CfnParameterProps
+        {
+            Type = "String",
+            Default = "liveevent-global-cluster",
+            Description = "Identifier for the Aurora Global Database"
+        });
 
-		if (enableAuroraGlobal.ValueAsString == "true")
-		{
-			// Global cluster definition
-			var global = new CfnGlobalCluster(this, "AuroraGlobalCluster", new CfnGlobalClusterProps
-			{
-				Engine = "aurora-postgresql",
-				GlobalClusterIdentifier = auroraGlobalId.ValueAsString
-			});
+        if (enableAuroraGlobal.ValueAsString == "true")
+        {
+            // Global cluster definition
+            var global = new CfnGlobalCluster(this, "AuroraGlobalCluster", new CfnGlobalClusterProps
+            {
+                Engine = "aurora-postgresql",
+                GlobalClusterIdentifier = auroraGlobalId.ValueAsString
+            });
 
-			// Primary regional cluster
-			var auroraCluster = new DatabaseCluster(this, "AuroraPrimaryCluster", new DatabaseClusterProps
-			{
-				Engine = DatabaseClusterEngine.AuroraPostgres(new AuroraPostgresClusterEngineProps
-				{
-					Version = AuroraPostgresEngineVersion.VER_15_3
-				}),
-				Writer = ClusterInstance.Provisioned("Writer", new ProvisionedClusterInstanceProps
-				{
-					InstanceType = Amazon.CDK.AWS.EC2.InstanceType.Of(InstanceClass.T4G, InstanceSize.MEDIUM),
-					PubliclyAccessible = false
-				}),
-				Readers = new[]
-				{
-					ClusterInstance.Provisioned("Reader", new ProvisionedClusterInstanceProps
-					{
-						InstanceType = Amazon.CDK.AWS.EC2.InstanceType.Of(InstanceClass.T4G, InstanceSize.MEDIUM),
-						PubliclyAccessible = false
-					})
-				},
-				Credentials = Credentials.FromSecret(databaseCredentialsSecret),
-				Vpc = vpc,
-				VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
-			});
+            // Primary regional cluster
+            var auroraCluster = new DatabaseCluster(this, "AuroraPrimaryCluster", new DatabaseClusterProps
+            {
+                Engine = DatabaseClusterEngine.AuroraPostgres(new AuroraPostgresClusterEngineProps
+                {
+                    Version = AuroraPostgresEngineVersion.VER_15_3
+                }),
+                Writer = ClusterInstance.Provisioned("Writer", new ProvisionedClusterInstanceProps
+                {
+                    InstanceType = Amazon.CDK.AWS.EC2.InstanceType.Of(InstanceClass.T4G, InstanceSize.MEDIUM),
+                    PubliclyAccessible = false
+                }),
+                Readers = new[]
+                {
+                    ClusterInstance.Provisioned("Reader", new ProvisionedClusterInstanceProps
+                    {
+                        InstanceType = Amazon.CDK.AWS.EC2.InstanceType.Of(InstanceClass.T4G, InstanceSize.MEDIUM),
+                        PubliclyAccessible = false
+                    })
+                },
+                Credentials = Credentials.FromSecret(databaseCredentialsSecret),
+                Vpc = vpc,
+                VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+            });
 
-			// Attach regional cluster to the Global Cluster via L1 override
-			var cfnDbCluster = auroraCluster.Node.DefaultChild as CfnDBCluster;
-			if (cfnDbCluster != null)
-			{
-				cfnDbCluster.GlobalClusterIdentifier = auroraGlobalId.ValueAsString;
-			}
+            // Attach regional cluster to the Global Cluster via L1 override
+            var cfnDbCluster = auroraCluster.Node.DefaultChild as CfnDBCluster;
+            if (cfnDbCluster != null)
+            {
+                cfnDbCluster.GlobalClusterIdentifier = auroraGlobalId.ValueAsString;
+            }
 
-			// Output endpoints for cutover planning
-			_ = new CfnOutput(this, "AuroraWriterEndpoint", new CfnOutputProps { Value = auroraCluster.ClusterEndpoint.Hostname });
-			_ = new CfnOutput(this, "AuroraReaderEndpoint", new CfnOutputProps { Value = auroraCluster.ClusterReadEndpoint.Hostname });
-		}
+            // Output endpoints for cutover planning
+            _ = new CfnOutput(this, "AuroraWriterEndpoint", new CfnOutputProps { Value = auroraCluster.ClusterEndpoint.Hostname });
+            _ = new CfnOutput(this, "AuroraReaderEndpoint", new CfnOutputProps { Value = auroraCluster.ClusterReadEndpoint.Hostname });
+        }
     }
 }

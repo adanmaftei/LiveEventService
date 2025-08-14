@@ -23,7 +23,7 @@ public abstract class BaseLiveEventsTests : IClassFixture<LiveEventTestApplicati
         _authenticatedAdminClient = _factory.CreateAuthenticatedClient("admin-user", "Admin", "admin@test.com");
         _authenticatedParticipantClient = _factory.CreateAuthenticatedClient("participant-user", "Participant", "participant@test.com");
         _unauthenticatedClient = _factory.CreateClient();
-        
+
         // Ensure the authenticated users exist in the database
         EnsureAuthenticatedUsersExist().GetAwaiter().GetResult();
     }
@@ -80,7 +80,7 @@ public abstract class BaseLiveEventsTests : IClassFixture<LiveEventTestApplicati
 
         // Create users - first 5 for filling event, last one is our participant user
         var users = TestDataBuilder.CreateUsersList(5); // 5 for filling event        
-        dbContext.Users.AddRange(users);        
+        dbContext.Users.AddRange(users);
 
         // Create event with capacity of 5
         var testEvent = TestDataBuilder.CreateEvent(capacity: 5, isPublished: true);

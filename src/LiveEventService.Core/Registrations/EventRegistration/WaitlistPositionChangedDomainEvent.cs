@@ -8,11 +8,11 @@ public class WaitlistPositionChangedDomainEvent : DomainEvent
     public Guid RegistrationId { get; }
     public int? OldPosition { get; }
     public int? NewPosition { get; }
-    
+
     public WaitlistPositionChangedDomainEvent(
-        Guid eventId, 
-        Guid registrationId, 
-        int? oldPosition, 
+        Guid eventId,
+        Guid registrationId,
+        int? oldPosition,
         int? newPosition)
     {
         EventId = eventId;

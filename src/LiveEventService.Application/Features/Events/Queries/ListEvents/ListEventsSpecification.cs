@@ -16,4 +16,4 @@ public class ListEventsSpecification : BaseSpecification<EventEntity>
             (!isUpcoming.HasValue || !isUpcoming.Value || e.StartDate > DateTime.UtcNow);
         ApplyOrderBy(e => e.StartDate);
     }
-} 
+}

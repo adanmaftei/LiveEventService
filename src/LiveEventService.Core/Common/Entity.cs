@@ -6,8 +6,8 @@ public abstract class Entity
     public DateTime CreatedAt { get; protected set; }
     public DateTime? UpdatedAt { get; protected set; }
 
-    private List<DomainEvent> _domainEvents = new();
-    public IReadOnlyCollection<DomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+    private List<DomainEvent> domainEvents = new();
+    public IReadOnlyCollection<DomainEvent> DomainEvents => domainEvents.AsReadOnly();
 
     protected Entity()
     {
@@ -17,12 +17,12 @@ public abstract class Entity
 
     protected void AddDomainEvent(DomainEvent domainEvent)
     {
-        _domainEvents.Add(domainEvent);
+        domainEvents.Add(domainEvent);
     }
 
     public void ClearDomainEvents()
     {
-        _domainEvents.Clear();
+        domainEvents.Clear();
     }
 
     public override bool Equals(object? obj)

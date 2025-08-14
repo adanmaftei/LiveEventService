@@ -6,7 +6,7 @@ using LiveEventService.Application.Common.Notifications;
 
 namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
 
-public class RegistrationWaitlistedDomainEventHandler 
+public class RegistrationWaitlistedDomainEventHandler
     : INotificationHandler<RegistrationWaitlistedNotification>
 {
     private readonly ILogger<RegistrationWaitlistedDomainEventHandler> _logger;
@@ -21,11 +21,11 @@ public class RegistrationWaitlistedDomainEventHandler
     }
 
     public async Task Handle(
-        RegistrationWaitlistedNotification notification, 
+        RegistrationWaitlistedNotification notification,
         CancellationToken cancellationToken)
     {
         var registration = notification.DomainEvent.Registration;
-        
+
         // If position isn't set, calculate it
         if (!registration.PositionInQueue.HasValue)
         {
@@ -40,11 +40,11 @@ public class RegistrationWaitlistedDomainEventHandler
 
             var position = @event.GetNextWaitlistPosition();
             registration.UpdateWaitlistPosition(position);
-            
+
             _logger.LogInformation(
                 "Assigned position {Position} to waitlisted registration {RegistrationId} for event {EventId}",
                 position, registration.Id, registration.EventId);
-                
+
             await _eventRepository.UpdateAsync(@event);
         }
     }

@@ -8,4 +8,4 @@ public interface IEventRepository : IRepository<Event>
     Task<int> GetRegistrationCountForEventAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task<int> GetWaitlistCountForEventAsync(Guid eventId, CancellationToken cancellationToken = default);
     Task<int> CalculateWaitlistPositionAsync(Guid eventId, Guid registrationId, CancellationToken cancellationToken = default);
-} 
+}

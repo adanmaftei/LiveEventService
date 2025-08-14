@@ -41,4 +41,4 @@ public class PublishEventCommandHandler : ICommandHandler<PublishEventCommand, B
 
         return BaseResponse<EventDto>.Succeeded(eventDto, "Event published successfully");
     }
-} 
+}

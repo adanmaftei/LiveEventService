@@ -1,36 +1,41 @@
-using LiveEventService.API.Events;
-using LiveEventService.API.Users;
-using LiveEventService.API.Middleware;
+using System.Net;
+using System.Net.Http;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
+using Amazon;
+using Amazon.CloudWatchLogs;
+using HotChocolate.AspNetCore;
 using LiveEventService.API.Constants;
+using LiveEventService.API.Configuration;
+using LiveEventService.API.Events;
+using LiveEventService.API.GraphQL.DataLoaders;
+using LiveEventService.API.GraphQL.Types;
+using LiveEventService.API.Logging;
+using LiveEventService.API.Middleware;
+using LiveEventService.API.Users;
 using LiveEventService.Application;
 using LiveEventService.Core.Common;
 using LiveEventService.Infrastructure;
+using LiveEventService.Infrastructure.Configuration;
 using LiveEventService.Infrastructure.Data;
-using Serilog;
-using LiveEventService.API.GraphQL.Types;
-using Serilog.Context;
-using Microsoft.AspNetCore.RateLimiting;
-using System.Threading.RateLimiting;
-using System.Net.Http;
-using Microsoft.Extensions.Http.Resilience;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Trace;
-using OpenTelemetry;
-using StackExchange.Redis;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
-using LiveEventService.API.GraphQL.DataLoaders;
-using Amazon;
-using Amazon.CloudWatchLogs;
-using Serilog.Formatting.Json;
-using Serilog.Sinks.AwsCloudWatch;
-using LiveEventService.API.Logging;
 using LiveEventService.Infrastructure.Telemetry;
 using Microsoft.AspNetCore.HttpOverrides;
-using System.Net;
-using HotChocolate.AspNetCore;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.Http.Resilience;
+using Microsoft.OpenApi.Models;
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using Serilog;
+using Serilog.Context;
+using Serilog.Formatting.Json;
+using Serilog.Sinks.AwsCloudWatch;
+using StackExchange.Redis;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
 var isTesting = builder.Environment.IsEnvironment("Testing");
@@ -41,7 +46,6 @@ builder.WebHost.ConfigureKestrel(options =>
     options.AddServerHeader = false;
     options.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB
 });
-
 
 // Configure Serilog (Console always; CloudWatch in Production)
 builder.Host.UseSerilog((context, configuration) =>
@@ -54,10 +58,9 @@ builder.Host.UseSerilog((context, configuration) =>
     var isProd = context.HostingEnvironment.IsProduction();
     if (isProd && !isTesting)
     {
-        var logGroup = context.Configuration["AWS:CloudWatch:LogGroup"] ?? "/live-event-service/logs";
-        var region = context.Configuration["AWS:CloudWatch:Region"]
-                     ?? context.Configuration["AWS:Region"]
-                     ?? "us-east-1";
+        var aws = context.Configuration.GetSection("AWS").Get<LiveEventService.Infrastructure.Configuration.AwsOptions>() ?? new LiveEventService.Infrastructure.Configuration.AwsOptions();
+        var logGroup = aws.CloudWatch.LogGroup ?? "/live-event-service/logs";
+        var region = aws.CloudWatch.Region ?? aws.Region ?? "us-east-1";
 
         var cwClient = new AmazonCloudWatchLogsClient(RegionEndpoint.GetBySystemName(region));
         configuration.WriteTo.AmazonCloudWatch(
@@ -86,9 +89,20 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     }
 });
 
+// Bind options
+builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection("Security:Cors"));
+builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Security"));
+builder.Services.Configure<LiveEventService.Infrastructure.Configuration.AwsOptions>(builder.Configuration.GetSection("AWS"));
+builder.Services.Configure<RedisOptions>(opt =>
+{
+	opt.ConnectionString = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["ConnectionStrings:Redis"];
+});
+builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection("Database"));
+
 // Add services to the container.
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddInfrastructureServices(builder.Configuration, isTesting);
+
 // Output caching (public GETs)
 builder.Services.AddOutputCache(options =>
 {
@@ -97,29 +111,29 @@ builder.Services.AddOutputCache(options =>
         .SetVaryByQuery("pageNumber", "pageSize", "isPublished", "isUpcoming")
         .SetVaryByHeader("Authorization")
         .SetVaryByHeader("Cookie")
-        .Tag("events"));
+        .Tag(OutputCacheTags.Events));
 
     options.AddPolicy(OutputCachePolicies.EventDetailPublic, b => b
         .Expire(TimeSpan.FromSeconds(120))
         .SetVaryByRouteValue("id")
         .SetVaryByHeader("Authorization")
         .SetVaryByHeader("Cookie")
-        .Tag("event-detail"));
+        .Tag(OutputCacheTags.EventDetail));
 });
 
 // CORS configuration (env-driven)
-var allowedOrigins = builder.Configuration.GetSection("Security:Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+var corsOptions = builder.Configuration.GetSection("Security:Cors").Get<CorsOptions>() ?? new CorsOptions();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        if (builder.Environment.IsDevelopment() || isTesting || allowedOrigins.Length == 0)
+        if (builder.Environment.IsDevelopment() || isTesting || corsOptions.AllowedOrigins.Length == 0)
         {
             policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
         }
         else
         {
-            policy.WithOrigins(allowedOrigins)
+            policy.WithOrigins(corsOptions.AllowedOrigins)
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         }
@@ -128,14 +142,42 @@ builder.Services.AddCors(options =>
 
 // Add API-specific services
 builder.Services.AddScoped<IEventRegistrationNotifier, EventRegistrationNotifier>();
+
+// Authentication & Authorization (moved from Infrastructure)
+var awsAuth = builder.Configuration.GetSection("AWS").Get<LiveEventService.Infrastructure.Configuration.AwsOptions>() ?? new LiveEventService.Infrastructure.Configuration.AwsOptions();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.Authority = $"https://cognito-idp.{awsAuth.Region}.amazonaws.com/{awsAuth.UserPoolId}";
+    var configuredAudiences = awsAuth.Jwt.Audiences ?? Array.Empty<string>();
+    options.TokenValidationParameters = new()
+    {
+        ValidateIssuer = true,
+        ValidIssuer = $"https://cognito-idp.{awsAuth.Region}.amazonaws.com/{awsAuth.UserPoolId}",
+        ValidateLifetime = true,
+        LifetimeValidator = (_, expires, _, _) => expires > DateTime.UtcNow,
+        ValidateAudience = configuredAudiences.Length > 0,
+        ValidAudiences = configuredAudiences,
+        RoleClaimType = "cognito:groups"
+    };
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(RoleNames.Admin, policy => policy.RequireRole(RoleNames.Admin));
+    options.AddPolicy(RoleNames.Participant, policy => policy.RequireRole(RoleNames.Participant));
+});
+
 // Dedicated audit logger sink (e.g., CloudWatch Logs) separate from application logs
 if (builder.Environment.IsProduction() && !isTesting)
 {
-    var region = builder.Configuration["AWS:CloudWatch:Region"]
-                 ?? builder.Configuration["AWS:Region"]
-                 ?? "us-east-1";
-    var auditLogGroup = builder.Configuration["AWS:CloudWatch:AuditLogGroup"]
-                        ?? "/live-event-service/audit";
+    var aws = builder.Configuration.GetSection("AWS").Get<LiveEventService.Infrastructure.Configuration.AwsOptions>() ?? new LiveEventService.Infrastructure.Configuration.AwsOptions();
+    var region = aws.CloudWatch.Region ?? aws.Region ?? "us-east-1";
+    var auditLogGroup = aws.CloudWatch.AuditLogGroup ?? "/live-event-service/audit";
 
     var cwClient = new AmazonCloudWatchLogsClient(RegionEndpoint.GetBySystemName(region));
     var auditSerilog = new LoggerConfiguration()
@@ -156,14 +198,11 @@ else
 }
 builder.Services.AddSingleton<LiveEventService.API.Utilities.IIdempotencyStore, LiveEventService.API.Utilities.IdempotencyStore>();
 
-// Add a resilient HttpClient for outbound calls (using Microsoft.Extensions.Http.Resilience)
-builder.Services
-    .AddHttpClient("Resilient")
-    .ConfigureHttpClient(client =>
-    {
-        client.Timeout = TimeSpan.FromSeconds(10);
-    })
-    .AddStandardResilienceHandler();
+// Centralized HTTP resilience policy and named clients
+builder.Services.AddHttpClient("resilient-default").AddDefaultResilience();
+builder.Services.AddHttpClient("resilient-short")
+    .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromSeconds(5))
+    .AddDefaultResilience();
 
 // OpenTelemetry metrics & tracing (Prometheus + OTLP)
 builder.Services.AddOpenTelemetry()
@@ -189,22 +228,32 @@ builder.Services.AddOpenTelemetry()
 // Distributed cache (Redis in non-testing; no-op in Testing)
 if (!isTesting)
 {
-    var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["ConnectionStrings:Redis"];
-    if (!string.IsNullOrWhiteSpace(redisConnection))
+    var redisOptions = builder.Configuration.GetSection("ConnectionStrings").Exists()
+        ? new RedisOptions { ConnectionString = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["ConnectionStrings:Redis"] }
+        : builder.Configuration.GetSection("Redis").Get<RedisOptions>() ?? new RedisOptions();
+    if (!string.IsNullOrWhiteSpace(redisOptions.ConnectionString))
     {
         builder.Services.AddStackExchangeRedisCache(options =>
         {
-            options.Configuration = redisConnection;
+            options.Configuration = redisOptions.ConnectionString;
             options.InstanceName = "liveevent:";
         });
 
         // Wire Redis connectivity gauge
         try
         {
-            var mux = ConnectionMultiplexer.Connect(redisConnection);
-            AppMetrics.SetRedisConnectivityProvider(() => mux.IsConnected ? 1 : 0);
-            // Dispose multiplexer on shutdown
-            builder.Services.AddSingleton<IConnectionMultiplexer>(mux);
+            var existingMuxReg = builder.Services.FirstOrDefault(s => s.ServiceType == typeof(IConnectionMultiplexer));
+            if (existingMuxReg == null)
+            {
+                var mux = ConnectionMultiplexer.Connect(redisOptions.ConnectionString);
+                AppMetrics.SetRedisConnectivityProvider(() => mux.IsConnected ? 1 : 0);
+                builder.Services.AddSingleton<IConnectionMultiplexer>(mux);
+            }
+            else
+            {
+                var mux = existingMuxReg.ImplementationInstance as IConnectionMultiplexer;
+                AppMetrics.SetRedisConnectivityProvider(() => mux != null && mux.IsConnected ? 1 : 0);
+            }
         }
         catch
         {
@@ -217,9 +266,36 @@ else
     builder.Services.AddSingleton<IDistributedCache, DisabledDistributedCache>();
 }
 
-// Add Swagger services
+// Add Swagger services with JWT Bearer support
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Live Event Service API", Version = "v1" });
+    var securityScheme = new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Description = "Enter 'Bearer {token}'",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+    };
+    c.AddSecurityDefinition("Bearer", securityScheme);
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        { securityScheme, Array.Empty<string>() }
+    });
+});
+
+// ProblemDetails for standardized error responses
+builder.Services.AddProblemDetails();
+
+// Response compression for text-based responses
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
 
 // Add GraphQL services
 var graphQlBuilder = builder.Services
@@ -238,41 +314,59 @@ var graphQlBuilder = builder.Services
     .AddAuthorization();
 
 // Subscriptions backplane: prefer Redis when configured and not in Testing; otherwise fall back to in-memory
-var redisCfg = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["ConnectionStrings:Redis"];
+var redisCfg = builder.Configuration.GetSection("ConnectionStrings").Exists()
+    ? builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["ConnectionStrings:Redis"]
+    : builder.Configuration.GetSection("Redis").Get<RedisOptions>()?.ConnectionString ?? string.Empty;
 if (!isTesting && !string.IsNullOrWhiteSpace(redisCfg))
 {
-    graphQlBuilder = graphQlBuilder.AddRedisSubscriptions(_ => ConnectionMultiplexer.Connect(redisCfg));
+    // Reuse a single ConnectionMultiplexer registered in DI if present; otherwise create once and register
+    var existingMux = builder.Services.FirstOrDefault(s => s.ServiceType == typeof(IConnectionMultiplexer))?.ImplementationInstance as IConnectionMultiplexer;
+    if (existingMux == null)
+    {
+        var mux = ConnectionMultiplexer.Connect(redisCfg);
+        builder.Services.AddSingleton<IConnectionMultiplexer>(mux);
+        existingMux = mux;
+    }
+    graphQlBuilder = graphQlBuilder.AddRedisSubscriptions(_ => existingMux!);
 }
 else
 {
     graphQlBuilder = graphQlBuilder.AddInMemorySubscriptions();
 }
-    // HotChocolate v15: use validation rules to limit depth/complexity if needed
+
+// HotChocolate v15: use validation rules to limit depth/complexity if needed
+var gqlOptions = builder.Configuration.GetSection("GraphQL").Get<GraphQLOptions>() ?? new GraphQLOptions();
 graphQlBuilder
     .AddFiltering()
     .AddSorting()
     .AddProjections()
-    .AddMaxExecutionDepthRule(10)
+    .AddMaxExecutionDepthRule(gqlOptions.MaxExecutionDepth)
     .ModifyOptions(opt =>
     {
-        // Keep validation strict; depth/complexity rules will be wired via document options below
-        opt.StrictValidation = true;
+        // Keep validation strict by default; can be tuned via options
+        opt.StrictValidation = gqlOptions.StrictValidation;
     })
     .ModifyRequestOptions(opt =>
     {
-        // Put a sane upper bound on query execution
-        opt.ExecutionTimeout = TimeSpan.FromSeconds(10);
+        opt.ExecutionTimeout = TimeSpan.FromSeconds(gqlOptions.ExecutionTimeoutSeconds);
         opt.IncludeExceptionDetails = builder.Environment.IsDevelopment();
-    })    
+    })
     .AddDataLoader<UserByIdentityIdDataLoader>();
-
-
 
 // Add rate limiting (disabled in Testing environment)
 if (!isTesting)
 {
     builder.Services.AddRateLimiter(options =>
     {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.OnRejected = async (context, token) =>
+        {
+            context.HttpContext.Response.ContentType = "application/json";
+            context.HttpContext.Response.Headers["Retry-After"] = "60";
+            var payload = System.Text.Json.JsonSerializer.Serialize(new { error = "rate_limited", message = "Too many requests. Please retry later." });
+            await context.HttpContext.Response.WriteAsync(payload, token);
+        };
+
         // General API limiter: token bucket per IP
         options.AddPolicy(PolicyNames.General, httpContext =>
         {
@@ -313,7 +407,8 @@ try
 {
     if (!isTesting && builder.Environment.IsDevelopment())
     {
-        var initializeOnStartup = builder.Configuration.GetValue<bool?>("Database:InitializeOnStartup") ?? true;
+        var dbOptions = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<DatabaseOptions>>().Value;
+        var initializeOnStartup = dbOptions.InitializeOnStartup;
         if (initializeOnStartup)
         {
             Log.Information("Starting database initialization (Development only)...");
@@ -343,6 +438,7 @@ else
 {
     // Production hardening
     app.UseHsts();
+    app.UseExceptionHandler(); // Standardize errors via ProblemDetails
 }
 
 // Redirect HTTP to HTTPS only outside dev/testing
@@ -360,10 +456,10 @@ app.Use(async (context, next) =>
     // Add correlation ID to the request if not present
     var correlationId = context.Request.Headers[CustomHeaderNames.CorrelationId].FirstOrDefault() ?? Guid.NewGuid().ToString();
     context.Items[CustomHeaderNames.CorrelationId] = correlationId;
-    
+
     // Add correlation ID to the response headers
     context.Response.Headers.Append(CustomHeaderNames.CorrelationId, correlationId);
-    
+
     // Add correlation ID to all logs in this request
     using (LogContext.PushProperty("CorrelationId", correlationId))
     {
@@ -374,28 +470,52 @@ app.Use(async (context, next) =>
 // Add enhanced request logging
 app.UseSerilogRequestLogging(options =>
 {
-        options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+{
+    diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+    diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+    var ua = httpContext.Request.Headers.UserAgent.ToString();
+    diagnosticContext.Set("UserAgent", ua);
+    diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
+
+    // Add user identifiers when available
+    var user = httpContext.User;
+    if (user?.Identity?.IsAuthenticated == true)
     {
-        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
-        diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
-            var ua = httpContext.Request.Headers.UserAgent.ToString();
-            diagnosticContext.Set("UserAgent", ua ?? string.Empty);
-        diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
-        
-        // Add correlation ID if available
-        if (httpContext.Request.Headers.TryGetValue(CustomHeaderNames.CorrelationId, out var correlationId))
+        var nameId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? user.FindFirst("sub")?.Value
+                     ?? user.Identity?.Name;
+        var userName = user.Identity?.Name
+                       ?? user.FindFirst("cognito:username")?.Value
+                       ?? user.FindFirst("preferred_username")?.Value;
+        if (!string.IsNullOrEmpty(nameId))
         {
-            diagnosticContext.Set("CorrelationId", correlationId);
+            diagnosticContext.Set("UserId", nameId);
         }
-    };
+
+        if (!string.IsNullOrEmpty(userName))
+        {
+            diagnosticContext.Set("UserName", userName);
+        }
+    }
+
+    // Add correlation ID if available
+    if (httpContext.Request.Headers.TryGetValue(CustomHeaderNames.CorrelationId, out var correlationId))
+    {
+        diagnosticContext.Set("CorrelationId", correlationId.ToString());
+    }
+};
 });
 
 // Add global exception handling middleware (excluding GraphQL)
-app.UseWhen(context => !context.Request.Path.StartsWithSegments("/graphql"), 
+app.UseWhen(context => !context.Request.Path.StartsWithSegments("/graphql"),
     appBuilder => appBuilder.UseMiddleware<GlobalExceptionMiddleware>());
 
 // Apply security headers
 app.UseMiddleware<LiveEventService.API.Middleware.SecurityHeadersMiddleware>();
+
+// Enable response compression
+app.UseResponseCompression();
 
 app.UseCors();
 
@@ -488,5 +608,7 @@ finally
     Log.CloseAndFlush();
 }
 
-// Make Program class accessible for integration testing
+/// <summary>
+/// Exposes the entry point type to integration tests.
+/// </summary>
 public partial class Program { }

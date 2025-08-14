@@ -51,11 +51,11 @@ public class GetEventQueryHandler : IQueryHandler<GetEventQuery, BaseResponse<Ev
 
         // Get organizer details (read-only)
         var organizer = await _userRepository.GetByIdentityIdAsync(eventEntity.OrganizerId, cancellationToken);
-        
+
         // Map to DTO
         var eventDto = _mapper.Map<EventDto>(eventEntity);
         eventDto.OrganizerName = organizer != null ? $"{organizer.FirstName} {organizer.LastName}".Trim() : string.Empty;
-        
+
         var response = BaseResponse<EventDto>.Succeeded(eventDto);
         var serialized = JsonSerializer.Serialize(response);
         await _cache.SetStringAsync(cacheKey, serialized, new DistributedCacheEntryOptions

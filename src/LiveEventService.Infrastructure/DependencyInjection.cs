@@ -6,8 +6,9 @@ using LiveEventService.Infrastructure.Events;
 using LiveEventService.Infrastructure.Registrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
+using LiveEventService.Infrastructure.Configuration;
 using LiveEventService.Core.Registrations.EventRegistration;
 using LiveEventService.Core.Users.User;
 using Amazon.S3;
@@ -17,6 +18,7 @@ using LiveEventService.Core.Common;
 using LiveEventService.Infrastructure.Telemetry;
 using Amazon.SQS;
 using LiveEventService.Infrastructure.Messaging;
+// using Microsoft.Extensions.Http.Resilience;
 
 namespace LiveEventService.Infrastructure;
 
@@ -24,9 +26,12 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration, bool isTesting = false)
     {
+        services.Configure<AwsOptions>(configuration.GetSection("AWS"));
+        // Shared HttpClient for health and infrastructure probes
+        services.AddHttpClient("HealthChecks");
         // Configure Npgsql to handle DateTime properly
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", false);
-        
+
         // Add DbContext - only configure if not already configured (for test scenarios)
         if (!services.Any(s => s.ServiceType == typeof(DbContextOptions<LiveEventDbContext>)))
         {
@@ -38,6 +43,9 @@ public static class DependencyInjection
                         configuration.GetConnectionString("DefaultConnection"),
                         npgsqlOptions =>
                         {
+                            // Ensure all migrations are tracked in this assembly and a single history table
+                            npgsqlOptions.MigrationsAssembly(typeof(LiveEventDbContext).Assembly.FullName);
+                            npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory");
                             // Enable resilient execution for transient faults
                             npgsqlOptions.EnableRetryOnFailure(
                                 maxRetryCount: 5,
@@ -60,42 +68,16 @@ public static class DependencyInjection
 
         // Register repository for EventRegistration with navigation safety
         services.AddScoped<IRepository<EventRegistration>, EventRegistrationRepository>();
-        
+
         // Register domain event dispatcher
         // Note: The actual implementation is in the Application layer
         // This will be registered by the Application layer's DI configuration
 
-        // Add AWS Cognito authentication
-        services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-        })
-        .AddJwtBearer(options =>
-        {
-            options.Authority = $"https://cognito-idp.{configuration["AWS:Region"]}.amazonaws.com/{configuration["AWS:UserPoolId"]}";
-            options.TokenValidationParameters = new()
-            {
-                ValidateIssuer = true,
-                ValidIssuer = $"https://cognito-idp.{configuration["AWS:Region"]}.amazonaws.com/{configuration["AWS:UserPoolId"]}",
-                ValidateLifetime = true,
-                LifetimeValidator = (_, expires, _, _) => expires > DateTime.UtcNow,
-                ValidateAudience = false,
-                RoleClaimType = "cognito:groups"
-            };
-        });
-
-        services.AddAuthorization(options =>
-        {
-            options.AddPolicy(RoleNames.Admin, policy => 
-                policy.RequireRole(RoleNames.Admin));
-            options.AddPolicy(RoleNames.Participant, policy => 
-                policy.RequireRole(RoleNames.Participant));
-        });
+        // Authentication and authorization are registered in the API project to keep Infrastructure framework-agnostic.
 
         // Add basic health checks
         var healthChecksBuilder = services.AddHealthChecks();
-        
+
         // Add PostgreSQL health check only if not in testing mode and connection string is available
         if (!isTesting)
         {
@@ -105,24 +87,18 @@ public static class DependencyInjection
                 healthChecksBuilder.AddNpgSql(
                     connectionString,
                     name: "PostgreSQL (RDS)",
-                    tags: new[] { "db", "rds", "postgresql" });
+                    tags: new[] { "db", "rds", "postgresql", "ready" });
             }
         }
-        
-        healthChecksBuilder.AddCheck("AWS Cognito", () =>
-            {
-                // Simple check for Cognito config presence
-                var region = configuration["AWS:Region"]!;
-                var userPoolId = configuration["AWS:UserPoolId"]!;
-                return !string.IsNullOrEmpty(region) && !string.IsNullOrEmpty(userPoolId)
-                    ? HealthCheckResult.Healthy()
-                    : HealthCheckResult.Unhealthy("Cognito config missing");
-            }, tags: new[] { "aws", "cognito" });
+
+        // Cognito metadata check (skip in Testing)
+        healthChecksBuilder.AddCheck<HealthChecks.CognitoMetadataHealthCheck>("AWS Cognito", tags: new[] { "aws", "cognito" });
 
         // Configure Amazon S3 client (LocalStack-aware) and health check
-        var awsRegion = configuration["AWS:Region"] ?? "us-east-1";
-        var s3BucketName = configuration["AWS:S3BucketName"];
-        var serviceUrl = configuration["AWS:ServiceURL"]; // when set, points to LocalStack
+        var awsOptions = configuration.GetSection("AWS").Get<AwsOptions>() ?? new AwsOptions();
+        var awsRegion = awsOptions.Region ?? "us-east-1";
+        var s3BucketName = awsOptions.S3BucketName;
+        var serviceUrl = awsOptions.ServiceURL; // when set, points to LocalStack
 
         services.AddSingleton<IAmazonS3>(_ =>
         {
@@ -173,7 +149,7 @@ public static class DependencyInjection
         });
 
         // Optionally replace in-memory queue with SQS producer based on configuration
-        var useSqs = configuration.GetValue<bool?>("AWS:SQS:UseSqsForDomainEvents") ?? false;
+        var useSqs = awsOptions.Sqs.UseSqsForDomainEvents;
         if (useSqs)
         {
             services.AddSingleton<IMessageQueue, SqsMessageQueue>();
@@ -184,17 +160,16 @@ public static class DependencyInjection
             healthChecksBuilder.AddCheck<HealthChecks.S3BucketHealthCheck>("AWS S3", tags: new[] { "aws", "s3", "ready" });
         }
 
-        // Add CORS policy
-        services.AddCors(options =>
+        // Add SQS readiness check when SQS is enabled
+        if (awsOptions.Sqs.UseSqsForDomainEvents)
         {
-            options.AddDefaultPolicy(policy =>
-            {
-                string[] allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
-                policy.WithOrigins(allowedOrigins)
-                      .AllowAnyHeader()
-                      .AllowAnyMethod();
-            });
-        });
+            healthChecksBuilder.AddCheck<HealthChecks.SqsHealthCheck>("AWS SQS", tags: new[] { "aws", "sqs", "ready" });
+        }
+
+        // Add Redis health check if a multiplexer is registered
+        healthChecksBuilder.AddCheck<HealthChecks.RedisHealthCheck>("Redis", tags: new[] { "redis", "ready" });
+
+        // CORS is configured in the API project. Do not configure it here to avoid duplication.
 
         // Register outbox processor background service (disabled in Testing)
         if (!isTesting)

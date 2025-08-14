@@ -37,10 +37,10 @@ public class CreateUserCommandHandler : ICommandHandler<CreateUserCommand, BaseR
             request.User.PhoneNumber ?? string.Empty);
 
         var createdUser = await _userRepository.AddAsync(newUser, cancellationToken);
-        
+
         // Map to DTO
         var userDto = _mapper.Map<UserDto>(createdUser);
-        
+
         return BaseResponse<UserDto>.Succeeded(userDto, "User created successfully");
     }
 }

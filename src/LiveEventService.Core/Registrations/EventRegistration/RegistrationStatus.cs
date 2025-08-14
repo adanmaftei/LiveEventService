@@ -8,4 +8,4 @@ public enum RegistrationStatus
     Cancelled = 3,  // Registration was cancelled
     Attended = 4,   // User attended the event
     NoShow = 5      // User didn't show up
-} 
+}

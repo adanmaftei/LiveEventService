@@ -1,6 +1,6 @@
-using LiveEventService.Core.Registrations.EventRegistration;
-using LiveEventService.Core.Common;
 using System.Collections.ObjectModel;
+using LiveEventService.Core.Common;
+using LiveEventService.Core.Registrations.EventRegistration;
 
 namespace LiveEventService.Core.Events;
 
@@ -20,8 +20,8 @@ public class Event : Entity
     public int ConfirmedRegistrationsCount => Registrations.Count(r => r.Status == RegistrationStatus.Confirmed);
     public int WaitlistedRegistrationsCount => Registrations.Count(r => r.Status == RegistrationStatus.Waitlisted);
 
-    private readonly List<EventRegistration> _registrations = new();
-    public virtual IReadOnlyCollection<EventRegistration> Registrations => new ReadOnlyCollection<EventRegistration>(_registrations);
+    private readonly List<EventRegistration> registrations = new();
+    public virtual IReadOnlyCollection<EventRegistration> Registrations => new ReadOnlyCollection<EventRegistration>(registrations);
 
     protected Event() { } // For EF Core
 
@@ -40,14 +40,14 @@ public class Event : Entity
     public void UpdateDetails(string name, string description, DateTime startDate, DateTime endDate, int capacity, string timeZone, string location)
     {
         var oldCapacity = Capacity;
-        
+
         Name = name;
         Description = description;
         StartDate = startDate;
         EndDate = endDate;
         TimeZone = timeZone;
         Location = location;
-        
+
         // If capacity increased, raise domain event
         if (capacity > oldCapacity)
         {
@@ -63,45 +63,45 @@ public class Event : Entity
 
     public void AddRegistration(EventRegistration registration)
     {
-        _registrations.Add(registration);
+        registrations.Add(registration);
     }
 
     public void RemoveRegistration(EventRegistration registration)
     {
-        _registrations.Remove(registration);
+        registrations.Remove(registration);
     }
-    
+
     // Business logic methods (not EF properties)
     public bool IsFull() => ConfirmedRegistrationsCount >= Capacity;
-    
+
     public void Publish() => IsPublished = true;
     public void Unpublish() => IsPublished = false;
-    
+
     public void CloseWaitlist() => IsWaitlistOpen = false;
     public void ReopenWaitlist() => IsWaitlistOpen = true;
-    
+
     public void IncreaseCapacity(int additionalCapacity)
     {
         if (additionalCapacity <= 0)
         {
             throw new ArgumentException("Additional capacity must be positive", nameof(additionalCapacity));
         }
-        
+
         Capacity += additionalCapacity;
         AddDomainEvent(new EventCapacityIncreasedDomainEvent(this, additionalCapacity));
     }
-    
+
     public int GetNextWaitlistPosition() => WaitlistedRegistrationsCount + 1;
-    
+
     public EventRegistration? GetNextWaitlistedRegistration()
-        => _registrations
+        => registrations
             .Where(r => r.Status == RegistrationStatus.Waitlisted)
             .OrderBy(r => r.PositionInQueue)
             .FirstOrDefault();
-    
+
     public void UpdateWaitlistPositions(EventRegistration? promotedRegistration = null)
     {
-        var waitlisted = _registrations
+        var waitlisted = registrations
             .Where(r => r.Status == RegistrationStatus.Waitlisted)
             .OrderBy(r => r.PositionInQueue)
             .ToList();
@@ -118,7 +118,7 @@ public class Event : Entity
             var registration = waitlisted[i];
             var oldPosition = registration.PositionInQueue;
             var newPosition = i + 1;
-            
+
             if (oldPosition != newPosition)
             {
                 registration.UpdateWaitlistPosition(newPosition);

@@ -220,7 +220,7 @@ public static class TestDataBuilder
             var start = startDateTime ?? DateTime.UtcNow.AddDays(30); // Ensure future date
             var end = endDateTime ?? start.AddHours(_faker.Random.Int(1, 8));
             var tz = timeZone ?? "UTC";
-            
+
             return $@"
                 mutation {{
                     createEvent(input: {{
@@ -289,4 +289,4 @@ public static class TestDataBuilder
                 }}";
         }
     }
-} 
+}

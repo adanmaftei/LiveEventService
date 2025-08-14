@@ -12,15 +12,15 @@ public class EventEndpointsTests : BaseLiveEventsTests
 {
     public EventEndpointsTests(LiveEventTestApplicationFactory factory)
         : base(factory)
-    {        
+    {
     }
 
     [Fact]
     public async Task GetEvents_ShouldReturnPublishedEvents_WhenUnauthenticated()
-    {        
+    {
         // Arrange - Create some test events
         await SeedEventsWithDifferentDates();
-        
+
         // Act
         var response = await _unauthenticatedClient.GetAsync("/api/events?pageNumber=1&pageSize=10");
 
@@ -28,7 +28,7 @@ public class EventEndpointsTests : BaseLiveEventsTests
         var content = await response.Content.ReadAsStringAsync();
         Console.WriteLine($"Response Status: {response.StatusCode}");
         Console.WriteLine($"Response Content: {content}");
-        
+
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         content.Should().NotBeNullOrEmpty();
     }
@@ -139,7 +139,7 @@ public class EventEndpointsTests : BaseLiveEventsTests
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Verify in database
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<LiveEventDbContext>();
@@ -160,7 +160,7 @@ public class EventEndpointsTests : BaseLiveEventsTests
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        
+
         // Verify in database
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<LiveEventDbContext>();
@@ -173,7 +173,7 @@ public class EventEndpointsTests : BaseLiveEventsTests
     {
         // Arrange
         var eventId = await CreateTestEvent();
-        var registrationData = TestDataBuilder.Commands.RegisterForEventCommand(eventId, _participantUserId);        
+        var registrationData = TestDataBuilder.Commands.RegisterForEventCommand(eventId, _participantUserId);
 
         // Act
         var response = await _authenticatedParticipantClient.PostAsJsonAsync($"/api/events/{eventId}/register", registrationData);
@@ -189,7 +189,7 @@ public class EventEndpointsTests : BaseLiveEventsTests
     {
         // Arrange
         var eventId = await CreateTestEvent();
-        var registrationData = TestDataBuilder.Commands.RegisterForEventCommand(eventId, _participantUserId);               
+        var registrationData = TestDataBuilder.Commands.RegisterForEventCommand(eventId, _participantUserId);
 
         // Register first time
         await _authenticatedParticipantClient.PostAsJsonAsync($"/api/events/{eventId}/register", registrationData);
@@ -232,7 +232,7 @@ public class EventEndpointsTests : BaseLiveEventsTests
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Verify in database
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<LiveEventDbContext>();
@@ -257,7 +257,7 @@ public class EventEndpointsTests : BaseLiveEventsTests
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Verify in database
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<LiveEventDbContext>();
@@ -283,7 +283,7 @@ public class EventEndpointsTests : BaseLiveEventsTests
         var content = await response.Content.ReadAsStringAsync();
         Console.WriteLine($"GetEventRegistrations Response Status: {response.StatusCode}");
         Console.WriteLine($"GetEventRegistrations Response Content: {content}");
-        
+
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         content.Should().NotBeNullOrEmpty();
     }
@@ -347,4 +347,4 @@ public class EventEndpointsTests : BaseLiveEventsTests
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
-} 
+}

@@ -12,7 +12,7 @@ public static class CloudWatchConfig
         var logGroup = configuration["AWS:CloudWatch:LogGroup"] ?? "/live-event-service/logs";
         var region = configuration["AWS:Region"] ?? "us-east-1";
         var logLevel = configuration["Logging:LogLevel:Default"] ?? "Information";
-        
+
         var logEventLevel = logLevel switch
         {
             "Trace" => LogEventLevel.Verbose,

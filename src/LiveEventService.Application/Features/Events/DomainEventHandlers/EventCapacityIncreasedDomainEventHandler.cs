@@ -7,7 +7,7 @@ using LiveEventService.Application.Common.Notifications;
 
 namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
 
-public class EventCapacityIncreasedDomainEventHandler 
+public class EventCapacityIncreasedDomainEventHandler
     : INotificationHandler<EventCapacityIncreasedNotification>
 {
     private readonly ILogger<EventCapacityIncreasedDomainEventHandler> _logger;
@@ -25,7 +25,7 @@ public class EventCapacityIncreasedDomainEventHandler
     }
 
     public async Task Handle(
-        EventCapacityIncreasedNotification notification, 
+        EventCapacityIncreasedNotification notification,
         CancellationToken cancellationToken)
     {
         var @event = notification.DomainEvent.Event;
@@ -42,7 +42,7 @@ public class EventCapacityIncreasedDomainEventHandler
             var nextWaitlisted = await _registrationRepository.FirstOrDefaultAsync(
                 new NextWaitlistedRegistrationSpecification(@event.Id),
                 cancellationToken);
-                
+
             if (nextWaitlisted == null)
             {
                 break;
@@ -63,7 +63,7 @@ public class EventCapacityIncreasedDomainEventHandler
         {
             // Update positions for remaining waitlisted registrations
             await UpdateRemainingWaitlistPositions(@event.Id, cancellationToken);
-            
+
             _logger.LogInformation(
                 "Promoted {PromotedCount} waitlisted registrations for event {EventId}",
                 promotedCount, @event.Id);
@@ -75,12 +75,12 @@ public class EventCapacityIncreasedDomainEventHandler
         var remainingWaitlisted = await _registrationRepository.ListAsync(
             new WaitlistedRegistrationsForEventSpecification(eventId),
             cancellationToken);
-        
+
         for (int i = 0; i < remainingWaitlisted.Count; i++)
         {
             var waitlistedRegistration = remainingWaitlisted[i];
             var newPosition = i + 1;
-            
+
             if (waitlistedRegistration.PositionInQueue != newPosition)
             {
                 waitlistedRegistration.UpdateWaitlistPosition(newPosition);

@@ -7,6 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="StyleCop.Analyzers" PrivateAssets="all" Version="1.1.118" />
+    <PackageReference Include="SerilogAnalyzer" PrivateAssets="all" Version="0.15.0" />
+    <PackageReference Include="AsyncFixer" PrivateAssets="all" Version="1.6.0" />
     <PackageReference Include="AutoMapper" Version="15.0.1" />
     <PackageReference Include="FluentValidation" Version="12.0.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0" />

@@ -4,6 +4,7 @@ using Amazon.SQS.Model;
 using LiveEventService.Application;
 using LiveEventService.Core.Common;
 using LiveEventService.Infrastructure;
+using LiveEventService.Infrastructure.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,6 +23,7 @@ builder.Configuration
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
+builder.Services.Configure<AwsOptions>(builder.Configuration.GetSection("AWS"));
 builder.Services.AddHostedService<SqsWorker>();
 
 var app = builder.Build();
@@ -32,16 +34,37 @@ public sealed class SqsWorker : BackgroundService
     private readonly ILogger<SqsWorker> _logger;
     private readonly IServiceProvider _services;
     private readonly IAmazonSQS _sqs;
-    private readonly string _queueUrl;
+    private string _queueUrl;
     private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly AwsOptions _awsOptions;
 
-    public SqsWorker(ILogger<SqsWorker> logger, IServiceProvider services, IAmazonSQS sqs, IConfiguration configuration)
+    public SqsWorker(ILogger<SqsWorker> logger, IServiceProvider services, IAmazonSQS sqs, Microsoft.Extensions.Options.IOptions<AwsOptions> awsOptions, IConfiguration configuration)
     {
         _logger = logger;
         _services = services;
         _sqs = sqs;
-        var queueName = configuration["AWS:SQS:QueueName"] ?? "liveevent-domain-events";
-        _queueUrl = _sqs.GetQueueUrlAsync(queueName).GetAwaiter().GetResult().QueueUrl;
+        _awsOptions = awsOptions.Value;
+        var queueName = _awsOptions.Sqs.QueueName ?? configuration["AWS:SQS:QueueName"] ?? "liveevent-domain-events";
+        _queueUrl = queueName; // resolve in StartAsync
+    }
+
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        // Resolve queue URL asynchronously at startup
+        if (!string.IsNullOrWhiteSpace(_queueUrl) && !_queueUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var resp = await _sqs.GetQueueUrlAsync(_queueUrl, cancellationToken);
+                _queueUrl = resp.QueueUrl;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to resolve SQS queue URL for {Queue}", _queueUrl);
+                throw;
+            }
+        }
+        await base.StartAsync(cancellationToken);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

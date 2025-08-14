@@ -27,8 +27,8 @@ public class InMemoryMessageQueue : IMessageQueue
         {
             _queue.Enqueue(domainEvent);
             _semaphore.Release();
-            
-            _logger.LogDebug("Domain event {EventType} enqueued. Queue length: {QueueLength}", 
+
+            _logger.LogDebug("Domain event {EventType} enqueued. Queue length: {QueueLength}",
                 domainEvent.GetType().Name, _queue.Count);
         }
 
@@ -43,7 +43,7 @@ public class InMemoryMessageQueue : IMessageQueue
         {
             if (_queue.TryDequeue(out var domainEvent))
             {
-                _logger.LogDebug("Domain event {EventType} dequeued. Queue length: {QueueLength}", 
+                _logger.LogDebug("Domain event {EventType} dequeued. Queue length: {QueueLength}",
                     domainEvent.GetType().Name, _queue.Count);
                 return domainEvent;
             }
@@ -72,4 +72,4 @@ public class InMemoryMessageQueue : IMessageQueue
     {
         _semaphore?.Dispose();
     }
-} 
+}

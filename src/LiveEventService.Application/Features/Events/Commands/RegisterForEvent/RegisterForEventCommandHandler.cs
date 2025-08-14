@@ -28,7 +28,7 @@ public class RegisterForEventCommandHandler : ICommandHandler<RegisterForEventCo
     }
 
     public async Task<BaseResponse<EventRegistrationDto>> Handle(
-        RegisterForEventCommand request, 
+        RegisterForEventCommand request,
         CancellationToken cancellationToken)
     {
         // Get the event
@@ -70,7 +70,7 @@ public class RegisterForEventCommandHandler : ICommandHandler<RegisterForEventCo
 
         // Create the registration
         var registration = new EventRegistrationEntity(eventEntity, user, request.Notes);
-        
+
         // Set appropriate status based on event capacity
         if (isEventFull)
         {
@@ -84,7 +84,7 @@ public class RegisterForEventCommandHandler : ICommandHandler<RegisterForEventCo
 
         // Save registration first
         var createdRegistration = await _registrationRepository.AddAsync(registration, cancellationToken);
-        
+
         // Assign waitlist position AFTER saving, based on database insertion order
         if (isEventFull)
         {
@@ -92,16 +92,16 @@ public class RegisterForEventCommandHandler : ICommandHandler<RegisterForEventCo
             createdRegistration.UpdateWaitlistPosition(waitlistPosition);
             await _registrationRepository.UpdateAsync(createdRegistration, cancellationToken);
         }
-        
+
         // Map to DTO
         var registrationDto = _mapper.Map<EventRegistrationDto>(createdRegistration);
         registrationDto.UserName = $"{user.FirstName} {user.LastName}".Trim();
         registrationDto.UserEmail = user.Email;
-        
-        var message = registration.IsWaitlisted() 
-            ? "You have been added to the waitlist" 
+
+        var message = registration.IsWaitlisted()
+            ? "You have been added to the waitlist"
             : "You have been successfully registered for the event";
-        
+
         return BaseResponse<EventRegistrationDto>.Succeeded(registrationDto, message);
     }
 }

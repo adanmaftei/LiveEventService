@@ -1,17 +1,17 @@
+using System.Text;
+using LiveEventService.API.Constants;
+using LiveEventService.Application.Common.Models;
+using LiveEventService.Application.Features.Users.Queries.ExportUserData;
+using LiveEventService.Application.Features.Users.User;
 using LiveEventService.Application.Features.Users.User.Create;
+using LiveEventService.Application.Features.Users.User.Erase;
 using LiveEventService.Application.Features.Users.User.Get;
 using LiveEventService.Application.Features.Users.User.List;
 using LiveEventService.Application.Features.Users.User.Update;
 using LiveEventService.Core.Common;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using LiveEventService.API.Constants;
 using Microsoft.Extensions.Caching.Distributed;
-using LiveEventService.Application.Common.Models;
-using LiveEventService.Application.Features.Users.User;
-using LiveEventService.Application.Features.Users.User.Erase;
-using System.Text;
-using LiveEventService.Application.Features.Users.Queries.ExportUserData;
 
 namespace LiveEventService.API.Users;
 
@@ -102,15 +102,17 @@ public static class UserEndpoints
             // Users can update themselves, or admins can update anyone
             var currentUserId = httpContext.User.Identity?.Name ?? string.Empty;
             var isAdmin = httpContext.User.IsInRole(RoleNames.Admin);
-            
+
             if (id != currentUserId && !isAdmin)
             {
                 return Results.Forbid();
             }
-            
+
             if (id != command.UserId)
+            {
                 return Results.BadRequest("ID in route does not match ID in the request body");
-            
+            }
+
             var result = await mediator.Send(command);
             if (result.Success)
             {
@@ -153,4 +155,4 @@ public static class UserEndpoints
         }).RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
     }
-} 
+}

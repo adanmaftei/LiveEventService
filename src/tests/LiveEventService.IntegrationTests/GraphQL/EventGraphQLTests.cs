@@ -11,7 +11,7 @@ public class EventGraphQLTests : BaseLiveEventsTests
 {
     public EventGraphQLTests(LiveEventTestApplicationFactory factory)
         : base(factory)
-    {        
+    {
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class EventGraphQLTests : BaseLiveEventsTests
         var content = await response.Content.ReadAsStringAsync();
         Console.WriteLine($"Response Status: {response.StatusCode}");
         Console.WriteLine($"Response Content: {content}");
-        
+
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         content.Should().Contain("events");
         content.Should().Contain("items");
@@ -73,7 +73,7 @@ public class EventGraphQLTests : BaseLiveEventsTests
         var content = await response.Content.ReadAsStringAsync();
         Console.WriteLine($"Response Status: {response.StatusCode}");
         Console.WriteLine($"Response Content: {content}");
-        
+
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         content.Should().Contain("createEvent");
         content.Should().Contain("id");
@@ -100,7 +100,7 @@ public class EventGraphQLTests : BaseLiveEventsTests
         var content = await response.Content.ReadAsStringAsync();
         Console.WriteLine($"Unauthenticated Response Status: {response.StatusCode}");
         Console.WriteLine($"Unauthenticated Response Content: {content}");
-        
+
         response.StatusCode.Should().Be(HttpStatusCode.OK); // GraphQL returns 200 with errors in content
         content.Should().Contain("errors");
         content.Should().NotContain("\"data\":{\"createEvent\""); // Should not contain successful data
@@ -123,7 +123,7 @@ public class EventGraphQLTests : BaseLiveEventsTests
         var content = await response.Content.ReadAsStringAsync();
         Console.WriteLine($"Response Status: {response.StatusCode}");
         Console.WriteLine($"Response Content: {content}");
-        
+
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         content.Should().Contain("createUser");
         content.Should().Contain("id");
@@ -281,5 +281,5 @@ public class EventGraphQLTests : BaseLiveEventsTests
 
         // The client should already have the authorization header set if it's authenticated
         return await client.PostAsync("/graphql", content);
-    }    
-} 
+    }
+}

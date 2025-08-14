@@ -8,7 +8,7 @@ using LiveEventService.Application.Common;
 namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
 
 [AsyncProcessing(Priority = 1, MaxRetryAttempts = 3, RetryDelaySeconds = 2)]
-public class WaitlistPositionChangedDomainEventHandler 
+public class WaitlistPositionChangedDomainEventHandler
     : INotificationHandler<WaitlistPositionChangedNotification>
 {
     private readonly ILogger<WaitlistPositionChangedDomainEventHandler> _logger;
@@ -23,7 +23,7 @@ public class WaitlistPositionChangedDomainEventHandler
     }
 
     public Task Handle(
-        WaitlistPositionChangedNotification notification, 
+        WaitlistPositionChangedNotification notification,
         CancellationToken cancellationToken)
     {
         _logger.LogInformation(
@@ -32,12 +32,12 @@ public class WaitlistPositionChangedDomainEventHandler
             notification.DomainEvent.EventId,
             notification.DomainEvent.OldPosition?.ToString() ?? "null",
             notification.DomainEvent.NewPosition?.ToString() ?? "null");
-            
+
         // Here you could add additional logic like:
         // - Notify the user about their new position
         // - Update any read models or projections
         // - Trigger notifications for significant position changes
-        
+
         // Example: Notify user if they moved into the top 5 positions
         if (notification.DomainEvent.NewPosition <= 5 && (notification.DomainEvent.OldPosition == null || notification.DomainEvent.OldPosition > 5))
         {
@@ -45,7 +45,7 @@ public class WaitlistPositionChangedDomainEventHandler
                 "Registration {RegistrationId} is now in the top 5 waitlist positions for event {EventId}",
                 notification.DomainEvent.RegistrationId, notification.DomainEvent.EventId);
         }
-        
+
         return Task.CompletedTask;
     }
 }

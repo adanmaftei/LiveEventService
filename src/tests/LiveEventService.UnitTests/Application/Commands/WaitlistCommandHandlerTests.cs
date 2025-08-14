@@ -26,19 +26,19 @@ public class WaitlistCommandHandlerTests : TestBase
         _mockUserRepository = new Mock<IUserRepository>();
         _mockRegistrationRepository = new Mock<IRepository<EventRegistration>>();
         _mockMapper = new Mock<IMapper>();
-        
+
         _registerHandler = new RegisterForEventCommandHandler(
-            _mockEventRepository.Object, 
-            _mockUserRepository.Object, 
-            _mockRegistrationRepository.Object, 
+            _mockEventRepository.Object,
+            _mockUserRepository.Object,
+            _mockRegistrationRepository.Object,
             _mockMapper.Object);
-            
+
         _confirmHandler = new ConfirmRegistrationCommandHandler(
-            _mockRegistrationRepository.Object, 
+            _mockRegistrationRepository.Object,
             _mockMapper.Object);
-            
+
         _cancelHandler = new CancelEventRegistrationCommandHandler(
-            _mockRegistrationRepository.Object, 
+            _mockRegistrationRepository.Object,
             _mockUserRepository.Object);
     }
 
@@ -55,7 +55,7 @@ public class WaitlistCommandHandlerTests : TestBase
 
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 100, "UTC", "Test Location", "organizer-123");
         @event.Publish(); // Make event published
-        
+
         var user = new User("user-123", "test@example.com", "John", "Doe", "1234567890");
         var registration = new EventRegistration(@event, user, command.Notes);
         var registrationDto = Fixture.Create<EventRegistrationDto>();
@@ -100,7 +100,7 @@ public class WaitlistCommandHandlerTests : TestBase
 
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 100, "UTC", "Test Location", "organizer-123");
         @event.Publish(); // Make event published
-        
+
         var user = new User("user-123", "test@example.com", "John", "Doe", "1234567890");
         var registrationDto = Fixture.Create<EventRegistrationDto>();
 
@@ -218,7 +218,7 @@ public class WaitlistCommandHandlerTests : TestBase
 
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 100, "UTC", "Test Location", "organizer-123");
         @event.Publish();
-        
+
         var user = new User("user-123", "test@example.com", "John", "Doe", "1234567890");
 
         _mockEventRepository.Setup(x => x.GetByIdAsync(command.EventId, It.IsAny<CancellationToken>()))
@@ -251,7 +251,7 @@ public class WaitlistCommandHandlerTests : TestBase
         var user = new User("user-123", "test@example.com", "John", "Doe", "1234567890");
         var registration = new EventRegistration(@event, user);
         registration.AddToWaitlist(1); // Make it waitlisted
-        
+
         var registrationDto = Fixture.Create<EventRegistrationDto>();
 
         _mockRegistrationRepository.Setup(x => x.GetByIdAsync(command.RegistrationId, It.IsAny<CancellationToken>()))
@@ -337,7 +337,7 @@ public class WaitlistCommandHandlerTests : TestBase
         var user = new User("user-123", "test@example.com", "John", "Doe", "1234567890");
         var registration = new EventRegistration(@event, user);
         registration.Confirm(); // Make it confirmed
-        
+
         var waitlistedUser = new User("user-456", "waitlist@example.com", "Jane", "Smith", "0987654321");
 
 
@@ -449,4 +449,4 @@ public class WaitlistCommandHandlerTests : TestBase
         // Should not check user authorization when admin
         _mockUserRepository.Verify(x => x.GetByIdentityIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
-} 
+}

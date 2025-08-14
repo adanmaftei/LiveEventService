@@ -15,6 +15,45 @@ insert_final_newline = true
 indent_size = 4
 end_of_line = crlf
 
+# StyleCop tuning (reduce noise; we can tighten later)
+dotnet_diagnostic.SA1600.severity = suggestion   # documentation required
+dotnet_diagnostic.SA1633.severity = suggestion   # file header
+dotnet_diagnostic.SA1200.severity = suggestion   # using inside namespace
+dotnet_diagnostic.SA1208.severity = suggestion   # using ordering System first
+dotnet_diagnostic.SA1210.severity = suggestion   # using alphabetical order
+dotnet_diagnostic.SA1516.severity = suggestion   # blank line between elements
+dotnet_diagnostic.SA1513.severity = suggestion   # closing brace must be followed by blank line
+dotnet_diagnostic.SA1518.severity = suggestion   # no blank lines at end of file
+dotnet_diagnostic.SA1502.severity = suggestion   # element must not be on a single line
+dotnet_diagnostic.SA1402.severity = suggestion   # single class per file
+dotnet_diagnostic.SA1101.severity = suggestion   # this. qualification
+dotnet_diagnostic.SA1008.severity = suggestion   # space before (
+dotnet_diagnostic.SA1010.severity = suggestion   # space before [
+dotnet_diagnostic.SA1011.severity = suggestion   # space after ]
+dotnet_diagnostic.SA1012.severity = warning      # space after {
+dotnet_diagnostic.SA1013.severity = warning      # space before }
+dotnet_diagnostic.SA1028.severity = warning      # trailing whitespace
+dotnet_diagnostic.SA1507.severity = suggestion   # multiple blank lines
+dotnet_diagnostic.SA1515.severity = suggestion   # comment preceded by blank line
+dotnet_diagnostic.SA1116.severity = suggestion   # parameters start newline
+dotnet_diagnostic.SA1118.severity = suggestion   # parameter spans multiple lines
+dotnet_diagnostic.SA1117.severity = suggestion   # parameters same line or each on own line
+dotnet_diagnostic.SA1512.severity = suggestion   # single-line comment followed by blank line
+dotnet_diagnostic.SA1516.severity = suggestion   # blank line between elements
+dotnet_diagnostic.SA1027.severity = suggestion   # tabs and spaces
+dotnet_diagnostic.SA1000.severity = suggestion   # keyword spacing
+dotnet_diagnostic.SA1025.severity = suggestion   # multiple whitespace
+dotnet_diagnostic.SA1413.severity = suggestion   # trailing comma in multiline initializers
+dotnet_diagnostic.SA1201.severity = suggestion   # ordering: elements
+dotnet_diagnostic.SA1202.severity = suggestion   # ordering: accessibility
+dotnet_diagnostic.SA1214.severity = suggestion   # readonly fields order
+dotnet_diagnostic.SA1127.severity = suggestion   # generic constraints line breaks
+dotnet_diagnostic.SA1128.severity = suggestion   # ctor initializer new line
+dotnet_diagnostic.SA1501.severity = suggestion   # statement must not be on a single line
+dotnet_diagnostic.SA1503.severity = suggestion   # braces must not be omitted
+dotnet_diagnostic.SA1009.severity = suggestion   # closing parenthesis spacing
+dotnet_diagnostic.SA1649.severity = suggestion   # file name must match first type name
+
 # .NET formatting rules
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
@@ -52,6 +91,14 @@ dotnet_style_predefined_type_for_locals_parameters_members = true:silent
 dotnet_style_predefined_type_for_member_access = true:silent
 dotnet_style_require_accessibility_modifiers = for_non_interface_members:silent
 dotnet_style_readonly_field = true:suggestion
+
+# Additional StyleCop tuning
+dotnet_diagnostic.SA1652.severity = suggestion   # enable XML documentation output
+dotnet_diagnostic.SA1209.severity = suggestion   # using alias placement
+dotnet_diagnostic.SA1211.severity = suggestion   # using alias order
+dotnet_diagnostic.SA1308.severity = suggestion   # field prefix not allowed
+dotnet_diagnostic.SA1309.severity = suggestion   # field names must not begin with underscore
+dotnet_diagnostic.SA1311.severity = suggestion   # static readonly fields naming
 
 # Naming conventions
 dotnet_naming_rule.interfaces_should_be_prefixed_with_i.severity = warning

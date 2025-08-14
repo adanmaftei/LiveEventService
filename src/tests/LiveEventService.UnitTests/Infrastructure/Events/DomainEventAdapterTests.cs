@@ -88,7 +88,7 @@ public class DomainEventAdapterTests : TestBase
     public void EventCapacityIncreasedNotification_WithNullDomainEvent_ShouldThrowArgumentNullException()
     {
         // Arrange & Act & Assert
-        var exception = Assert.Throws<ArgumentNullException>(() => 
+        var exception = Assert.Throws<ArgumentNullException>(() =>
             new EventCapacityIncreasedNotification(null!));
         AssertEqual("domainEvent", exception.ParamName);
     }
@@ -115,7 +115,7 @@ public class DomainEventAdapterTests : TestBase
     public void RegistrationWaitlistedNotification_WithNullDomainEvent_ShouldThrowArgumentNullException()
     {
         // Arrange & Act & Assert
-        var exception = Assert.Throws<ArgumentNullException>(() => 
+        var exception = Assert.Throws<ArgumentNullException>(() =>
             new RegistrationWaitlistedNotification(null!));
         AssertEqual("domainEvent", exception.ParamName);
     }
@@ -145,7 +145,7 @@ public class DomainEventAdapterTests : TestBase
     public void WaitlistPositionChangedNotification_WithNullDomainEvent_ShouldThrowArgumentNullException()
     {
         // Arrange & Act & Assert
-        var exception = Assert.Throws<ArgumentNullException>(() => 
+        var exception = Assert.Throws<ArgumentNullException>(() =>
             new WaitlistPositionChangedNotification(null!));
         AssertEqual("domainEvent", exception.ParamName);
     }
@@ -173,7 +173,7 @@ public class DomainEventAdapterTests : TestBase
     public void WaitlistRemovalNotification_WithNullDomainEvent_ShouldThrowArgumentNullException()
     {
         // Arrange & Act & Assert
-        var exception = Assert.Throws<ArgumentNullException>(() => 
+        var exception = Assert.Throws<ArgumentNullException>(() =>
             new WaitlistRemovalNotification(null!));
         AssertEqual("domainEvent", exception.ParamName);
     }
@@ -254,4 +254,4 @@ public class DomainEventAdapterTests : TestBase
         AssertTrue(propertyInfo!.CanRead);
         AssertFalse(propertyInfo.CanWrite);
     }
-} 
+}

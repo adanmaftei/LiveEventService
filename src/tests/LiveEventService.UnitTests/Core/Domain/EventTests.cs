@@ -167,11 +167,11 @@ public class EventTests : TestBase
         var registration2 = new EventRegistration(@event, user2);
         @event.AddRegistration(registration1);
         @event.AddRegistration(registration2);
-        
+
         // Confirm both registrations first (since IsFull only counts Confirmed registrations)
         registration1.Confirm();
         registration2.Confirm();
-        
+
         registration2.Cancel(); // Cancel one registration
 
         // Act & Assert

@@ -1,0 +1,9 @@
+<Project>
+  <ItemGroup>
+    <PackageVersion Include="StyleCop.Analyzers" Version="1.1.118" />
+    <PackageVersion Include="SerilogAnalyzer" Version="0.15.0" />
+    <PackageVersion Include="AsyncFixer" Version="1.6.0" />
+  </ItemGroup>
+</Project>
+
+

@@ -2,7 +2,8 @@ using System.Linq.Expressions;
 
 namespace LiveEventService.Core.Common;
 
-public abstract class BaseSpecification<T> : ISpecification<T> where T : Entity
+public abstract class BaseSpecification<T> : ISpecification<T>
+    where T : Entity
 {
     protected BaseSpecification() { }
 
@@ -52,4 +53,4 @@ public abstract class BaseSpecification<T> : ISpecification<T> where T : Entity
     {
         GroupBy = groupByExpression;
     }
-} 
+}

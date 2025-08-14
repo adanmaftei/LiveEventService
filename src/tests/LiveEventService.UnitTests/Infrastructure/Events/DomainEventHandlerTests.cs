@@ -109,7 +109,7 @@ public class DomainEventHandlerTests : TestBase
             .ThrowsAsync(expectedException);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => 
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(notification, CancellationToken.None));
         AssertEqual(expectedException, exception);
     }
@@ -324,7 +324,7 @@ public class DomainEventHandlerTests : TestBase
             .ThrowsAsync(expectedException);
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => 
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.Handle(notification, CancellationToken.None));
         AssertEqual(expectedException, exception);
     }
@@ -359,4 +359,4 @@ public class DomainEventHandlerTests : TestBase
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
-} 
+}

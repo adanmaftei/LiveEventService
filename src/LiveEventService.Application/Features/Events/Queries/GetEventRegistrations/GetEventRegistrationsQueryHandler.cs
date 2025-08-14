@@ -29,7 +29,7 @@ public class GetEventRegistrationsQueryHandler : IQueryHandler<GetEventRegistrat
     }
 
     public async Task<BaseResponse<EventRegistrationListDto>> Handle(
-        GetEventRegistrationsQuery request, 
+        GetEventRegistrationsQuery request,
         CancellationToken cancellationToken)
     {
         // Verify event exists (read-only check)

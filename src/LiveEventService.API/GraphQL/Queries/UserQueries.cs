@@ -1,11 +1,11 @@
+using System.Security.Claims;
+using HotChocolate.Authorization;
+using LiveEventService.Application.Features.Users.Queries.ExportUserData;
 using LiveEventService.Application.Features.Users.User;
-using MediatR;
 using LiveEventService.Application.Features.Users.User.Get;
 using LiveEventService.Application.Features.Users.User.List;
-using LiveEventService.Application.Features.Users.Queries.ExportUserData;
-using HotChocolate.Authorization;
-using System.Security.Claims;
 using LiveEventService.Core.Common;
+using MediatR;
 
 namespace LiveEventService.API.Users;
 
@@ -19,15 +19,15 @@ public class UserQueries
     {
         var query = new GetUserQuery { UserId = id };
         var result = await mediator.Send(query, cancellationToken);
-        
+
         if (!result.Success || result.Data == null)
         {
             throw new GraphQLException(result.Errors?.FirstOrDefault() ?? "User not found");
         }
-        
+
         return result.Data;
     }
-    
+
     public async Task<UserListDto> GetUsers(
         [Service] IMediator mediator,
         int pageNumber = 1,
@@ -43,17 +43,17 @@ public class UserQueries
             SearchTerm = searchTerm,
             IsActive = isActive
         };
-        
+
         var result = await mediator.Send(query, cancellationToken);
-        
+
         if (!result.Success || result.Data == null)
         {
             throw new GraphQLException(result.Errors?.FirstOrDefault() ?? "Error retrieving users");
         }
-        
+
         return result.Data;
     }
-    
+
     public async Task<UserDto> GetCurrentUser(
         [Service] IMediator mediator,
         [GlobalState] string currentUserId,
@@ -61,12 +61,12 @@ public class UserQueries
     {
         var query = new GetUserQuery { UserId = currentUserId };
         var result = await mediator.Send(query, cancellationToken);
-        
+
         if (!result.Success || result.Data == null)
         {
             throw new GraphQLException(result.Errors?.FirstOrDefault() ?? "User not found");
         }
-        
+
         return result.Data;
     }
 

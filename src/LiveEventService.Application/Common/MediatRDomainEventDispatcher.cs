@@ -14,7 +14,7 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
     private readonly ILogger<MediatRDomainEventDispatcher> _logger;
 
     public MediatRDomainEventDispatcher(
-        IMediator mediator, 
+        IMediator mediator,
         IMessageQueue messageQueue,
         ILogger<MediatRDomainEventDispatcher> logger)
     {
@@ -29,7 +29,7 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
         {
             var events = entity.DomainEvents.ToArray();
             entity.ClearDomainEvents();
-            
+
             foreach (var domainEvent in events)
             {
                 await RouteDomainEventAsync(domainEvent, cancellationToken);
@@ -40,7 +40,7 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
     private async Task RouteDomainEventAsync(DomainEvent domainEvent, CancellationToken cancellationToken)
     {
         var eventType = domainEvent.GetType();
-        
+
         // Determine if this event should be processed synchronously or asynchronously
         if (ShouldProcessSynchronously(domainEvent))
         {
@@ -99,10 +99,10 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to queue domain event {EventType} for async processing", eventType.Name);
-            
+
             // Fallback to synchronous processing if queuing fails
             _logger.LogWarning("Falling back to synchronous processing for domain event {EventType}", eventType.Name);
             await ProcessSynchronouslyAsync(domainEvent, cancellationToken);
         }
     }
-} 
+}

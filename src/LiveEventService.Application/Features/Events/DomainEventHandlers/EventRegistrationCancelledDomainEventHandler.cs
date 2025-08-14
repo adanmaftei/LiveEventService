@@ -29,20 +29,20 @@ public class EventRegistrationCancelledDomainEventHandler : INotificationHandler
     public async Task Handle(EventRegistrationCancelledNotification notification, CancellationToken cancellationToken)
     {
         var registration = notification.DomainEvent.Registration;
-        
+
         // Notify about the cancellation
         await _notifier.NotifyAsync(registration, "cancelled", cancellationToken);
-        
+
         // Only promote waitlisted registrations if this was a confirmed registration that was cancelled
         // We can determine this by checking if there are more confirmed registrations than the event capacity
         var confirmedRegistrations = await _registrationRepository.ListAsync(
             new ConfirmedRegistrationsForEventSpecification(registration.EventId),
             cancellationToken);
-            
+
         var waitlisted = await _registrationRepository.ListAsync(
             new WaitlistedRegistrationsForEventSpecification(registration.EventId),
             cancellationToken);
-            
+
         // Get the event to check its capacity
         var @event = await _eventRepository.GetByIdAsync(registration.EventId, cancellationToken);
         if (@event == null)
@@ -50,7 +50,7 @@ public class EventRegistrationCancelledDomainEventHandler : INotificationHandler
             _logger.LogWarning("Event {EventId} not found when processing cancellation", registration.EventId);
             return;
         }
-        
+
         // If we have fewer confirmed registrations than capacity and there are waitlisted registrations,
         // then we can promote someone
         if (confirmedRegistrations.Count < @event.Capacity && waitlisted.Any())
@@ -58,22 +58,22 @@ public class EventRegistrationCancelledDomainEventHandler : INotificationHandler
             var promote = waitlisted.First();
             promote.Confirm();
             await _registrationRepository.UpdateAsync(promote, cancellationToken);
-            
+
             _logger.LogInformation(
                 "Promoted registration {RegistrationId} from waitlist after cancellation of confirmed registration {CancelledRegistrationId}",
                 promote.Id, registration.Id);
-            
+
             // Update positions for remaining waitlisted registrations
             for (int i = 0; i < waitlisted.Skip(1).Count(); i++)
             {
                 var waitlistedRegistration = waitlisted.Skip(1).ElementAt(i);
                 var newPosition = i + 1;
-                
+
                 if (waitlistedRegistration.PositionInQueue != newPosition)
                 {
                     waitlistedRegistration.UpdateWaitlistPosition(newPosition);
                     await _registrationRepository.UpdateAsync(waitlistedRegistration, cancellationToken);
-                    
+
                     _logger.LogInformation(
                         "Updated waitlist position for registration {RegistrationId} from {OldPosition} to {NewPosition}",
                         waitlistedRegistration.Id, waitlistedRegistration.PositionInQueue, newPosition);

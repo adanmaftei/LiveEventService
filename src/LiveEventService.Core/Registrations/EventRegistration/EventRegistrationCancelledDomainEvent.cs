@@ -9,4 +9,4 @@ public class EventRegistrationCancelledDomainEvent : DomainEvent
     {
         Registration = registration;
     }
-} 
+}

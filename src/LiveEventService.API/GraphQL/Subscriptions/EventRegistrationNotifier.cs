@@ -1,15 +1,15 @@
-using LiveEventService.Core.Registrations.EventRegistration;
-using LiveEventService.Core.Common;
 using HotChocolate.Subscriptions;
+using LiveEventService.Core.Common;
+using LiveEventService.Core.Registrations.EventRegistration;
 
 namespace LiveEventService.API.Events;
 
 public class EventRegistrationNotifier : IEventRegistrationNotifier
 {
-    private readonly ITopicEventSender _eventSender;
+    private readonly ITopicEventSender eventSender;
     public EventRegistrationNotifier(ITopicEventSender eventSender)
     {
-        _eventSender = eventSender;
+        this.eventSender = eventSender;
     }
     public async Task NotifyAsync(EventRegistration reg, string action, CancellationToken cancellationToken = default)
     {
@@ -25,6 +25,6 @@ public class EventRegistrationNotifier : IEventRegistrationNotifier
             Action = action,
             Timestamp = DateTime.UtcNow
         };
-        await _eventSender.SendAsync(topic, payload, cancellationToken);
+        await eventSender.SendAsync(topic, payload, cancellationToken);
     }
-} 
+}

@@ -12,6 +12,12 @@ public static class OutputCachePolicies
     public const string EventDetailPublic = "EventDetailPublic";
 }
 
+public static class OutputCacheTags
+{
+    public const string Events = "events";
+    public const string EventDetail = "event-detail";
+}
+
 public static class RoutePaths
 {
     public const string GraphQL = "/graphql";

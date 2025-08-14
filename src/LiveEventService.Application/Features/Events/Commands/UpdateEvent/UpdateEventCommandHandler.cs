@@ -60,14 +60,14 @@ public class UpdateEventCommandHandler : ICommandHandler<UpdateEventCommand, Bas
         }
 
         await _eventRepository.UpdateAsync(existingEvent, cancellationToken);
-        
+
         // Get organizer details
         var organizer = await _userRepository.GetByIdentityIdAsync(existingEvent.OrganizerId, cancellationToken);
-        
+
         // Map to DTO
         var eventDto = _mapper.Map<EventDto>(existingEvent);
         eventDto.OrganizerName = organizer != null ? $"{organizer.FirstName} {organizer.LastName}".Trim() : string.Empty;
-        
+
         return BaseResponse<EventDto>.Succeeded(eventDto, "Event updated successfully");
     }
 }

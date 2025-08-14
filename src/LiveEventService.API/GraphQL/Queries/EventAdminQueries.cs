@@ -1,6 +1,6 @@
+using HotChocolate.Authorization;
 using LiveEventService.Application.Features.Events.EventRegistration.Get;
 using LiveEventService.Core.Common;
-using HotChocolate.Authorization;
 using MediatR;
 
 namespace LiveEventService.API.Events;

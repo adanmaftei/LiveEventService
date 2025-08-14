@@ -28,7 +28,7 @@ public class UserRepository : RepositoryBase<UserEntity>, IUserRepository
     public async Task<IReadOnlyList<UserEntity>> SearchUsersAsync(string searchTerm, int skip, int take, CancellationToken cancellationToken = default)
     {
         var normalizedSearchTerm = searchTerm.ToLower();
-        
+
         return await _dbSet
             .AsNoTracking()
             .Where(u => u.Email.ToLower().Contains(normalizedSearchTerm) ||

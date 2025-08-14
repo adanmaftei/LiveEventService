@@ -70,11 +70,11 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
             });
 
             // Remove existing authentication services
-            var authenticationServices = services.Where(s => 
-                s.ServiceType.FullName != null && 
-                (s.ServiceType.FullName.Contains("Authentication") || 
+            var authenticationServices = services.Where(s =>
+                s.ServiceType.FullName != null &&
+                (s.ServiceType.FullName.Contains("Authentication") ||
                  s.ServiceType.FullName.Contains("JwtBearer"))).ToList();
-            
+
             foreach (var service in authenticationServices)
             {
                 services.Remove(service);
@@ -113,10 +113,12 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
             // Configure HotChocolate to properly map currentUserId from test claims and enable introspection for testing
             services.AddGraphQL()
             .AddHttpRequestInterceptor<TestGraphQLInterceptor>()
-            .ModifyRequestOptions(opt => {
+            .ModifyRequestOptions(opt =>
+            {
                 opt.IncludeExceptionDetails = true;
             })
-            .ModifyOptions(opt => {
+            .ModifyOptions(opt =>
+            {
                 opt.StrictValidation = false; // Allow introspection queries
             });
 
@@ -242,7 +244,7 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
     public HttpClient CreateAuthenticatedClient(string userId = "test-user", string role = "Admin", string email = "test@example.com")
     {
         var client = CreateClient();
-        client.DefaultRequestHeaders.Authorization = 
+        client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Test", $"{userId}|{role}|{email}");
         return client;
     }
@@ -263,7 +265,7 @@ public class TestAuthenticationHandler : AuthenticationHandler<TestAuthenticatio
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var authorizationHeader = Request.Headers.Authorization.FirstOrDefault();
-        
+
         if (authorizationHeader == null)
         {
             return Task.FromResult(AuthenticateResult.Fail("No authorization header"));

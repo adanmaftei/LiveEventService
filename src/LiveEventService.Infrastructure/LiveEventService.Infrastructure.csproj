@@ -7,14 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="StyleCop.Analyzers" PrivateAssets="all" Version="1.1.118" />
+    <PackageReference Include="SerilogAnalyzer" PrivateAssets="all" Version="0.15.0" />
+    <PackageReference Include="AsyncFixer" PrivateAssets="all" Version="1.6.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.8" />
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
-    <PackageReference Include="AWSSDK.S3" Version="4.0.6.4" />
-    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.0.18" />
-    <PackageReference Include="AWSSDK.SQS" Version="4.0.0.19" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.6.5" />
+    <PackageReference Include="AWSSDK.SimpleNotificationService" Version="4.0.0.19" />
+    <PackageReference Include="AWSSDK.SQS" Version="4.0.0.20" />
     <PackageReference Include="MediatR" Version="13.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.8">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -22,6 +25,8 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.8.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.58" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
   </ItemGroup>
 

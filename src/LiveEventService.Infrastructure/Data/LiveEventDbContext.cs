@@ -42,10 +42,10 @@ public class LiveEventDbContext : DbContext
 
         // Configure global query filters
         // modelBuilder.Entity<Event>().HasQueryFilter(e => !e.IsDeleted);
-            
+
         modelBuilder.Entity<UserEntity>()
             .HasQueryFilter(u => u.IsActive);
-            
+
         modelBuilder.Entity<EventRegistrationEntity>()
             .HasQueryFilter(er => er.Status != RegistrationStatus.Cancelled);
 

@@ -1,23 +1,24 @@
-using LiveEventService.Application.Features.Events.Event.Create;
-using LiveEventService.Application.Features.Events.Event.Update;
-using LiveEventService.Application.Features.Events.Event.Delete;
-using LiveEventService.Application.Features.Events.Event.List;
-using LiveEventService.Application.Features.Events.Event.Get;
-using LiveEventService.Application.Features.Events.Event;
-using LiveEventService.Application.Features.Events.EventRegistration.Register;
-using LiveEventService.Application.Features.Events.EventRegistration.Get;
+using System.Text;
+using LiveEventService.API.Constants;
+using LiveEventService.Application.Common.Models;
 using LiveEventService.Application.Features.Events.Commands.ConfirmRegistration;
 using LiveEventService.Application.Features.Events.Commands.PublishEvent;
 using LiveEventService.Application.Features.Events.Commands.UnpublishEvent;
-using System.Text;
+using LiveEventService.Application.Features.Events.Event;
+using LiveEventService.Application.Features.Events.Event.Create;
+using LiveEventService.Application.Features.Events.Event.Delete;
+using LiveEventService.Application.Features.Events.Event.Get;
+using LiveEventService.Application.Features.Events.Event.List;
+using LiveEventService.Application.Features.Events.Event.Update;
+using LiveEventService.Application.Features.Events.EventRegistration.Get;
+using LiveEventService.Application.Features.Events.EventRegistration.Register;
 using LiveEventService.Core.Common;
+using LiveEventService.Core.Registrations.EventRegistration;
+using LiveEventService.Infrastructure.Telemetry;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using LiveEventService.Core.Registrations.EventRegistration;
-using LiveEventService.API.Constants;
-using LiveEventService.Infrastructure.Telemetry;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Caching.Distributed;
-using LiveEventService.Application.Common.Models;
 
 namespace LiveEventService.API.Events;
 
@@ -90,8 +91,10 @@ public static class EventEndpoints
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
             [FromServices] LiveEventService.API.Utilities.IIdempotencyStore idempo,
+            [FromServices] IOutputCacheStore outputCacheStore,
             [FromBody] CreateEventCommand command,
-            HttpContext httpContext) =>
+            HttpContext httpContext,
+            CancellationToken ct) =>
         {
             // Idempotency: key per user + route + hash of payload
             var userId = httpContext.User.Identity?.Name ?? "anonymous";
@@ -109,6 +112,10 @@ public static class EventEndpoints
             if (result.Success && result.Data?.Id is not null)
             {
                 AppMetrics.EventsCreated.Add(1);
+
+                // Evict output cache tags for event lists/details
+                await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
+                await outputCacheStore.EvictByTagAsync(OutputCacheTags.EventDetail, ct);
                 await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
                 {
                     Action = "CreateEvent",
@@ -130,9 +137,11 @@ public static class EventEndpoints
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
             [FromServices] IDistributedCache cache,
+            [FromServices] IOutputCacheStore outputCacheStore,
             Guid id,
             [FromBody] UpdateEventCommand command,
-            HttpContext httpContext) =>
+            HttpContext httpContext,
+            CancellationToken ct) =>
         {
             if (id != command.EventId)
             {
@@ -143,9 +152,12 @@ public static class EventEndpoints
             if (result.Success)
             {
                 AppMetrics.EventsUpdated.Add(1);
+
                 // Invalidate cache for this event
                 await cache.RemoveAsync($"event:{id}", httpContext.RequestAborted);
                 await cache.RemoveAsync($"event:{id}:graphql", httpContext.RequestAborted);
+                await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
+                await outputCacheStore.EvictByTagAsync(OutputCacheTags.EventDetail, ct);
                 await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
                 {
                     Action = "UpdateEvent",
@@ -166,11 +178,13 @@ public static class EventEndpoints
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
             [FromServices] IDistributedCache cache,
+            [FromServices] IOutputCacheStore outputCacheStore,
             Guid id,
-            HttpContext httpContext) =>
+            HttpContext httpContext,
+            CancellationToken ct) =>
         {
-            var command = new DeleteEventCommand 
-            { 
+            var command = new DeleteEventCommand
+            {
                 EventId = id,
                 UserId = httpContext.User.Identity?.Name ?? string.Empty
             };
@@ -180,6 +194,8 @@ public static class EventEndpoints
                 AppMetrics.EventsDeleted.Add(1);
                 await cache.RemoveAsync($"event:{id}", httpContext.RequestAborted);
                 await cache.RemoveAsync($"event:{id}:graphql", httpContext.RequestAborted);
+                await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
+                await outputCacheStore.EvictByTagAsync(OutputCacheTags.EventDetail, ct);
                 await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
                 {
                     Action = "DeleteEvent",
@@ -273,7 +289,7 @@ public static class EventEndpoints
             }
 
             var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-            var fileName = status is { Length: >0 }
+            var fileName = status is { Length: > 0 }
                 ? $"registrations-{eventId}-{status}.csv"
                 : $"registrations-{eventId}.csv";
             return Results.File(bytes, "text/csv", fileName);
@@ -388,8 +404,10 @@ public static class EventEndpoints
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
             [FromServices] IDistributedCache cache,
+            [FromServices] IOutputCacheStore outputCacheStore,
             Guid eventId,
-            HttpContext httpContext) =>
+            HttpContext httpContext,
+            CancellationToken ct) =>
         {
             var command = new PublishEventCommand
             {
@@ -402,6 +420,8 @@ public static class EventEndpoints
                 AppMetrics.EventsPublished.Add(1);
                 await cache.RemoveAsync($"event:{eventId}", httpContext.RequestAborted);
                 await cache.RemoveAsync($"event:{eventId}:graphql", httpContext.RequestAborted);
+                await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
+                await outputCacheStore.EvictByTagAsync(OutputCacheTags.EventDetail, ct);
                 await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
                 {
                     Action = "PublishEvent",
@@ -417,8 +437,10 @@ public static class EventEndpoints
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
             [FromServices] IDistributedCache cache,
+            [FromServices] IOutputCacheStore outputCacheStore,
             Guid eventId,
-            HttpContext httpContext) =>
+            HttpContext httpContext,
+            CancellationToken ct) =>
         {
             var command = new UnpublishEventCommand
             {
@@ -431,6 +453,8 @@ public static class EventEndpoints
                 AppMetrics.EventsUnpublished.Add(1);
                 await cache.RemoveAsync($"event:{eventId}", httpContext.RequestAborted);
                 await cache.RemoveAsync($"event:{eventId}:graphql", httpContext.RequestAborted);
+                await outputCacheStore.EvictByTagAsync(OutputCachePolicies.EventListPublic, ct);
+                await outputCacheStore.EvictByTagAsync(OutputCachePolicies.EventDetailPublic, ct);
                 await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
                 {
                     Action = "UnpublishEvent",
@@ -442,4 +466,4 @@ public static class EventEndpoints
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization(RoleNames.Admin);
     }
-} 
+}

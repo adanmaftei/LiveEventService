@@ -24,7 +24,7 @@ public class MediatRDomainEventProcessor : IDomainEventProcessor
     public async Task ProcessAsync(DomainEvent domainEvent, CancellationToken cancellationToken = default)
     {
         var eventType = domainEvent.GetType();
-        
+
         if (!_eventToNotificationMap.TryGetValue(eventType, out var notificationType))
         {
             _logger.LogWarning("No notification mapping found for domain event type {EventType}", eventType.Name);
@@ -43,7 +43,7 @@ public class MediatRDomainEventProcessor : IDomainEventProcessor
 
             // Publish notification through MediatR
             await _mediator.Publish(notification, cancellationToken);
-            
+
             _logger.LogDebug("Successfully processed domain event {EventType} through MediatR", eventType.Name);
         }
         catch (Exception ex)
@@ -81,7 +81,7 @@ public class MediatRDomainEventProcessor : IDomainEventProcessor
             // Use reflection to create notification from domain event
             // This is a simplified approach - in a real implementation, you might want
             // to use AutoMapper or similar for more complex mappings
-            
+
             var constructor = notificationType.GetConstructor(new[] { domainEvent.GetType() });
             if (constructor != null)
             {
@@ -99,7 +99,7 @@ public class MediatRDomainEventProcessor : IDomainEventProcessor
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error converting domain event {EventType} to notification {NotificationType}", 
+            _logger.LogError(ex, "Error converting domain event {EventType} to notification {NotificationType}",
                 domainEvent.GetType().Name, notificationType.Name);
         }
 
@@ -123,10 +123,10 @@ public class MediatRDomainEventProcessor : IDomainEventProcessor
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Error copying property {PropertyName} from {SourceType} to {TargetType}", 
+                    _logger.LogDebug(ex, "Error copying property {PropertyName} from {SourceType} to {TargetType}",
                         sourceProperty.Name, sourceType.Name, targetType.Name);
                 }
             }
         }
     }
-} 
+}

@@ -1,12 +1,12 @@
 using System.Text.Json;
-using Microsoft.Extensions.Caching.Distributed;
 using LiveEventService.Infrastructure.Telemetry;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace LiveEventService.API.Utilities;
 
 public static class CacheHelper
 {
-    private static readonly JsonSerializerOptions s_jsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public static async Task<(bool hit, T? value)> TryGetAsync<T>(IDistributedCache cache, string key, CancellationToken ct = default)
     {
@@ -18,7 +18,7 @@ public static class CacheHelper
         }
         try
         {
-            var value = JsonSerializer.Deserialize<T>(bytes, s_jsonOptions);
+            var value = JsonSerializer.Deserialize<T>(bytes, JsonOptions);
             AppMetrics.CacheHits.Add(1);
             return (true, value);
         }
@@ -32,7 +32,7 @@ public static class CacheHelper
 
     public static async Task SetAsync<T>(IDistributedCache cache, string key, T value, TimeSpan ttl, CancellationToken ct = default)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(value, s_jsonOptions);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(value, JsonOptions);
         var options = new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = ttl

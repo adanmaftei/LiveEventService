@@ -1,11 +1,11 @@
-using LiveEventService.Application.Features.Users.User.Create;
-using LiveEventService.Application.Features.Users.User.Update;
-using LiveEventService.Application.Features.Users.User;
-using LiveEventService.Application.Features.Users.User.Erase;
-using MediatR;
-using HotChocolate.Authorization;
-using LiveEventService.Core.Common;
 using System.Security.Claims;
+using HotChocolate.Authorization;
+using LiveEventService.Application.Features.Users.User;
+using LiveEventService.Application.Features.Users.User.Create;
+using LiveEventService.Application.Features.Users.User.Erase;
+using LiveEventService.Application.Features.Users.User.Update;
+using LiveEventService.Core.Common;
+using MediatR;
 
 namespace LiveEventService.API.Users;
 
@@ -22,17 +22,17 @@ public class UserMutations
         {
             User = input
         };
-        
+
         var result = await mediator.Send(command, cancellationToken);
-        
+
         if (!result.Success || result.Data == null)
         {
             throw new GraphQLException(result.Errors?.FirstOrDefault() ?? "Error creating user");
         }
-        
+
         return result.Data;
     }
-    
+
     [Authorize]
     public async Task<UserDto> UpdateUser(
         [Service] IMediator mediator,
@@ -75,5 +75,5 @@ public class UserMutations
     }
 }
 
-public class CreateUserInput : CreateUserDto {}
-public class UpdateUserInput : UpdateUserDto {}
+public class CreateUserInput : CreateUserDto { }
+public class UpdateUserInput : UpdateUserDto { }

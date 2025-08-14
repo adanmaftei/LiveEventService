@@ -64,7 +64,7 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
             .Where(r => r.Id == registrationId)
             .Select(r => new { r.CreatedAt }) // Only select needed fields
             .FirstOrDefaultAsync(cancellationToken);
-            
+
         if (currentRegistration == null)
         {
             throw new InvalidOperationException($"Registration {registrationId} not found");
@@ -72,12 +72,12 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
 
         var position = await _dbContext.EventRegistrations
             .AsNoTracking()
-            .Where(r => r.EventId == eventId && 
+            .Where(r => r.EventId == eventId &&
                        r.Status == RegistrationStatus.Waitlisted &&
-                       (r.CreatedAt < currentRegistration.CreatedAt || 
+                       (r.CreatedAt < currentRegistration.CreatedAt ||
                         (r.CreatedAt == currentRegistration.CreatedAt && r.Id.CompareTo(registrationId) < 0)))
             .CountAsync(cancellationToken);
-        
+
         return position + 1; // Position is 1-based
     }
 }

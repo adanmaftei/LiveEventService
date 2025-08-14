@@ -28,7 +28,7 @@ public class GetUserQueryHandler : IQueryHandler<GetUserQuery, BaseResponse<User
 
         // Map to DTO
         var userDto = _mapper.Map<UserDto>(user);
-        
+
         return BaseResponse<UserDto>.Succeeded(userDto);
     }
 }

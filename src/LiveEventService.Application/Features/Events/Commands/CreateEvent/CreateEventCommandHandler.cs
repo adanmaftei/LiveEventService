@@ -43,11 +43,11 @@ public class CreateEventCommandHandler : ICommandHandler<CreateEventCommand, Bas
             request.OrganizerId);
 
         var createdEvent = await _eventRepository.AddAsync(newEvent, cancellationToken);
-        
+
         // Map to DTO
         var eventDto = _mapper.Map<EventDto>(createdEvent);
         eventDto.OrganizerName = $"{organizer.FirstName} {organizer.LastName}".Trim();
-        
+
         return BaseResponse<EventDto>.Succeeded(eventDto, "Event created successfully");
     }
 }

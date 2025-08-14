@@ -31,9 +31,9 @@ public sealed class OutboxProcessorBackgroundService : BackgroundService
             {
                 using var scope = _serviceProvider.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<LiveEventDbContext>();
-                         var processorLogger = scope.ServiceProvider.GetRequiredService<ILogger<OutboxProcessor>>();
-                         var sns = scope.ServiceProvider.GetRequiredService<Amazon.SimpleNotificationService.IAmazonSimpleNotificationService>();
-                         var processor = new OutboxProcessor(db, processorLogger, sns);
+                var processorLogger = scope.ServiceProvider.GetRequiredService<ILogger<OutboxProcessor>>();
+                var sns = scope.ServiceProvider.GetRequiredService<Amazon.SimpleNotificationService.IAmazonSimpleNotificationService>();
+                var processor = new OutboxProcessor(db, processorLogger, sns);
 
                 var processed = await processor.ProcessPendingAsync(stoppingToken);
                 if (processed == 0)

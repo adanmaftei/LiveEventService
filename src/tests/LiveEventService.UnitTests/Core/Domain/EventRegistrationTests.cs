@@ -39,11 +39,11 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         // First registration fills the event
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         // Second registration should be waitlisted
         var registration2 = new EventRegistration(@event, user2);
 
@@ -74,11 +74,11 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         // Add first registration to make event full
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         // Create second registration (will be waitlisted)
         var registration = new EventRegistration(@event, user2);
         registration.ClearDomainEvents(); // Clear initial event
@@ -101,13 +101,13 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         registration2.ClearDomainEvents(); // Clear initial event
-        
+
         AssertEqual(RegistrationStatus.Waitlisted, registration2.Status);
 
         // Act
@@ -266,10 +266,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         AssertEqual(RegistrationStatus.Waitlisted, registration2.Status);
 
@@ -304,10 +304,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         registration2.UpdateWaitlistPosition(1);
 
@@ -334,10 +334,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         // Don't set position
 
@@ -430,10 +430,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         AssertEqual(RegistrationStatus.Waitlisted, registration2.Status);
         registration2.ClearDomainEvents(); // Clear initial event
@@ -475,10 +475,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         AssertEqual(RegistrationStatus.Waitlisted, registration2.Status);
 
@@ -495,10 +495,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         registration2.UpdateWaitlistPosition(5);
         registration2.ClearDomainEvents(); // Clear previous events
@@ -518,10 +518,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         registration2.UpdateWaitlistPosition(5);
         registration2.ClearDomainEvents(); // Clear previous events
@@ -533,7 +533,7 @@ public class EventRegistrationTests : TestBase
         AssertEqual(3, registration2.PositionInQueue);
         AssertCollectionCount(registration2.DomainEvents, 1);
         AssertTrue(registration2.DomainEvents.First() is WaitlistPositionChangedDomainEvent);
-        
+
         var domainEvent = registration2.DomainEvents.First() as WaitlistPositionChangedDomainEvent;
         AssertNotNull(domainEvent);
         AssertEqual(@event.Id, domainEvent!.EventId);
@@ -549,10 +549,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         registration2.UpdateWaitlistPosition(1);
         registration2.ClearDomainEvents(); // Clear previous events
@@ -565,7 +565,7 @@ public class EventRegistrationTests : TestBase
         AssertNull(registration2.PositionInQueue);
         AssertCollectionCount(registration2.DomainEvents, 1);
         AssertTrue(registration2.DomainEvents.First() is WaitlistRemovalDomainEvent);
-        
+
         var domainEvent = registration2.DomainEvents.First() as WaitlistRemovalDomainEvent;
         AssertNotNull(domainEvent);
         AssertEqual(registration2, domainEvent!.Registration);
@@ -593,10 +593,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         registration2.UpdateWaitlistPosition(1);
         registration2.ClearDomainEvents(); // Clear previous events
@@ -608,7 +608,7 @@ public class EventRegistrationTests : TestBase
         AssertEqual(RegistrationStatus.Cancelled, registration2.Status);
         AssertCollectionCount(registration2.DomainEvents, 1);
         AssertTrue(registration2.DomainEvents.First() is WaitlistRemovalDomainEvent);
-        
+
         var domainEvent = registration2.DomainEvents.First() as WaitlistRemovalDomainEvent;
         AssertNotNull(domainEvent);
         AssertNull(domainEvent!.Reason);
@@ -621,10 +621,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         // Manually set invalid position (this would normally be prevented by UpdateWaitlistPosition)
         typeof(EventRegistration).GetProperty("PositionInQueue")!.SetValue(registration2, 0);
@@ -640,10 +640,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         // Manually set invalid position (this would normally be prevented by UpdateWaitlistPosition)
         typeof(EventRegistration).GetProperty("PositionInQueue")!.SetValue(registration2, -1);
@@ -659,10 +659,10 @@ public class EventRegistrationTests : TestBase
         var @event = new Event("Test Event", "Test Description", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2), 1, "UTC", "Test Location", "organizer-123");
         var user1 = Fixture.Create<User>();
         var user2 = Fixture.Create<User>();
-        
+
         var registration1 = new EventRegistration(@event, user1);
         @event.AddRegistration(registration1);
-        
+
         var registration2 = new EventRegistration(@event, user2);
         registration2.UpdateWaitlistPosition(1);
         registration2.Cancel();

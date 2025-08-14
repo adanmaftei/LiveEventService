@@ -9,9 +9,9 @@ public interface IMetricRecorder
 
 public sealed class NoOpMetricRecorder : IMetricRecorder
 {
-    public void RecordCacheHit() {}
-    public void RecordCacheMiss() {}
-    public void RecordCacheSet() {}
+    public void RecordCacheHit() { }
+    public void RecordCacheMiss() { }
+    public void RecordCacheSet() { }
 }
 
 

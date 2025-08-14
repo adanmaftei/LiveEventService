@@ -13,7 +13,7 @@ public static class DatabaseInitializer
         using var scope = services.CreateScope();
         var scopedServices = scope.ServiceProvider;
         var logger = scopedServices.GetRequiredService<ILogger<LiveEventDbContext>>();
-        
+
         try
         {
             var context = scopedServices.GetRequiredService<LiveEventDbContext>();
@@ -30,9 +30,9 @@ public static class DatabaseInitializer
                 logger.LogInformation("Database already contains data. Skipping test data initialization.");
                 return;
             }
-            
+
             logger.LogInformation("Seeding test data...");
-            
+
             // Create test users
             var adminUser = new UserEntity(
                 identityId: "auth0|testadmin1",
@@ -81,9 +81,9 @@ public static class DatabaseInitializer
                 adminUser.IdentityId);
 
             context.Events.AddRange(event1, event2);
-            
+
             await context.SaveChangesAsync();
-            
+
             logger.LogInformation("Test data seeded successfully.");
         }
         catch (Exception ex)

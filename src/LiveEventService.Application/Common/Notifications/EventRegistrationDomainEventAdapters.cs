@@ -9,7 +9,7 @@ namespace LiveEventService.Application.Common.Notifications;
 public class EventRegistrationCreatedNotification : INotification
 {
     public EventRegistrationCreatedDomainEvent DomainEvent { get; }
-    
+
     public EventRegistrationCreatedNotification(EventRegistrationCreatedDomainEvent domainEvent)
     {
         DomainEvent = domainEvent;
@@ -19,7 +19,7 @@ public class EventRegistrationCreatedNotification : INotification
 public class EventRegistrationPromotedNotification : INotification
 {
     public EventRegistrationPromotedDomainEvent DomainEvent { get; }
-    
+
     public EventRegistrationPromotedNotification(EventRegistrationPromotedDomainEvent domainEvent)
     {
         DomainEvent = domainEvent;
@@ -29,7 +29,7 @@ public class EventRegistrationPromotedNotification : INotification
 public class EventRegistrationCancelledNotification : INotification
 {
     public EventRegistrationCancelledDomainEvent DomainEvent { get; }
-    
+
     public EventRegistrationCancelledNotification(EventRegistrationCancelledDomainEvent domainEvent)
     {
         DomainEvent = domainEvent;

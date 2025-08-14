@@ -16,7 +16,7 @@ public abstract class TestBase
         Fixture = new Fixture()
             .Customize(new AutoMoqCustomization())
             .Customize(new AutoFixtureCustomization());
-        
+
         MockLogger = new Mock<ILogger>();
     }
 
@@ -131,10 +131,10 @@ public class AutoFixtureCustomization : ICustomization
 
         // Configure string generation to avoid nulls
         fixture.Customize<string>(composer => composer.FromFactory(() => Guid.NewGuid().ToString("N")));
-        
+
         // Configure DateTime generation to use UTC
         fixture.Customize<DateTime>(composer => composer.FromFactory(() => DateTime.UtcNow));
-        
+
         // Configure Guid generation
         fixture.Customize<Guid>(composer => composer.FromFactory(() => Guid.NewGuid()));
     }

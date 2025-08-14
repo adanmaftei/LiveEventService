@@ -10,4 +10,4 @@ public class GetUsersByIdentityIdsSpecification : BaseSpecification<UserEntity>
         Criteria = u => identityIds.Contains(u.IdentityId);
         ApplyOrderBy(u => u.LastName);
     }
-} 
+}

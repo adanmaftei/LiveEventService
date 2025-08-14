@@ -1,29 +1,29 @@
-using FluentValidation;
 using System.Net;
 using System.Text.Json;
+using FluentValidation;
 
 namespace LiveEventService.API.Middleware;
 
 public class GlobalExceptionMiddleware
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionMiddleware> _logger;
+    private readonly RequestDelegate next;
+    private readonly ILogger<GlobalExceptionMiddleware> logger;
 
     public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
     {
-        _next = next;
-        _logger = logger;
+        this.next = next;
+        this.logger = logger;
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await _next(context);
+            await next(context);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred");
+            logger.LogError(ex, "An unexpected error occurred");
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -62,4 +62,4 @@ public class GlobalExceptionMiddleware
         var jsonResponse = JsonSerializer.Serialize(response);
         await context.Response.WriteAsync(jsonResponse);
     }
-} 
+}

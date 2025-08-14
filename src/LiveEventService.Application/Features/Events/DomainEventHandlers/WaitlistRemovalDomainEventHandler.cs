@@ -7,7 +7,7 @@ using LiveEventService.Application.Common.Notifications;
 
 namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
 
-public class WaitlistRemovalDomainEventHandler 
+public class WaitlistRemovalDomainEventHandler
     : INotificationHandler<WaitlistRemovalNotification>
 {
     private readonly ILogger<WaitlistRemovalDomainEventHandler> _logger;
@@ -25,11 +25,11 @@ public class WaitlistRemovalDomainEventHandler
     }
 
     public async Task Handle(
-        WaitlistRemovalNotification notification, 
+        WaitlistRemovalNotification notification,
         CancellationToken cancellationToken)
     {
         var registration = notification.DomainEvent.Registration;
-        
+
         // Log the removal reason if provided
         if (!string.IsNullOrEmpty(notification.DomainEvent.Reason))
         {
@@ -48,25 +48,25 @@ public class WaitlistRemovalDomainEventHandler
         var remainingWaitlisted = await _registrationRepository.ListAsync(
             new WaitlistedRegistrationsForEventSpecification(registration.EventId),
             cancellationToken);
-        
+
         // Update positions for remaining waitlisted registrations
         for (int i = 0; i < remainingWaitlisted.Count; i++)
         {
             var waitlistedRegistration = remainingWaitlisted[i];
             var newPosition = i + 1;
-            
+
             if (waitlistedRegistration.PositionInQueue != newPosition)
             {
                 waitlistedRegistration.UpdateWaitlistPosition(newPosition);
                 await _registrationRepository.UpdateAsync(waitlistedRegistration, cancellationToken);
-                
+
                 var oldPos = waitlistedRegistration.PositionInQueue;
                 _logger.LogInformation(
                     "Updated waitlist position for registration {RegistrationId} from {OldPosition} to {NewPosition}",
                     waitlistedRegistration.Id, oldPos, newPosition);
             }
         }
-        
+
         _logger.LogInformation(
             "Updated waitlist positions after removal of registration {RegistrationId} from event {EventId}",
             registration.Id, registration.EventId);
