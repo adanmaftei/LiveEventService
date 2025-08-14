@@ -52,10 +52,17 @@ public static class AppMetrics
         unit: "count",
         description: "Number of outbox messages that failed and were rescheduled");
 
-    public static readonly UpDownCounter<long> OutboxPending = s_meter.CreateUpDownCounter<long>(
+    // Outbox pending: use an observable gauge to report the latest value
+    private static long s_outboxPending;
+    private static readonly ObservableGauge<long> s_outboxPendingGauge = s_meter.CreateObservableGauge(
         name: "outbox_pending_count",
+        observeValue: () => Interlocked.Read(ref s_outboxPending),
         unit: "count",
         description: "Current number of pending outbox messages");
+    public static void SetOutboxPending(long pending)
+    {
+        Interlocked.Exchange(ref s_outboxPending, pending);
+    }
 
     public static readonly Counter<long> CacheHits = s_meter.CreateCounter<long>(
         name: "cache_hits_total",

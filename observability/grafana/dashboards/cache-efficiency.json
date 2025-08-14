@@ -7,8 +7,8 @@
       "title": "Cache hit/miss (rate)",
       "datasource": {"type": "prometheus", "uid": "prom"},
       "targets": [
-        {"expr": "rate(cache_hits_total[5m])", "legendFormat": "hits"},
-        {"expr": "rate(cache_misses_total[5m])", "legendFormat": "misses"}
+        {"expr": "(sum(rate(cache_hits_total[5m])) or sum(rate(cache_hits_count_total[5m])) or vector(0))", "legendFormat": "hits"},
+        {"expr": "(sum(rate(cache_misses_total[5m])) or sum(rate(cache_misses_count_total[5m])) or vector(0))", "legendFormat": "misses"}
       ],
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
     },
@@ -17,7 +17,7 @@
       "title": "Hit ratio (5m)",
       "datasource": {"type": "prometheus", "uid": "prom"},
       "targets": [
-        {"expr": "sum(rate(cache_hits_total[5m])) / clamp_min(sum(rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])), 1e-9)", "legendFormat": "ratio"}
+        {"expr": "((sum(rate(cache_hits_total[5m])) or sum(rate(cache_hits_count_total[5m])) or vector(0))) / clamp_min(((sum(rate(cache_hits_total[5m])) or sum(rate(cache_hits_count_total[5m])) or vector(0)) + (sum(rate(cache_misses_total[5m])) or sum(rate(cache_misses_count_total[5m])) or vector(0))), 1e-9)", "legendFormat": "ratio"}
       ],
       "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
       "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "horizontal", "colorMode": "value", "graphMode": "none", "justifyMode": "auto"}
@@ -27,7 +27,7 @@
       "title": "Cache sets (rate)",
       "datasource": {"type": "prometheus", "uid": "prom"},
       "targets": [
-        {"expr": "rate(cache_sets_total[5m])", "legendFormat": "sets"}
+        {"expr": "(sum(rate(cache_sets_total[5m])) or sum(rate(cache_sets_count_total[5m])) or vector(0))", "legendFormat": "sets"}
       ],
       "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
     }
@@ -37,6 +37,7 @@
   "tags": ["liveevent", "cache"],
   "templating": {"list": []},
   "time": {"from": "now-1h", "to": "now"},
+  "refresh": "15s",
   "timezone": "",
   "title": "Cache Efficiency",
   "version": 1

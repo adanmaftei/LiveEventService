@@ -2,35 +2,33 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
+        endpoint: 0.0.0.0:4318
 
 exporters:
-  awsemf:
-    region: ${AWS_REGION:us-east-1}
-  awsxray:
-    region: ${AWS_REGION:us-east-1}
-  prometheusremotewrite:
-    # Optional: send metrics to Amazon Managed Prometheus for long-term storage and dashboards via Amazon Managed Grafana
-    endpoint: ${PROM_REMOTE_WRITE_ENDPOINT:}
-    auth:
-      authenticator: sigv4auth
+  debug:
+    verbosity: basic
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
 
 processors:
   batch: {}
+
+extensions:
+  health_check: {}
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [awsxray]
+      exporters: [otlp, debug]
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [awsemf]
-    # For AMP (if configured)
-    metrics/amp:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [prometheusremotewrite]
+      exporters: [debug]
+  extensions: [health_check]
 

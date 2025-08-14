@@ -20,7 +20,7 @@ scrape_configs:
             level: level
             msg: message
       - labels:
-          level
+          level:
     relabel_configs:
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)'

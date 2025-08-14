@@ -22,9 +22,56 @@ public sealed class SqsMessageQueue : IMessageQueue, IDisposable
         _sqs = sqs;
         _logger = logger;
         var queueName = configuration["AWS:SQS:QueueName"] ?? "liveevent-domain-events";
-        // Resolve queue URL on startup; assume the queue exists (LocalStack/infra should provision).
-        var urlResponse = _sqs.GetQueueUrlAsync(queueName).GetAwaiter().GetResult();
-        _queueUrl = urlResponse.QueueUrl;
+
+        // Resolve or create queue on startup (handles LocalStack race or missing queue)
+        const int maxAttempts = 5;
+        var attempt = 0;
+        Exception? lastException = null;
+
+        while (attempt < maxAttempts)
+        {
+            attempt++;
+            try
+            {
+                var urlResponse = _sqs.GetQueueUrlAsync(queueName).GetAwaiter().GetResult();
+                _queueUrl = urlResponse.QueueUrl;
+                if (attempt > 1)
+                {
+                    _logger.LogInformation("Resolved SQS queue '{QueueName}' on attempt {Attempt}", queueName, attempt);
+                }
+                return;
+            }
+            catch (QueueDoesNotExistException)
+            {
+                try
+                {
+                    _logger.LogWarning("SQS queue '{QueueName}' not found. Creating it...", queueName);
+                    _ = _sqs.CreateQueueAsync(new CreateQueueRequest
+                    {
+                        QueueName = queueName
+                    }).GetAwaiter().GetResult();
+
+                    var urlResponse = _sqs.GetQueueUrlAsync(queueName).GetAwaiter().GetResult();
+                    _queueUrl = urlResponse.QueueUrl;
+                    _logger.LogInformation("Created and resolved SQS queue '{QueueName}'", queueName);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                }
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+            }
+
+            // brief backoff before retrying
+            Thread.Sleep(TimeSpan.FromSeconds(Math.Min(2 * attempt, 5)));
+        }
+
+        _logger.LogError(lastException, "Failed to resolve or create SQS queue '{QueueName}' after {Attempts} attempts", queueName, maxAttempts);
+        throw lastException ?? new Exception($"Failed to resolve or create SQS queue '{queueName}'");
     }
 
     public async Task EnqueueAsync(DomainEvent domainEvent, CancellationToken cancellationToken = default)

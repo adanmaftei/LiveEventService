@@ -11,6 +11,26 @@ namespace LiveEventService.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Ensure Outbox table exists (idempotent for local/dev where older migrations may be missing)
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""OutboxMessages"" (
+                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""EventType"" character varying(512) NOT NULL,
+                    ""Payload"" text NOT NULL,
+                    ""OccurredOn"" timestamp with time zone NOT NULL,
+                    ""Status"" integer NOT NULL,
+                    ""TryCount"" integer NOT NULL,
+                    ""LastError"" text NULL,
+                    ""NextAttemptAt"" timestamp with time zone NULL,
+                    ""ClaimedBy"" text NULL,
+                    ""ClaimedAt"" timestamp with time zone NULL
+                );
+            ");
+
+            migrationBuilder.Sql(@"CREATE INDEX IF NOT EXISTS ""IX_OutboxMessages_Status_NextAttemptAt"" ON ""OutboxMessages"" (""Status"", ""NextAttemptAt"");");
+            migrationBuilder.Sql(@"CREATE INDEX IF NOT EXISTS ""IX_OutboxMessages_Status_ClaimedAt"" ON ""OutboxMessages"" (""Status"", ""ClaimedAt"");");
+
             migrationBuilder.AlterColumn<string>(
                 name: "PhoneNumber",
                 table: "Users",
@@ -51,66 +71,14 @@ namespace LiveEventService.Infrastructure.Migrations
                 oldType: "character varying(256)",
                 oldMaxLength: 256);
 
-            migrationBuilder.CreateTable(
-                name: "OutboxMessages",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    EventType = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
-                    Payload = table.Column<string>(type: "text", nullable: false),
-                    OccurredOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    TryCount = table.Column<int>(type: "integer", nullable: false),
-                    LastError = table.Column<string>(type: "text", nullable: true),
-                    NextAttemptAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ClaimedBy = table.Column<string>(type: "text", nullable: true),
-                    ClaimedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_OutboxMessages", x => x.Id);
-                });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Events_IsPublished_StartDate",
-                table: "Events",
-                columns: new[] { "IsPublished", "StartDate" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Events_OrganizerId_StartDate",
-                table: "Events",
-                columns: new[] { "OrganizerId", "StartDate" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_EventRegistrations_EventId_Status_RegistrationDate",
-                table: "EventRegistrations",
-                columns: new[] { "EventId", "Status", "RegistrationDate" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_OutboxMessages_Status_NextAttemptAt",
-                table: "OutboxMessages",
-                columns: new[] { "Status", "NextAttemptAt" });
+            // Note: Outbox table and performance indexes are created by previous migrations.
+            // This migration focuses only on adjusting User field lengths for encryption tolerance.
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "OutboxMessages");
-
-            migrationBuilder.DropIndex(
-                name: "IX_Events_IsPublished_StartDate",
-                table: "Events");
-
-            migrationBuilder.DropIndex(
-                name: "IX_Events_OrganizerId_StartDate",
-                table: "Events");
-
-            migrationBuilder.DropIndex(
-                name: "IX_EventRegistrations_EventId_Status_RegistrationDate",
-                table: "EventRegistrations");
-
+            // No-op for Outbox in Down to avoid dropping data in local/dev
             migrationBuilder.AlterColumn<string>(
                 name: "PhoneNumber",
                 table: "Users",

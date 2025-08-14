@@ -107,12 +107,11 @@ namespace LiveEventService.Infrastructure.Data;
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
-        // Update gauge with an approximate of remaining pending (not exact under race, acceptable for telemetry)
+        // Update gauge with latest pending count
         try
         {
             var pending = await _dbContext.OutboxMessages.CountAsync(m => m.Status == OutboxStatus.Pending, cancellationToken);
-            var current = 0L; // UpDownCounter expects delta; set to absolute by subtracting previous, but we don't track prev → use Add with (pending - 0)
-            LiveEventService.Infrastructure.Telemetry.AppMetrics.OutboxPending.Add(pending - current);
+            LiveEventService.Infrastructure.Telemetry.AppMetrics.SetOutboxPending(pending);
         }
         catch { }
         return processed;
