@@ -9,7 +9,7 @@ This application is operational for local development and testing with:
 - ✅ PostgreSQL database with automatic migrations  
 - ✅ AWS service mocking via LocalStack
 - ✅ Serilog structured logging with correlation IDs
-- ✅ OpenTelemetry metrics (Prometheus) and tracing via OTLP → ADOT Collector → AWS X-Ray
+- ✅ OpenTelemetry metrics (Prometheus) and tracing via OTLP → OpenTelemetry Collector → Jaeger (local); AWS X-Ray in production
 - ✅ Health checks (PostgreSQL and AWS Cognito configuration)
 - ✅ Swagger (Development) and GraphQL endpoint
 
@@ -47,7 +47,7 @@ This application is operational for local development and testing with:
 - **Infrastructure**: AWS (ECS Fargate, ALB + WAF, RDS, Cognito, SQS)
 - **CI/CD**: GitHub Actions
 - **Containerization**: Docker
-- **Monitoring**: AWS CloudWatch, X-Ray
+- **Monitoring**: AWS CloudWatch (prod), Jaeger (local), X-Ray (prod optional)
 - **Testing**: xUnit, Moq, FluentAssertions
 
 ## Quick Start - Get Running in 2 Minutes! 🚀
@@ -61,8 +61,8 @@ This application is operational for local development and testing with:
 
 ```bash
 # Clone and start everything
-git clone https://github.com/yourusername/live-event-service.git
-cd live-event-service
+git clone https://github.com/adanmaftei/LiveEventService.git
+cd LiveEventService
 docker-compose up -d
 
 # Verify everything is working
@@ -71,8 +71,10 @@ curl http://localhost:5000/health
 
 **That's it!** 🎉 Access your services:
 - **API Health**: http://localhost:5000/health
-- **Swagger UI**: http://localhost:5000/swagger/index.html
-- **GraphQL Playground**: http://localhost:5000/graphql (Development only)
+- **Swagger UI** (Development): http://localhost:5000/
+- **Swagger JSON**: http://localhost:5000/swagger/v1/swagger.json
+- **GraphQL Endpoint**: http://localhost:5000/graphql
+- **GraphQL Playground** (Development): http://localhost:5000/graphql/playground
 - **Database Admin**: http://localhost:5050 (admin@example.com / admin)
 - **Prometheus**: http://localhost:9090
 - **Grafana**: http://localhost:3000 (admin/admin)
@@ -82,7 +84,7 @@ curl http://localhost:5000/health
 
 ```bash
 # Start supporting services
-docker-compose up -d db localstack pgadmin
+docker-compose up -d db localstack pgadmin redis jaeger otel-collector
 
 # Run API locally for development
 dotnet run --project src/LiveEventService.API
@@ -94,7 +96,7 @@ dotnet run --project src/LiveEventService.API
 |---------|--------|-----|---------|
 | **Live Event API** | ✅ Running | http://localhost:5000 | Main API with all endpoints |
 | **Swagger UI** | ✅ Running | http://localhost:5000/swagger | API documentation |
-| **GraphQL** | ✅ Running | http://localhost:5000/graphql | GraphQL playground |
+| **GraphQL** | ✅ Running | http://localhost:5000/graphql | Endpoint; Playground at /graphql/playground (Dev) |
 | **PostgreSQL** | ✅ Running | http://localhost:5432 | Database with test data |
 | **pgAdmin** | ✅ Running | http://localhost:5050 | Database management |
 | **LocalStack** | ✅ Running | http://localhost:4566 | AWS services mocking |
@@ -110,14 +112,16 @@ dotnet run --project src/LiveEventService.API
 
 ```
 src/
-  LiveEventService.API/         # API project (Minimal APIs + GraphQL)
-  LiveEventService.Application/ # Application layer (CQRS, DTOs, validators)
-  LiveEventService.Core/        # Domain models, interfaces, exceptions
-  LiveEventService.Infrastructure/ # Data access, external services
-  infrastructure/               # AWS CDK infrastructure code
+  LiveEventService.API/                    # API project (Minimal APIs + GraphQL)
+  LiveEventService.Application/            # Application layer (CQRS, DTOs, validators)
+  LiveEventService.Core/                   # Domain models, interfaces, exceptions
+  LiveEventService.Infrastructure/         # Data access, external services
+  infrastructure/LiveEventService.Infrastructure.CDK/ # AWS CDK infrastructure code
 tests/
-  LiveEventService.Tests/       # Unit and integration tests
-docs/                          # Comprehensive documentation
+  LiveEventService.UnitTests/
+  LiveEventService.IntegrationTests/
+  LiveEventService.Architecture.Tests/
+docs/                                     # Comprehensive documentation
 ```
 
 ## Vertical Slice Architecture
@@ -283,7 +287,9 @@ docker-compose down --volumes && docker-compose up -d
 dotnet test
 
 # Run specific test project
-dotnet test tests/LiveEventService.Tests
+dotnet test tests/LiveEventService.UnitTests/LiveEventService.UnitTests.csproj
+dotnet test tests/LiveEventService.IntegrationTests/LiveEventService.IntegrationTests.csproj
+dotnet test tests/LiveEventService.Architecture.Tests/LiveEventService.Architecture.Tests.csproj
 
 # Run with coverage
 dotnet test /p:CollectCoverage=true
