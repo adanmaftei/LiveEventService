@@ -177,7 +177,7 @@ public class LiveEventTestApplicationFactory : WebApplicationFactory<Program>, I
                     .Build();
 
                 s_localStackContainer ??= new LocalStackBuilder()
-                    .WithImage("localstack/localstack:3.0")
+                    .WithImage("localstack/localstack::latest")
                     .WithEnvironment("SERVICES", "cognito-idp,s3,xray,cloudwatch,logs")
                     .WithEnvironment("DEBUG", "1")
                     .WithEnvironment("PERSISTENCE", "0")

@@ -9,6 +9,7 @@ using LiveEventService.Application.Features.Events.EventRegistration.Get;
 using LiveEventService.Application.Features.Events.Commands.ConfirmRegistration;
 using LiveEventService.Application.Features.Events.Commands.PublishEvent;
 using LiveEventService.Application.Features.Events.Commands.UnpublishEvent;
+using System.Text;
 using LiveEventService.Core.Common;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -56,12 +57,13 @@ public static class EventEndpoints
                 return Results.Ok(result);
             }
             return Results.BadRequest(new { result.Errors, result.Message });
-        }).AllowAnonymous() // No authentication required for public event list
+        }).CacheOutput(OutputCachePolicies.EventListPublic).AllowAnonymous() // No authentication required for public event list
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapGet("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
             [FromServices] IDistributedCache cache,
+            HttpContext httpContext,
             Guid id,
             CancellationToken ct) =>
         {
@@ -81,7 +83,7 @@ public static class EventEndpoints
                 return Results.Ok(result);
             }
             return Results.NotFound(new { result.Errors });
-        }).AllowAnonymous() // No authentication required for public event details
+        }).CacheOutput(OutputCachePolicies.EventDetailPublic).AllowAnonymous() // No authentication required for public event details
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events", async (
@@ -229,6 +231,61 @@ public static class EventEndpoints
             };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
+        }).RequireAuthorization(RoleNames.Admin)
+        .RequireRateLimiting(PolicyNames.General);
+
+        // Admin CSV export of registrations
+        endpoints.MapGet("/api/events/{eventId:guid}/registrations/export", async (
+            [FromServices] IMediator mediator,
+            Guid eventId,
+            [FromQuery] string? status) =>
+        {
+            var query = new GetEventRegistrationsQuery
+            {
+                EventId = eventId,
+                Status = status,
+                PageNumber = 1,
+                PageSize = int.MaxValue
+            };
+            var result = await mediator.Send(query);
+            if (!result.Success || result.Data == null)
+            {
+                return Results.BadRequest(new { result.Errors });
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("RegistrationId,EventId,UserId,UserName,UserEmail,RegistrationDate,Status,PositionInQueue,Notes");
+            foreach (var r in result.Data.Items)
+            {
+                var line = string.Join(',', new[]
+                {
+                    r.Id.ToString(),
+                    r.EventId.ToString(),
+                    r.UserId.ToString(),
+                    EscapeCsv(r.UserName),
+                    EscapeCsv(r.UserEmail),
+                    r.RegistrationDate.ToString("o"),
+                    EscapeCsv(r.Status),
+                    r.PositionInQueue?.ToString() ?? string.Empty,
+                    EscapeCsv(r.Notes ?? string.Empty)
+                });
+                sb.AppendLine(line);
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+            var fileName = status is { Length: >0 }
+                ? $"registrations-{eventId}-{status}.csv"
+                : $"registrations-{eventId}.csv";
+            return Results.File(bytes, "text/csv", fileName);
+
+            static string EscapeCsv(string input)
+            {
+                if (input.Contains('"') || input.Contains(',') || input.Contains('\n'))
+                {
+                    return '"' + input.Replace("\"", "\"\"") + '"';
+                }
+                return input;
+            }
         }).RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 

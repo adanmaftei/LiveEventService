@@ -195,7 +195,7 @@ environment:
   - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=LiveEventDB;Username=postgres;Password=postgres;
   - AWS__ServiceURL=http://localstack:4566
   - AWS__S3BucketName=local-bucket
-  - ConnectionStrings__Redis=redis:6379
+  - ConnectionStrings__Redis=redis:6379  # required for caching and GraphQL backplane
   - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
   - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 ```

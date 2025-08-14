@@ -2,6 +2,10 @@ using LiveEventService.Application.Features.Users.User;
 using MediatR;
 using LiveEventService.Application.Features.Users.User.Get;
 using LiveEventService.Application.Features.Users.User.List;
+using LiveEventService.Application.Features.Users.Queries.ExportUserData;
+using HotChocolate.Authorization;
+using System.Security.Claims;
+using LiveEventService.Core.Common;
 
 namespace LiveEventService.API.Users;
 
@@ -64,5 +68,27 @@ public class UserQueries
         }
         
         return result.Data;
+    }
+
+    [Authorize]
+    public async Task<string> ExportUserData(
+        [Service] IMediator mediator,
+        [GlobalState] string currentUserId,
+        ClaimsPrincipal claimsPrincipal,
+        string id,
+        CancellationToken cancellationToken)
+    {
+        var isAdmin = claimsPrincipal.IsInRole(RoleNames.Admin);
+        if (!isAdmin && id != currentUserId)
+        {
+            throw new GraphQLException("You are not authorized to export this user's data");
+        }
+
+        var result = await mediator.Send(new ExportUserDataQuery { UserId = id }, cancellationToken);
+        if (!result.Success || result.Data == null)
+        {
+            throw new GraphQLException(result.Errors?.FirstOrDefault() ?? "Error exporting user data");
+        }
+        return result.Data.Json;
     }
 }

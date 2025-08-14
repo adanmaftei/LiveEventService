@@ -202,6 +202,26 @@ public class EventEndpointsTests : BaseLiveEventsTests
     }
 
     [Fact]
+    public async Task ExportRegistrationsCsv_ShouldReturnCsv_WhenAuthenticatedAsAdmin()
+    {
+        // Arrange
+        var eventId = await CreateTestEvent();
+
+        // Seed one registration
+        var registrationData = TestDataBuilder.Commands.RegisterForEventCommand(eventId, _participantUserId);
+        await _authenticatedParticipantClient.PostAsJsonAsync($"/api/events/{eventId}/register", registrationData);
+
+        // Act
+        var response = await _authenticatedAdminClient.GetAsync($"/api/events/{eventId}/registrations/export");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/csv");
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("RegistrationId,EventId,UserId,UserName,UserEmail,RegistrationDate,Status,PositionInQueue,Notes");
+    }
+
+    [Fact]
     public async Task PublishEvent_ShouldReturnOk_WhenAuthenticatedAsAdmin()
     {
         // Arrange

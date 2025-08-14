@@ -8,6 +8,11 @@ The Live Event Service uses domain events to decouple business logic and enable 
 
 The system uses domain events to decouple business logic and enable real-time notifications. Domain events are raised in the domain model (Core layer) and dispatched via MediatR after database changes. Handlers can perform side effects, such as sending notifications.
 
+Runtime delivery is dual-mode and configurable per environment:
+
+- In-process queue + background service for local/dev.
+- SQS-backed queue + dedicated worker in production.
+
 ### Events
 
 | Event                                 | Raised When                                      | Handled By (API)                        | GraphQL Action |
@@ -30,20 +35,26 @@ The system uses domain events to decouple business logic and enable real-time no
 
 ## Transactional Outbox (Implemented)
 
-- The DbContext writes an outbox entry for each raised domain event into the `OutboxMessages` table in the same transaction as the state change.
-- A background outbox processor service scans pending messages and publishes them to external channels. Currently it publishes to AWS SNS topics (one topic per event type) for decoupled fan-out.
-- In Testing, behavior can be adjusted to avoid cross-test interference.
+- `LiveEventDbContext.SaveChangesAsync` writes an outbox entry for each raised domain event into the `OutboxMessages` table in the same transaction as the state change.
+- A hosted background service `OutboxProcessorBackgroundService` continuously processes pending outbox messages and publishes them to AWS SNS (topic-per-event-type). Topics are created on demand if missing.
+- The processor and SNS client are wired in `Infrastructure.DependencyInjection` and run by default when not in Testing.
+
+Code references:
+
+- `src/LiveEventService.Infrastructure/Data/LiveEventDbContext.cs`
+- `src/LiveEventService.Infrastructure/Data/OutboxProcessorBackgroundService.cs`
+- `src/LiveEventService.Infrastructure/Data/OutboxProcessor.cs`
 
 ## Domain Event Delivery vs Outbox: Two Complementary Flows
 
-- Domain Event Delivery (for in-app reactions and the dedicated worker):
-  - In-process by default via `InMemoryMessageQueue` + `DomainEventBackgroundService`.
-  - When `AWS:SQS:UseSqsForDomainEvents=true`, domain events are enqueued to SQS by the API and consumed by `LiveEventService.Worker`.
-    - Configure queue name with `AWS:SQS:QueueName` (default: `liveevent-domain-events`).
+- Domain Event Delivery (intra-service reactions and async processing):
+  - In-process mode: `InMemoryMessageQueue` + `DomainEventBackgroundService` (enabled when `Performance:BackgroundProcessing:UseInProcess=true`, default for dev/testing).
+  - SQS mode: when `AWS:SQS:UseSqsForDomainEvents=true`, the API enqueues to SQS and the `LiveEventService.Worker` consumes and invokes `IDomainEventProcessor`s.
+    - Queue name: `AWS:SQS:QueueName` (default: `liveevent-domain-events`).
 
-- Transactional Outbox (for cross-service notifications):
-  - Outbox entries are persisted atomically with state changes and later published to SNS topics by the Outbox Processor.
-  - This ensures durability and at-least-once delivery without coupling request latency to external publishes.
+- Transactional Outbox (cross-service fan-out):
+  - Entries are persisted atomically and published to SNS topics by `OutboxProcessorBackgroundService`.
+  - Topic naming: `liveevent-{EventTypeName}` (created if missing).
 
 ## GraphQL Subscriptions & Performance Guardrails
 
@@ -302,4 +313,9 @@ public async Task RegisterForFullEvent_ShouldRaiseDomainEvent()
 3. **Performance issues** - Consider batching events for high-volume scenarios
 4. **Missing notifications** - Ensure event handlers are registered in DI container
 
-The domain event system provides reliable, real-time communication between the backend and frontend, enabling rich user experiences with waitlist updates and registration changes. 
+## Local development notes
+
+- Docker Compose provisions LocalStack and mounts `localstack-init/01-setup-aws-resources.sh` to create S3, Cognito, CloudWatch log group, and SQS queues used by the app.
+- Observability containers (ADOT Collector, Prometheus, Loki, Promtail, Grafana) are included; the Grafana importer loads the LiveEvent overview dashboard automatically.
+
+The domain event system provides reliable, real-time communication between the backend and frontend, enabling rich user experiences with waitlist updates and registration changes.

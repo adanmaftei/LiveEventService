@@ -212,9 +212,13 @@ When running via Docker Compose, access these UIs for real-time visibility:
 Dashboard and provisioning files live under `observability/grafana/`.
 
 Available dashboards (auto-imported):
-- LiveEvent Service Overview
+- LiveEvent Service Overview (imported by `observability/grafana/import_dashboard.py`)
 - LiveEvent Queue & Outbox
 - Cache Efficiency
+
+Notes:
+- The ADOT Collector is configured at `observability/otel-collector-config.yaml` to export traces to X-Ray (via LocalStack) and metrics to CloudWatch EMF locally.
+- Prometheus scrapes the API metrics at `/metrics` (see `observability/prometheus.yml`).
 
 ```bash
 # Check all container health

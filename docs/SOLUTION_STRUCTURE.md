@@ -203,7 +203,7 @@ LiveEventService.IntegrationTests/
 4. Notification Adapter (Application Layer)
    ↓ Converts to External Notification
 5. External Notification Service (Infrastructure Layer)
-   ↓ Sends to External Systems
+   ↓ SNS publish via Outbox Processor (topic per event type) for cross-service fan-out
 ```
 
 ### 📋 **Domain Event Handler Locations**
@@ -282,12 +282,14 @@ LiveEventService.IntegrationTests/
 4. **Updated Namespaces**: All moved components now use Application layer namespaces
 5. **Fixed Dependency Injection**: Proper registration of moved components
 6. **Updated Unit Tests**: All tests now reference correct namespaces
+7. **Implemented Outbox Processor**: Background service publishes outbox entries to AWS SNS
 
 ### 🎯 **Architectural Benefits Achieved**
 - **Proper Layer Separation**: Domain event handlers now in correct layer
 - **Clean Dependencies**: Infrastructure no longer contains application logic
 - **Better Testability**: Domain event handlers can be tested independently
 - **Consistent Patterns**: All domain event processing follows same pattern
+- **External Fan-out**: SNS integration enables decoupled subscribers
 
 ## Configuration Files Explained
 

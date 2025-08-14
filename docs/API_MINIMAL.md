@@ -40,6 +40,7 @@ The Events REST API is implemented using .NET 9 Minimal APIs directly in `Progra
 | DELETE | `/api/events/{id}`                           | Admin              | Delete event                      | ✅ Working |
 | POST   | `/api/events/{eventId}/register`             | Authenticated      | Register for event                | ✅ Working |
 | GET    | `/api/events/{eventId}/registrations`        | Admin              | List registrations for an event   | ✅ Working |
+| GET    | `/api/events/{eventId}/registrations/export` | Admin              | Export registrations as CSV       | ✅ Working |
 | GET    | `/api/events/{eventId}/waitlist`             | Admin              | List waitlisted registrations     | ✅ Working |
 | POST   | `/api/events/{eventId}/registrations/{registrationId}/confirm` | Admin | Confirm registration (promote from waitlist) | ✅ Working |
 | POST   | `/api/events/{eventId}/registrations/{registrationId}/cancel` | Admin | Cancel registration (admin action) | ✅ Working |
@@ -55,6 +56,8 @@ The Events REST API is implemented using .NET 9 Minimal APIs directly in `Progra
 | GET    | `/api/users/{id}`                            | Admin             | Get user by ID                    | ✅ Working |
 | POST   | `/api/users`                                 | Admin             | Create user (no public sign-up)   | ✅ Working |
 | PUT    | `/api/users/{id}`                            | Authenticated      | Update user (self or admin)       | ✅ Working |
+| GET    | `/api/users/{id}/export`                     | Self, Admin        | Export user data (JSON file)      | ✅ Working |
+| DELETE | `/api/users/{id}`                            | Admin              | Erase/anonymize user              | ✅ Working |
 
 ### System Endpoints
 
@@ -277,7 +280,25 @@ Access at: http://localhost:5000/graphql (development only)
 - **Queries**: Fetch events, users, registrations
 - **Mutations**: Create, update, delete operations
 - **Subscriptions**: Real-time updates (when implemented)
- - **Performance**: Execution timeout (10s), strict validation; DataLoader eliminates N+1 for organizer name resolution
+  - **Performance**: Execution timeout (10s), strict validation; DataLoader eliminates N+1 for organizer name resolution
+
+## Domain Events and Async Processing (Implemented)
+
+- In-process background processing is enabled by default in development/testing via `DomainEventBackgroundService`.
+- In production, SQS-backed processing is enabled by setting `AWS:SQS:UseSqsForDomainEvents=true`; the API publishes, and the `LiveEventService.Worker` service consumes.
+- A transactional outbox runs alongside the API (`OutboxProcessorBackgroundService`) and publishes to SNS topics for cross-service fan-out.
+
+Configuration flags:
+
+- `Performance:BackgroundProcessing:UseInProcess` (default true in dev)
+- `AWS:SQS:UseSqsForDomainEvents` (set to true in CDK for prod)
+
+## Output Caching (REST)
+
+- Output caching is enabled for public event reads:
+  - Event list: policy `EventListPublic` (60s; varies by query params; anonymous-safe)
+  - Event detail: policy `EventDetailPublic` (120s; varies by id; anonymous-safe)
+- Cache tags are not required for these short TTLs; data-level cache invalidation remains for stronger consistency on mutations.
 
 ### Example GraphQL Query
 ```graphql
@@ -315,12 +336,16 @@ Configured via `Security:Cors:AllowedOrigins`.
 
 ## Performance & Monitoring
 
-### Request Logging
+### Request Logging and Caching
 All requests are logged with:
 - HTTP method and path
 - Response status and timing
 - Correlation ID for tracing
 - User agent and IP address
+
+Public GETs include short Cache-Control headers to enable browser/CDN caching:
+- Event list: `Cache-Control: public, max-age=60`
+- Event detail: `Cache-Control: public, max-age=120`
 
 ### Distributed Tracing
 - **X-Ray Integration**: All requests traced automatically

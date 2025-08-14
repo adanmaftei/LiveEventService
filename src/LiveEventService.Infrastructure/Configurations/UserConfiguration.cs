@@ -18,18 +18,18 @@ public class UserConfiguration : IEntityTypeConfiguration<UserEntity>
             
         builder.Property(u => u.Email)
             .IsRequired()
-            .HasMaxLength(256);
+            .HasMaxLength(512); // allow for encrypted content length
             
         builder.Property(u => u.FirstName)
             .IsRequired()
-            .HasMaxLength(100);
+            .HasMaxLength(512); // allow for encrypted content length
             
         builder.Property(u => u.LastName)
             .IsRequired()
-            .HasMaxLength(100);
+            .HasMaxLength(512); // allow for encrypted content length
             
         builder.Property(u => u.PhoneNumber)
-            .HasMaxLength(20);
+            .HasMaxLength(512); // allow for encrypted content length
             
         builder.Property(u => u.IsActive)
             .IsRequired()

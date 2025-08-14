@@ -9,6 +9,9 @@ using LiveEventService.API.Constants;
 using Microsoft.Extensions.Caching.Distributed;
 using LiveEventService.Application.Common.Models;
 using LiveEventService.Application.Features.Users.User;
+using LiveEventService.Application.Features.Users.User.Erase;
+using System.Text;
+using LiveEventService.Application.Features.Users.Queries.ExportUserData;
 
 namespace LiveEventService.API.Users;
 
@@ -115,6 +118,39 @@ public static class UserEndpoints
             }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         }).RequireAuthorization()
+        .RequireRateLimiting(PolicyNames.General);
+
+        // User data export (DSAR) - user can export their own data; admin can export any
+        endpoints.MapGet("/api/users/{id}/export", async (
+            [FromServices] IMediator mediator,
+            string id,
+            HttpContext httpContext) =>
+        {
+            var currentUserId = httpContext.User.Identity?.Name ?? string.Empty;
+            var isAdmin = httpContext.User.IsInRole(RoleNames.Admin);
+            if (id != currentUserId && !isAdmin)
+            {
+                return Results.Forbid();
+            }
+
+            var result = await mediator.Send(new ExportUserDataQuery { UserId = id });
+            if (!result.Success || result.Data == null)
+            {
+                return Results.BadRequest(new { result.Errors });
+            }
+            var bytes = Encoding.UTF8.GetBytes(result.Data.Json);
+            return Results.File(bytes, "application/json", $"user-{id}-export.json");
+        }).RequireAuthorization()
+        .RequireRateLimiting(PolicyNames.General);
+
+        // User erasure (DSAR) - admin only; optional self-delete could be policy-dependent
+        endpoints.MapDelete("/api/users/{id}", async (
+            [FromServices] IMediator mediator,
+            string id) =>
+        {
+            var result = await mediator.Send(new EraseUserCommand { UserId = id, HardDelete = false });
+            return result.Success ? Results.NoContent() : Results.BadRequest(new { result.Errors });
+        }).RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
     }
 } 

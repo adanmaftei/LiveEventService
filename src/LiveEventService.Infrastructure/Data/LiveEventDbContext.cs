@@ -13,10 +13,12 @@ namespace LiveEventService.Infrastructure.Data;
 public class LiveEventDbContext : DbContext
 {
     private readonly IDomainEventDispatcher _domainEventDispatcher;
-    public LiveEventDbContext(DbContextOptions<LiveEventDbContext> options, IDomainEventDispatcher domainEventDispatcher)
+    private readonly Security.IFieldEncryptionService _encryptionService;
+    public LiveEventDbContext(DbContextOptions<LiveEventDbContext> options, IDomainEventDispatcher domainEventDispatcher, Security.IFieldEncryptionService encryptionService)
         : base(options)
     {
         _domainEventDispatcher = domainEventDispatcher;
+        _encryptionService = encryptionService;
     }
 
     public DbSet<Event> Events => Set<Event>();
@@ -46,6 +48,30 @@ public class LiveEventDbContext : DbContext
             
         modelBuilder.Entity<EventRegistrationEntity>()
             .HasQueryFilter(er => er.Status != RegistrationStatus.Cancelled);
+
+        // Apply field-level encryption for PII on Users (tolerant converters)
+        modelBuilder.Entity<UserEntity>(entity =>
+        {
+            entity.Property(u => u.Email)
+                .HasConversion(
+                    v => _encryptionService.EncryptNullable(v),
+                    v => _encryptionService.DecryptNullable(v));
+
+            entity.Property(u => u.PhoneNumber)
+                .HasConversion(
+                    v => _encryptionService.EncryptNullable(v),
+                    v => _encryptionService.DecryptNullable(v));
+
+            entity.Property(u => u.FirstName)
+                .HasConversion(
+                    v => _encryptionService.EncryptNullable(v),
+                    v => _encryptionService.DecryptNullable(v));
+
+            entity.Property(u => u.LastName)
+                .HasConversion(
+                    v => _encryptionService.EncryptNullable(v),
+                    v => _encryptionService.DecryptNullable(v));
+        });
 
         // Outbox table configuration
         modelBuilder.Entity<OutboxMessage>(builder =>

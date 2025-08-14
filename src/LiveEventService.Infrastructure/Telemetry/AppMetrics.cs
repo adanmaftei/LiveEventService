@@ -71,6 +71,19 @@ public static class AppMetrics
         name: "cache_sets_total",
         unit: "count",
         description: "Number of cache set operations performed");
+
+    // Redis connectivity gauge (0 = disconnected, 1 = connected)
+    private static Func<int>? s_redisConnectivityProvider;
+    private static readonly ObservableGauge<int> s_redisConnectivity = s_meter.CreateObservableGauge(
+        name: "redis_connected",
+        observeValue: () => s_redisConnectivityProvider?.Invoke() ?? 0,
+        unit: "state",
+        description: "Redis connectivity: 1 when connected, 0 when not");
+
+    public static void SetRedisConnectivityProvider(Func<int> provider)
+    {
+        s_redisConnectivityProvider = provider;
+    }
 }
 
 

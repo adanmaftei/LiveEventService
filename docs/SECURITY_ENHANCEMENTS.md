@@ -173,7 +173,7 @@ public class AesEncryptionService : IEncryptionService
 }
 ```
 
-**Entity Configuration for Encrypted Fields:**
+**Entity Configuration for Encrypted Fields (Planned):**
 ```csharp
 public class UserConfiguration : IEntityTypeConfiguration<User>
 {

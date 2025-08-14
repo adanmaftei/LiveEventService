@@ -1,6 +1,7 @@
 using LiveEventService.Application.Features.Users.User.Create;
 using LiveEventService.Application.Features.Users.User.Update;
 using LiveEventService.Application.Features.Users.User;
+using LiveEventService.Application.Features.Users.User.Erase;
 using MediatR;
 using HotChocolate.Authorization;
 using LiveEventService.Core.Common;
@@ -57,6 +58,20 @@ public class UserMutations
             throw new GraphQLException(result.Errors?.FirstOrDefault() ?? "Error updating user");
         }
         return result.Data;
+    }
+
+    [Authorize(Roles = [RoleNames.Admin])]
+    public async Task<bool> EraseUser(
+        [Service] IMediator mediator,
+        string id,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(new EraseUserCommand { UserId = id, HardDelete = false }, cancellationToken);
+        if (!result.Success)
+        {
+            throw new GraphQLException(result.Errors?.FirstOrDefault() ?? "Error erasing user");
+        }
+        return true;
     }
 }
 

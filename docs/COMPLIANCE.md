@@ -29,9 +29,9 @@ This document outlines the compliance measures and data protection practices imp
 
 Under GDPR, users have the following rights regarding their personal data:
 
-1. **Right to Access**: Users can request a copy of their personal data.
+1. **Right to Access**: Users can request a copy of their personal data. Implemented via `GET /api/users/{id}/export` (returns JSON export). Self-access allowed; administrators can export for any user.
 2. **Right to Rectification**: Users can update or correct their information.
-3. **Right to Erasure**: Users can request deletion of their personal data.
+3. **Right to Erasure**: Users can request deletion of their personal data. Implemented via `DELETE /api/users/{id}`. Current behavior performs deactivation and anonymization by default; hard delete is a privileged administrative operation.
 4. **Right to Restrict Processing**: Users can limit how their data is used.
 5. **Right to Data Portability**: Users can request their data in a structured format.
 6. **Right to Object**: Users can object to certain types of processing.
@@ -50,15 +50,17 @@ Under GDPR, users have the following rights regarding their personal data:
 | Marketing Data | Until consent is withdrawn | Consent |
 
 ### Data Deletion
-- Automatic deletion occurs at the end of the retention period
+- Automatic deletion at the end of the retention period: NOT YET IMPLEMENTED as a scheduled job; currently a policy/operational guideline
 - Users can request early deletion via the service interface or by contacting support
-- Backups are retained for 30 days before permanent deletion
+- API support: `DELETE /api/users/{id}` (admin-only) performs deactivation + anonymization to preserve event integrity while honoring privacy.
+- Backups retention is managed by RDS/Backup plans; production default is 35 days (see CDK stack)
 
 ## Security Measures
 
 ### Technical Measures
 - Data encryption in transit (TLS 1.2+)
-- Data encryption at rest (AES-256)
+- Data encryption at rest at the storage level (RDS encryption via KMS)
+- Field-level encryption for PII: NOT YET IMPLEMENTED (planned via EF Core value converters and KMS-backed keys)
 - Regular security audits and penetration testing
 - Access controls and principle of least privilege
 - Multi-factor authentication for administrative access
@@ -106,7 +108,7 @@ This policy is reviewed annually or when significant changes to our processing a
 ## Implementation Details
 
 ### Technical Implementation
-- Data retention is implemented using AWS RDS automated backups and snapshots (retention tuned per environment)
+- Data retention is implemented using AWS RDS automated backups and snapshots (retention tuned per environment). Application-level purging jobs can be enabled via `Security:Retention` options.
 - Audit logs for admin actions are written to a dedicated CloudWatch Logs group
 - All data processing activities are logged in AWS CloudTrail
 - Regular data protection impact assessments are conducted

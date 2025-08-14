@@ -49,4 +49,13 @@ public class User : Entity
     {
         EventRegistrations.Remove(registration);
     }
+
+    public void DeactivateAndAnonymize(string anonymizedEmail)
+    {
+        IsActive = false;
+        Email = anonymizedEmail;
+        FirstName = string.Empty;
+        LastName = string.Empty;
+        PhoneNumber = string.Empty;
+    }
 } 

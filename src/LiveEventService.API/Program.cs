@@ -30,6 +30,7 @@ using LiveEventService.Infrastructure.Telemetry;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Net;
 using HotChocolate.AspNetCore;
+using Microsoft.AspNetCore.OutputCaching;
 
 var builder = WebApplication.CreateBuilder(args);
 var isTesting = builder.Environment.IsEnvironment("Testing");
@@ -88,6 +89,23 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 // Add services to the container.
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddInfrastructureServices(builder.Configuration, isTesting);
+// Output caching (public GETs)
+builder.Services.AddOutputCache(options =>
+{
+    options.AddPolicy(OutputCachePolicies.EventListPublic, b => b
+        .Expire(TimeSpan.FromSeconds(60))
+        .SetVaryByQuery("pageNumber", "pageSize", "isPublished", "isUpcoming")
+        .SetVaryByHeader("Authorization")
+        .SetVaryByHeader("Cookie")
+        .Tag("events"));
+
+    options.AddPolicy(OutputCachePolicies.EventDetailPublic, b => b
+        .Expire(TimeSpan.FromSeconds(120))
+        .SetVaryByRouteValue("id")
+        .SetVaryByHeader("Authorization")
+        .SetVaryByHeader("Cookie")
+        .Tag("event-detail"));
+});
 
 // CORS configuration (env-driven)
 var allowedOrigins = builder.Configuration.GetSection("Security:Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
@@ -179,6 +197,19 @@ if (!isTesting)
             options.Configuration = redisConnection;
             options.InstanceName = "liveevent:";
         });
+
+        // Wire Redis connectivity gauge
+        try
+        {
+            var mux = ConnectionMultiplexer.Connect(redisConnection);
+            AppMetrics.SetRedisConnectivityProvider(() => mux.IsConnected ? 1 : 0);
+            // Dispose multiplexer on shutdown
+            builder.Services.AddSingleton<IConnectionMultiplexer>(mux);
+        }
+        catch
+        {
+            AppMetrics.SetRedisConnectivityProvider(() => 0);
+        }
     }
 }
 else
@@ -196,6 +227,7 @@ var graphQlBuilder = builder.Services
     .AddQueryType(d => d.Name("Query"))
         .AddTypeExtension<EventQueries>()
         .AddTypeExtension<UserQueries>()
+        .AddTypeExtension<EventAdminQueries>()
     .AddMutationType(d => d.Name("Mutation"))
         .AddTypeExtension<EventMutations>()
         .AddTypeExtension<UserMutations>()
@@ -233,6 +265,8 @@ graphQlBuilder
         opt.IncludeExceptionDetails = builder.Environment.IsDevelopment();
     })    
     .AddDataLoader<UserByIdentityIdDataLoader>();
+
+
 
 // Add rate limiting (disabled in Testing environment)
 if (!isTesting)
@@ -374,6 +408,9 @@ if (!isTesting)
 {
     app.UseRateLimiter();
 }
+
+// Enable output caching middleware
+app.UseOutputCache();
 
 // Traces are emitted via OpenTelemetry OTLP exporter to the ADOT Collector (configured via env)
 

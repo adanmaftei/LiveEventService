@@ -6,6 +6,12 @@ public static class PolicyNames
     public const string Registration = "registration";
 }
 
+public static class OutputCachePolicies
+{
+    public const string EventListPublic = "EventListPublic";
+    public const string EventDetailPublic = "EventDetailPublic";
+}
+
 public static class RoutePaths
 {
     public const string GraphQL = "/graphql";

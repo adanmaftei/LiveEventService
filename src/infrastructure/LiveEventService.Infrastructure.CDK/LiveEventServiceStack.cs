@@ -25,6 +25,7 @@ using Amazon.CDK.AWS.Lambda;
 using Amazon.CDK.AWS.S3.Assets;
 using Amazon.CDK.CustomResources;
 using Amazon.CDK.AWS.SQS;
+using Amazon.CDK.AWS.ElastiCache;
 
 namespace LiveEventService.Infrastructure.CDK;
 
@@ -219,6 +220,7 @@ public class LiveEventServiceStack : Stack
             {
                 Version = PostgresEngineVersion.VER_14
             }),
+            MultiAz = true,
             Credentials = Credentials.FromSecret(databaseCredentialsSecret),
             Vpc = vpc,
             VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS },
@@ -345,6 +347,45 @@ public class LiveEventServiceStack : Stack
             Vpc = vpc,            
             EnableFargateCapacityProviders = true,
             ClusterName = "LiveEventServiceCluster"
+        });
+
+        // ElastiCache (Redis) for caching and GraphQL subscriptions backplane
+        // Security group for Redis allowing inbound from ECS services in the VPC
+        var redisSecurityGroup = new Amazon.CDK.AWS.EC2.SecurityGroup(this, "RedisSecurityGroup", new Amazon.CDK.AWS.EC2.SecurityGroupProps
+        {
+            Vpc = vpc,
+            AllowAllOutbound = true,
+            Description = "Security group for Redis cluster"
+        });
+
+        // Subnet group for Redis in private subnets
+        var redisSubnetGroup = new CfnSubnetGroup(this, "LiveEventRedisSubnetGroup", new CfnSubnetGroupProps
+        {
+            CacheSubnetGroupName = "liveevent-redis-subnets",
+            Description = "Subnet group for LiveEvent Redis",
+            SubnetIds = vpc.SelectSubnets(new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }).SubnetIds
+        });
+
+        // Parameter group (optional, default params fine for now)
+        var redisParamGroup = new CfnParameterGroup(this, "LiveEventRedisParamGroup", new CfnParameterGroupProps
+        {
+            CacheParameterGroupFamily = "redis7",
+            Description = "Parameter group for LiveEvent Redis",
+            Properties = new Dictionary<string, string>()
+        });
+
+        // Single-node Redis cache cluster (cost-effective). For prod, consider replication group with Multi-AZ.
+        var redisCluster = new CfnCacheCluster(this, "LiveEventRedis", new CfnCacheClusterProps
+        {
+            Engine = "redis",
+            CacheNodeType = "cache.t4g.micro",
+            NumCacheNodes = 1,
+            CacheSubnetGroupName = redisSubnetGroup.CacheSubnetGroupName!,
+            VpcSecurityGroupIds = new[] { redisSecurityGroup.SecurityGroupId },
+            AutoMinorVersionUpgrade = true,
+            EngineVersion = "7.0",
+            PreferredMaintenanceWindow = "sun:05:00-sun:06:00",
+            CacheParameterGroupName = redisParamGroup.Ref
         });
 
         // Create SQS queue with DLQ for domain events
@@ -492,6 +533,9 @@ public class LiveEventServiceStack : Stack
             VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
         });
 
+        // Allow worker tasks to connect to Redis
+        redisSecurityGroup.AddIngressRule(workerService.Connections.SecurityGroups[0], Amazon.CDK.AWS.EC2.Port.Tcp(6379), "Allow worker to access Redis");
+
         // Autoscale worker based on SQS backlog indicators
         var workerScaling = workerService.AutoScaleTaskCount(new EnableScalingProps
         {
@@ -574,7 +618,9 @@ public class LiveEventServiceStack : Stack
                 ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "grpc",
                 ["OTEL_SERVICE_NAME"] = "LiveEventService",
                 ["AWS__SQS__UseSqsForDomainEvents"] = "true",
-                ["Performance__BackgroundProcessing__UseInProcess"] = "false"
+                ["Performance__BackgroundProcessing__UseInProcess"] = "false",
+                // Provide Redis connection for distributed cache and GraphQL subscriptions
+                ["ConnectionStrings__Redis"] = $"{redisCluster.AttrRedisEndpointAddress}:{redisCluster.AttrRedisEndpointPort}"
             },
             Secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>
             {
@@ -716,7 +762,8 @@ service:
                 {
                     ["ASPNETCORE_ENVIRONMENT"] = "Production",
                     ["ASPNETCORE_HTTPS_PORT"] = "443",
-                    ["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "false"
+                    ["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "false",
+                    ["ConnectionStrings__Redis"] = $"{redisCluster.AttrRedisEndpointAddress}:{redisCluster.AttrRedisEndpointPort}"
                 },
                 Secrets = new Dictionary<string, Amazon.CDK.AWS.ECS.Secret>
                 {
@@ -726,6 +773,9 @@ service:
                 }
             }
         });
+
+        // Allow API tasks to connect to Redis
+        redisSecurityGroup.AddIngressRule(service.Service.Connections.SecurityGroups[0], Amazon.CDK.AWS.EC2.Port.Tcp(6379), "Allow API to access Redis");
 
         // Dedicated CloudWatch Log Group for audit logs with 90-day retention
         var auditLogGroup = new LogGroup(this, "AuditLogGroup", new LogGroupProps
@@ -834,6 +884,7 @@ service:
         new CfnOutput(this, "UserPoolClientId", new CfnOutputProps { Value = userPoolClient.UserPoolClientId });
         new CfnOutput(this, "IdentityPoolId", new CfnOutputProps { Value = identityPool.Ref });
         new CfnOutput(this, "AlbDnsName", new CfnOutputProps { Value = service.LoadBalancer.LoadBalancerDnsName });
+        new CfnOutput(this, "RedisEndpoint", new CfnOutputProps { Value = $"{redisCluster.AttrRedisEndpointAddress}:{redisCluster.AttrRedisEndpointPort}" });
         new CfnOutput(this, "DomainEventsQueueUrl", new CfnOutputProps { Value = domainEventsQueue.QueueUrl });
         new CfnOutput(this, "DomainEventsDlqUrl", new CfnOutputProps { Value = dlq.QueueUrl });
 

@@ -14,7 +14,7 @@ This document outlines deployment optimization strategies for the Live Event Ser
 - **Monitoring**: CloudWatch dashboards and alarms
 
 ### ⚠️ Deployment Limitations
-- **Single region deployment**: No multi-region failover
+- **Single region deployment**: No multi-region failover (CDK provisions one regional stack)
 - **Limited blue-green deployments**: Basic rolling updates only
 - **No canary deployments**: All traffic goes to new version immediately
 - **Manual rollback process**: No automated rollback capabilities
@@ -167,7 +167,7 @@ Note: The current stack uses ALB + ECS Fargate. If adopting API Gateway in the f
     aws elbv2 modify-listener --listener-arn $LISTENER_ARN --default-actions Type=forward,TargetGroupArn=$CANARY_TARGET_GROUP_ARN
 ```
 
-### 3. Multi-Region Deployment
+### 3. Multi-Region Deployment (future consideration)
 
 #### Primary Region (us-east-1)
 ```csharp
@@ -235,7 +235,7 @@ var secondaryRecord = new CfnRecordSet(this, "SecondaryRecord", new CfnRecordSet
 });
 ```
 
-### 4. Automated Rollback Strategy
+### 4. Automated Rollback Strategy (future consideration)
 
 #### CloudWatch Alarms for Rollback
 ```csharp

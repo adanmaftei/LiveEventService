@@ -13,22 +13,19 @@ The CI/CD pipeline is implemented using GitHub Actions and consists of the follo
 
 ## Pipeline Configuration
 
-### GitHub Actions Workflows
-
-The repository includes:
+### GitHub Actions Workflows (Implemented)
 
 - `.github/workflows/deploy.yml`
   - Jobs: lint-format, unit-tests, integration-tests, build-and-deploy
-  - Uses GitHub OIDC (`id-token: write`) and `aws-actions/configure-aws-credentials` to assume a role
-  - Runs tests then deploys the CDK stack (`src/infrastructure`) as the single source of truth
-  - CDK deploys the stack; AMP/AMG resources and provisioning have been removed to reduce cost. Observability uses CloudWatch + X-Ray.
+  - Uses OIDC + `aws-actions/configure-aws-credentials` to assume an AWS role
+  - Deploys CDK stack in `src/infrastructure` and runs EF Core migrations
+  - Smoke test hits `/health` using `API_ENDPOINT` secret
 
 - `.github/workflows/security-testing.yml`
-  - Runs dependency audit, OWASP Dependency-Check, SonarCloud (if configured), SCS, gitleaks
-  - Scheduled weekly and on PRs
+  - Runs NuGet vulnerability scan, OWASP Dependency-Check, Security Code Scan, SonarCloud (optional), gitleaks
+  - Also supports scheduled ZAP baseline scans (configure your public API URL)
 
 Notes:
-- Image builds and task-definition wiring are handled by CDK; pipeline does not push images directly.
-- EF migrations run as a separate step in the deploy job.
-- A simple smoke test hits the `/health` endpoint using `API_ENDPOINT` secret.
-- For multi-environment promotion, pass an image tag into CDK via context/parameters and manage environments via separate stacks.
+- CDK builds/publishes container images from the API and Worker directories via `ContainerImage.FromAsset`.
+- EF migrations run as a separate step post-deploy.
+- For multi-environment promotion, parameterize capacity and environment-specific values in CDK (`ApiDesiredCount`, `WorkerDesiredCount`, etc.) and deploy distinct stacks.

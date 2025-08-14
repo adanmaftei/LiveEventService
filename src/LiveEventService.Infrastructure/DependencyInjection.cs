@@ -54,6 +54,9 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<>), typeof(RepositoryBase<>));
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
+        // Field encryption service (no-op unless keys configured)
+        services.AddSingleton<Security.IFieldEncryptionService, Security.FieldEncryptionService>();
+
 
         // Register repository for EventRegistration with navigation safety
         services.AddScoped<IRepository<EventRegistration>, EventRegistrationRepository>();
@@ -197,6 +200,13 @@ public static class DependencyInjection
         if (!isTesting)
         {
             services.AddHostedService<OutboxProcessorBackgroundService>();
+            // Data retention job (disabled by default; enable via configuration)
+            services.Configure<RetentionOptions>(configuration.GetSection("Security:Retention"));
+            var retentionEnabled = configuration.GetValue<bool?>("Security:Retention:Enabled") ?? false;
+            if (retentionEnabled)
+            {
+                services.AddHostedService<RetentionBackgroundService>();
+            }
         }
 
         // Override metrics recorder with infrastructure implementation

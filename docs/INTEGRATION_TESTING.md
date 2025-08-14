@@ -190,7 +190,7 @@ public async Task CreateEvent_ShouldReturnSuccess_WhenAuthenticatedAsAdmin()
     
     response.StatusCode.Should().Be(HttpStatusCode.OK);
     var content = await response.Content.ReadAsStringAsync();
-    content.Should().Contain("\"success\": true");
+    content.Should().Contain("success": true");
 }
 
 [Fact]

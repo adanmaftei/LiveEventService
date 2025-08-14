@@ -156,6 +156,23 @@ public class UserTests : TestBase
     }
 
     [Fact]
+    public void DeactivateAndAnonymize_ShouldDeactivateAndClearPii()
+    {
+        // Arrange
+        var user = new User("auth0|testuser123", "test@example.com", "John", "Doe", "+1234567890");
+        var anonymizedEmail = $"anon+{user.Id}@example.invalid";
+
+        // Act
+        user.DeactivateAndAnonymize(anonymizedEmail);
+
+        // Assert
+        AssertFalse(user.IsActive);
+        AssertEqual(anonymizedEmail, user.Email);
+        AssertEqual(string.Empty, user.FirstName);
+        AssertEqual(string.Empty, user.LastName);
+        AssertEqual(string.Empty, user.PhoneNumber);
+    }
+    [Fact]
     public void RemoveRegistration_WithNonExistentRegistration_ShouldNotThrowException()
     {
         // Arrange
