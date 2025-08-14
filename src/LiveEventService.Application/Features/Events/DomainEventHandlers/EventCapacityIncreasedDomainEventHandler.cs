@@ -1,4 +1,3 @@
-using LiveEventService.Core.Events;
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Registrations.EventRegistration;
 using MediatR;
@@ -11,13 +10,13 @@ public class EventCapacityIncreasedDomainEventHandler
     : INotificationHandler<EventCapacityIncreasedNotification>
 {
     private readonly ILogger<EventCapacityIncreasedDomainEventHandler> _logger;
-    private readonly IRepository<LiveEventService.Core.Events.Event> _eventRepository;
-    private readonly IRepository<LiveEventService.Core.Registrations.EventRegistration.EventRegistration> _registrationRepository;
+    private readonly IRepository<Core.Events.Event> _eventRepository;
+    private readonly IRepository<Core.Registrations.EventRegistration.EventRegistration> _registrationRepository;
 
     public EventCapacityIncreasedDomainEventHandler(
         ILogger<EventCapacityIncreasedDomainEventHandler> logger,
-        IRepository<LiveEventService.Core.Events.Event> eventRepository,
-        IRepository<LiveEventService.Core.Registrations.EventRegistration.EventRegistration> registrationRepository)
+        IRepository<Core.Events.Event> eventRepository,
+        IRepository<Core.Registrations.EventRegistration.EventRegistration> registrationRepository)
     {
         _logger = logger;
         _eventRepository = eventRepository;
@@ -91,7 +90,7 @@ public class EventCapacityIncreasedDomainEventHandler
 }
 
 // Specification to get the next waitlisted registration
-public class NextWaitlistedRegistrationSpecification : BaseSpecification<LiveEventService.Core.Registrations.EventRegistration.EventRegistration>
+public class NextWaitlistedRegistrationSpecification : BaseSpecification<Core.Registrations.EventRegistration.EventRegistration>
 {
     public NextWaitlistedRegistrationSpecification(Guid eventId)
     {

@@ -7,6 +7,15 @@ namespace LiveEventService.API.Events;
 [ExtendObjectType(OperationTypeNames.Subscription)]
 public class EventSubscriptions
 {
+    public static ValueTask<ISourceStream<EventRegistrationNotification>> SubscribeToEventRegistrations(
+        Guid eventId,
+        [Service] ITopicEventReceiver eventReceiver,
+        CancellationToken cancellationToken)
+    {
+        var topic = $"eventRegistration_{eventId}";
+        return eventReceiver.SubscribeAsync<EventRegistrationNotification>(topic, cancellationToken);
+    }
+
     [Subscribe]
     [Topic("eventCreated")]
     public EventDto OnEventCreated(
@@ -26,15 +35,6 @@ public class EventSubscriptions
     public EventRegistrationNotification OnEventRegistrationByEventId(
         [EventMessage] EventRegistrationNotification notification,
         Guid eventId) => notification;
-
-    public static async ValueTask<ISourceStream<EventRegistrationNotification>> SubscribeToEventRegistrations(
-        Guid eventId,
-        [Service] ITopicEventReceiver eventReceiver,
-        CancellationToken cancellationToken)
-    {
-        var topic = $"eventRegistration_{eventId}";
-        return await eventReceiver.SubscribeAsync<EventRegistrationNotification>(topic, cancellationToken);
-    }
 }
 
 public class EventRegistrationNotification

@@ -1,5 +1,4 @@
 using Amazon.CDK;
-using Amazon.CDK.AWS.APIGateway;
 using Amazon.CDK.AWS.CertificateManager;
 using Amazon.CDK.AWS.Cognito;
 using Amazon.CDK.AWS.EC2;
@@ -18,15 +17,8 @@ using Amazon.CDK.AWS.Route53;
 using Constructs;
 using System.Text.Json;
 using Amazon.CDK.AWS.ApplicationAutoScaling;
-using Amazon.CDK.AWS.APS;
-using Amazon.CDK.AWS.Grafana;
-using Amazon.CDK.AWS.S3;
-using Amazon.CDK.AWS.Lambda;
-using Amazon.CDK.AWS.S3.Assets;
-using Amazon.CDK.CustomResources;
 using Amazon.CDK.AWS.SQS;
 using Amazon.CDK.AWS.ElastiCache;
-using Amazon.CDK.AWS.CodeDeploy;
 
 namespace LiveEventService.Infrastructure.CDK;
 
@@ -374,7 +366,7 @@ public class LiveEventServiceStack : Stack
 
         // ElastiCache (Redis) for caching and GraphQL subscriptions backplane
         // Security group for Redis allowing inbound from ECS services in the VPC
-        var redisSecurityGroup = new Amazon.CDK.AWS.EC2.SecurityGroup(this, "RedisSecurityGroup", new Amazon.CDK.AWS.EC2.SecurityGroupProps
+        var redisSecurityGroup = new SecurityGroup(this, "RedisSecurityGroup", new SecurityGroupProps
         {
             Vpc = vpc,
             AllowAllOutbound = true,
@@ -569,7 +561,7 @@ public class LiveEventServiceStack : Stack
         });
 
         // Target tracking: keep age of oldest message around 60s
-        workerScaling.ScaleToTrackCustomMetric("SqsAgeTarget", new Amazon.CDK.AWS.ECS.TrackCustomMetricProps
+        workerScaling.ScaleToTrackCustomMetric("SqsAgeTarget", new TrackCustomMetricProps
         {
             TargetValue = 60,
             Metric = new Metric(new MetricProps
@@ -972,9 +964,9 @@ service:
         if (hasDns)
         {
             // Create a health check that pings the ALB /health endpoint over HTTPS
-            var healthCheck = new Amazon.CDK.AWS.Route53.CfnHealthCheck(this, "AlbHealthCheck", new Amazon.CDK.AWS.Route53.CfnHealthCheckProps
+            var healthCheck = new CfnHealthCheck(this, "AlbHealthCheck", new CfnHealthCheckProps
             {
-                HealthCheckConfig = new Amazon.CDK.AWS.Route53.CfnHealthCheck.HealthCheckConfigProperty
+                HealthCheckConfig = new CfnHealthCheck.HealthCheckConfigProperty
                 {
                     Type = "HTTPS",
                     ResourcePath = "/health",
@@ -1017,7 +1009,7 @@ service:
             MaxCapacity = apiMaxCapacityParam.ValueAsNumber
         });
 
-        scaling.ScaleOnCpuUtilization("CpuScaling", new Amazon.CDK.AWS.ECS.CpuUtilizationScalingProps
+        scaling.ScaleOnCpuUtilization("CpuScaling", new CpuUtilizationScalingProps
         {
             TargetUtilizationPercent = 70,
             ScaleInCooldown = Duration.Minutes(3),
@@ -1025,12 +1017,12 @@ service:
         });
 
         // Replace the obsolete method call with the recommended property access
-        var reqPerTargetMetric = service.TargetGroup.Metrics.RequestCount(new Amazon.CDK.AWS.CloudWatch.MetricOptions
+        var reqPerTargetMetric = service.TargetGroup.Metrics.RequestCount(new MetricOptions
         {
             Period = Duration.Minutes(1)
         });
 
-        scaling.ScaleToTrackCustomMetric("RequestCountScaling", new Amazon.CDK.AWS.ECS.TrackCustomMetricProps
+        scaling.ScaleToTrackCustomMetric("RequestCountScaling", new TrackCustomMetricProps
         {
             TargetValue = 1000,
             Metric = reqPerTargetMetric

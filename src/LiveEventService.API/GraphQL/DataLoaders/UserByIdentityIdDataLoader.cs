@@ -1,5 +1,3 @@
-using GreenDonut;
-using LiveEventService.Application.Common.Interfaces;
 using LiveEventService.Application.Features.Users.Queries.GetUsersByIdentityIds;
 using LiveEventService.Core.Users.User;
 

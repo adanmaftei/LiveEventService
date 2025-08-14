@@ -27,7 +27,7 @@ The Live Event Service demonstrates **exemplary architecture** with Clean Archit
 - [x] **Modern Stack**: .NET 9, PostgreSQL, Docker, AWS ECS deployment
 - [x] **Comprehensive Testing**: Unit, integration, and architecture tests
 - [x] **DevOps Excellence**: IaC with AWS CDK, CI/CD with GitHub Actions
-- [x] **Observability**: Serilog, X-Ray tracing, health checks
+- [x] **Observability**: Serilog, tracing (Jaeger locally via OTel; X-Ray in prod), health checks
 
 ### ⚠️ **Identified Gaps & Improvement Opportunities**
 

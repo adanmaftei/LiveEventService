@@ -9,7 +9,7 @@ public class GetEventRegistrationsSpecification : BaseSpecification<EventRegistr
     {
         Criteria = er =>
             er.EventId == eventId &&
-            (status == null || status == string.Empty || er.Status == Enum.Parse<LiveEventService.Core.Registrations.EventRegistration.RegistrationStatus>(status)) &&
+            (status == null || status == string.Empty || er.Status == Enum.Parse<Core.Registrations.EventRegistration.RegistrationStatus>(status)) &&
             (!userId.HasValue || er.UserId == userId.Value);
 
         AddInclude(er => er.User);

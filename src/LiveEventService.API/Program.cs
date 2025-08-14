@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Amazon;
@@ -16,17 +15,11 @@ using LiveEventService.API.Users;
 using LiveEventService.Application;
 using LiveEventService.Core.Common;
 using LiveEventService.Infrastructure;
-using LiveEventService.Infrastructure.Configuration;
 using LiveEventService.Infrastructure.Data;
 using LiveEventService.Infrastructure.Telemetry;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.OutputCaching;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
-using Microsoft.Extensions.Http.Resilience;
 using Microsoft.OpenApi.Models;
-using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -512,7 +505,7 @@ app.UseWhen(context => !context.Request.Path.StartsWithSegments("/graphql"),
     appBuilder => appBuilder.UseMiddleware<GlobalExceptionMiddleware>());
 
 // Apply security headers
-app.UseMiddleware<LiveEventService.API.Middleware.SecurityHeadersMiddleware>();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 // Enable response compression
 app.UseResponseCompression();

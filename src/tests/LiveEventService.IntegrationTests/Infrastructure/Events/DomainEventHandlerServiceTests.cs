@@ -287,10 +287,10 @@ public class DomainEventHandlerServiceTests : BaseLiveEventsTests
         initialWaitlisted.Should().HaveCount(2);
 
         // Act: Update event capacity to 3
-        var updateEventCommand = new LiveEventService.Application.Features.Events.Event.Update.UpdateEventCommand
+        var updateEventCommand = new Application.Features.Events.Event.Update.UpdateEventCommand
         {
             EventId = eventId,
-            Event = new LiveEventService.Application.Features.Events.Event.UpdateEventDto
+            Event = new Application.Features.Events.Event.UpdateEventDto
             {
                 Id = eventId,
                 Title = "Updated Test Event",

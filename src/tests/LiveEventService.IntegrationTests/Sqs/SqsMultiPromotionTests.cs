@@ -1,10 +1,8 @@
-using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
 using LiveEventService.Application.Common.Models;
 using LiveEventService.Application.Features.Events.EventRegistration;
 using LiveEventService.IntegrationTests.Infrastructure.Sqs;
-using Xunit;
 using LiveEventService.Application.Features.Events.Event;
 
 namespace LiveEventService.IntegrationTests.Sqs;

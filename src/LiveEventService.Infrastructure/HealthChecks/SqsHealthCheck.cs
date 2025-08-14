@@ -1,5 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
 using Amazon.SQS;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -35,7 +33,7 @@ public sealed class SqsHealthCheck : IHealthCheck
 
             return HealthCheckResult.Unhealthy("SQS queue URL could not be resolved");
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             return HealthCheckResult.Unhealthy("SQS health check failed", ex);
         }

@@ -90,7 +90,7 @@ public static class EventEndpoints
         endpoints.MapPost("/api/events", async (
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
-            [FromServices] LiveEventService.API.Utilities.IIdempotencyStore idempo,
+            [FromServices] Utilities.IIdempotencyStore idempo,
             [FromServices] IOutputCacheStore outputCacheStore,
             [FromBody] CreateEventCommand command,
             HttpContext httpContext,
@@ -116,7 +116,7 @@ public static class EventEndpoints
                 // Evict output cache tags for event lists/details
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.EventDetail, ct);
-                await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
+                await audit.LogAsync(new AuditLogEntry
                 {
                     Action = "CreateEvent",
                     EntityType = "Event",
@@ -158,7 +158,7 @@ public static class EventEndpoints
                 await cache.RemoveAsync($"event:{id}:graphql", httpContext.RequestAborted);
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.EventDetail, ct);
-                await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
+                await audit.LogAsync(new AuditLogEntry
                 {
                     Action = "UpdateEvent",
                     EntityType = "Event",
@@ -196,7 +196,7 @@ public static class EventEndpoints
                 await cache.RemoveAsync($"event:{id}:graphql", httpContext.RequestAborted);
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.EventDetail, ct);
-                await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
+                await audit.LogAsync(new AuditLogEntry
                 {
                     Action = "DeleteEvent",
                     EntityType = "Event",
@@ -210,7 +210,7 @@ public static class EventEndpoints
 
         endpoints.MapPost("/api/events/{eventId:guid}/register", async (
             [FromServices] IMediator mediator,
-            [FromServices] LiveEventService.API.Utilities.IIdempotencyStore idempo,
+            [FromServices] Utilities.IIdempotencyStore idempo,
             Guid eventId,
             [FromBody] RegisterForEventCommand command,
             HttpContext httpContext) =>
@@ -326,7 +326,7 @@ public static class EventEndpoints
         endpoints.MapPost("/api/events/{eventId:guid}/registrations/{registrationId:guid}/confirm", async (
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
-            [FromServices] LiveEventService.API.Utilities.IIdempotencyStore idempo,
+            [FromServices] Utilities.IIdempotencyStore idempo,
             Guid eventId,
             Guid registrationId,
             HttpContext httpContext) =>
@@ -348,7 +348,7 @@ public static class EventEndpoints
             if (result.Success)
             {
                 AppMetrics.RegistrationsCreated.Add(1);
-                await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
+                await audit.LogAsync(new AuditLogEntry
                 {
                     Action = "ConfirmRegistration",
                     EntityType = "EventRegistration",
@@ -364,7 +364,7 @@ public static class EventEndpoints
         endpoints.MapPost("/api/events/{eventId:guid}/registrations/{registrationId:guid}/cancel", async (
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
-            [FromServices] LiveEventService.API.Utilities.IIdempotencyStore idempo,
+            [FromServices] Utilities.IIdempotencyStore idempo,
             Guid eventId,
             Guid registrationId,
             HttpContext httpContext) =>
@@ -387,7 +387,7 @@ public static class EventEndpoints
             if (result.Success)
             {
                 AppMetrics.RegistrationsCancelled.Add(1);
-                await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
+                await audit.LogAsync(new AuditLogEntry
                 {
                     Action = "CancelRegistration",
                     EntityType = "EventRegistration",
@@ -422,7 +422,7 @@ public static class EventEndpoints
                 await cache.RemoveAsync($"event:{eventId}:graphql", httpContext.RequestAborted);
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.EventDetail, ct);
-                await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
+                await audit.LogAsync(new AuditLogEntry
                 {
                     Action = "PublishEvent",
                     EntityType = "Event",
@@ -455,7 +455,7 @@ public static class EventEndpoints
                 await cache.RemoveAsync($"event:{eventId}:graphql", httpContext.RequestAborted);
                 await outputCacheStore.EvictByTagAsync(OutputCachePolicies.EventListPublic, ct);
                 await outputCacheStore.EvictByTagAsync(OutputCachePolicies.EventDetailPublic, ct);
-                await audit.LogAsync(new LiveEventService.Core.Common.AuditLogEntry
+                await audit.LogAsync(new AuditLogEntry
                 {
                     Action = "UnpublishEvent",
                     EntityType = "Event",

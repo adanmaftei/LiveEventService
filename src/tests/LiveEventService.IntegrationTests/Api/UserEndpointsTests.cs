@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using LiveEventService.IntegrationTests.Infrastructure;
 using LiveEventService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;

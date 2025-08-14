@@ -1,6 +1,6 @@
-# Distributed Tracing (OpenTelemetry + ADOT Collector with AWS X-Ray Export)
+# Distributed Tracing (OpenTelemetry → OTel Collector → Jaeger locally; ADOT/X-Ray in prod)
 
-This document describes the distributed tracing implementation using OpenTelemetry in the Live Event Service. Traces are exported via OTLP to the AWS Distro for OpenTelemetry (ADOT) Collector, which sends them to AWS X-Ray.
+This document describes the distributed tracing implementation using OpenTelemetry in the Live Event Service. Locally, traces are exported via OTLP to the OpenTelemetry Collector and visualized in Jaeger. In production, traces are exported via the ADOT Collector to AWS X-Ray.
 
 ## Overview
 
@@ -10,8 +10,8 @@ The Live Event Service implements comprehensive distributed tracing using AWS X-
 
 - ✅ OpenTelemetry SDK integrated for ASP.NET Core and HttpClient
 - ✅ Metrics: Prometheus endpoint exposed for scraping (local); CloudWatch EMF in production
-- ✅ Tracing: OTLP exporter configured (endpoint provided via environment, e.g. ADOT Collector)
-- ✅ Local development: Prometheus metrics available; traces sent to local/remote collector when configured
+- ✅ Tracing: OTLP exporter configured (endpoint provided via environment)
+- ✅ Local development: Jaeger UI available at http://localhost:16686 via OTel Collector
 
 ## Program.cs Integration
 
@@ -44,7 +44,7 @@ Typical environment variables for ADOT Collector + OTLP:
 
 ```bash
 OTEL_SERVICE_NAME=LiveEventService
-OTEL_EXPORTER_OTLP_ENDPOINT=http://adot-collector:4317
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 OTEL_RESOURCE_ATTRIBUTES=service.namespace=live-event-service,service.version=1.0.0
 ```
 
@@ -129,14 +129,14 @@ Expected log output showing X-Ray traces:
 2024-01-20T10:30:45.123Z [INF] HTTP GET /health responded 200 in 45.2ms (Root=1-65a2b4d5-1234567890abcdef; Parent=abcdef1234567890; Sampled=1)
 ```
 
-### Check ADOT Collector
+### Check OTel Collector / Jaeger (local)
 
 ```bash
-# Verify Collector health
-curl http://adot-collector:13133/healthz
+# Verify Collector ports are open (gRPC 4317)
+nc -zv localhost 4317 || echo "OTLP gRPC not exposed on host (ok)"
 
-# Check X-Ray traces (requires awslocal CLI)
-awslocal xray get-trace-summaries --time-range-type TimeRangeByStartTime --start-time 2024-01-20T00:00:00 --end-time 2024-01-20T23:59:59
+# Open Jaeger UI
+# http://localhost:16686
 ```
 
 ### Test Trace Generation
@@ -152,23 +152,9 @@ docker logs liveevent-api --tail 20 | grep "test-trace-123"
 
 ## Viewing Traces
 
-### Development (LocalStack)
+### Development (Local)
 
-1. **LocalStack Dashboard** (if available):
-   - Access LocalStack web interface
-   - Navigate to X-Ray section
-
-2. **AWS CLI with LocalStack**:
-   ```bash
-   # Install awslocal
-   pip install awscli-local
-   
-   # Get trace summaries
-   awslocal xray get-trace-summaries --time-range-type TimeRangeByStartTime --start-time $(date -d '1 hour ago' -u +%Y-%m-%dT%H:%M:%S) --end-time $(date -u +%Y-%m-%dT%H:%M:%S)
-   
-   # Get specific trace details
-   awslocal xray batch-get-traces --trace-ids <trace-id>
-   ```
+Use the Jaeger UI at `http://localhost:16686` to view traces.
 
 ### Production (AWS Console)
 
@@ -281,8 +267,8 @@ If traces aren't appearing:
 
 2. **Check Application Logs**:
    ```bash
-   # Look for X-Ray initialization messages
-   docker logs liveevent-api | grep -i xray
+# Look for OTLP exporter messages
+docker logs liveevent-api | grep -i otlp
    ```
 
 3. **Verify Configuration**:

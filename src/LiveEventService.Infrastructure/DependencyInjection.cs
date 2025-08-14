@@ -6,8 +6,6 @@ using LiveEventService.Infrastructure.Events;
 using LiveEventService.Infrastructure.Registrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Options;
 using LiveEventService.Infrastructure.Configuration;
 using LiveEventService.Core.Registrations.EventRegistration;
 using LiveEventService.Core.Users.User;

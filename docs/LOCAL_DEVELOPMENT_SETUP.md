@@ -19,10 +19,8 @@ Before running the application, ensure:
    ```
 
 2. **Port availability** (check these ports are not in use):
-   - 5432 (PostgreSQL)
-   - 4566 (LocalStack)
-   - 5050 (pgAdmin)
-   - 5000/5001 (API)
+   - 5432 (PostgreSQL), 4566 (LocalStack), 5050 (pgAdmin)
+   - 5000 (API), 9090 (Prometheus), 3000 (Grafana), 3100 (Loki), 16686 (Jaeger)
 
 3. **Disk space** (Docker images require ~2GB):
    ```bash
@@ -45,7 +43,7 @@ curl http://localhost:5000/health
 
 ```bash
 # Start supporting services only
-docker-compose up -d db localstack pgadmin
+docker-compose up -d db localstack pgadmin redis jaeger otel-collector
 
 # Run API locally for development
 dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
@@ -55,8 +53,9 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
 
 | Service | Port | URL | Status | Credentials |
 |---------|------|-----|--------|-------------|
-| **API** | 5000/5001 | http://localhost:5000/health | ✅ **Working** | - |
-| **Swagger UI** | 5000 | http://localhost:5000/swagger/index.html | ✅ **Working** | - |
+| **API** | 5000 | http://localhost:5000/health | ✅ **Working** | - |
+| **Swagger UI** | 5000 | http://localhost:5000/ | ✅ **Working (Dev)** | - |
+| **Swagger JSON** | 5000 | http://localhost:5000/swagger/v1/swagger.json | ✅ **Working (Dev)** | - |
 | **PostgreSQL** | 5432 | Direct connection | ✅ **Working** | postgres/postgres |
 | **pgAdmin** | 5050 | http://localhost:5050 | ✅ **Working** | admin@example.com / admin |
 | **LocalStack** | 4566 | http://localhost:4566/_localstack/health | ✅ **Working** | test/test |
@@ -64,7 +63,7 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
 | **Grafana** | 3000 | http://localhost:3000 | ✅ **Working** | Optional for local dashboards |
 | **Loki** | 3100 | http://localhost:3100 | ✅ **Working** | - |
 | **Jaeger UI** | 16686 | http://localhost:16686 | ✅ **Working** | - |
-| **ADOT Collector** | 4317/4318 | OTLP gRPC/HTTP endpoints | ✅ **Working** | - |
+| **OpenTelemetry Collector** | 4317/4318 | OTLP gRPC/HTTP endpoints | ✅ **Working** | - |
 | **Redis** | 6379 | Direct connection | ✅ **Working** | - |
 
 ## Fully Working Features
@@ -77,7 +76,7 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
   - Entity Framework migrations automatically applied
   - Database schema with test data seeded
   - Serilog request logging with correlation IDs
-  - OpenTelemetry metrics (Prometheus scraping) and tracing via OTLP → ADOT Collector/X-Ray
+- OpenTelemetry metrics (Prometheus scraping) and tracing via OTLP → OpenTelemetry Collector → Jaeger (local); X-Ray in production
   - Distributed cache (Redis) enabled; Testing uses a disabled in-memory cache
   - Health checks (PostgreSQL + Cognito + S3 when `AWS:S3BucketName` set)
   - CORS configured for frontend integration
@@ -137,9 +136,9 @@ dotnet run --project src/LiveEventService.API/LiveEventService.API.csproj
 ## API Endpoints
 
 ### Core Endpoints
-- **Health Check**: `GET /health` - Returns "Healthy"
-- **Swagger UI**: `GET /swagger/index.html` - API documentation
-- **GraphQL**: `GET /graphql` - GraphQL playground (development only)
+- **Health Check**: `GET /health` - Returns JSON status and check details
+- **Swagger UI (Dev)**: `GET /` (Swagger JSON at `/swagger/v1/swagger.json`)
+- **GraphQL**: `POST /graphql` (Playground at `/graphql/playground` in development)
 
 ### Example API Usage
 
@@ -210,7 +209,7 @@ docker-compose up -d
 curl http://localhost:5000/health
 
 # Option 2: Development mode (API running locally)
-docker-compose up -d db localstack pgadmin
+docker-compose up -d db localstack pgadmin redis jaeger otel-collector
 dotnet run --project src/LiveEventService.API/
 ```
 

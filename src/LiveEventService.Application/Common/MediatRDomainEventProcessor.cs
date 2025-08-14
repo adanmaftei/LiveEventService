@@ -64,13 +64,13 @@ public class MediatRDomainEventProcessor : IDomainEventProcessor
         {
             // Map domain events to their corresponding MediatR notifications
             // These will be processed by the existing domain event handlers
-            { typeof(LiveEventService.Core.Registrations.EventRegistration.EventRegistrationCreatedDomainEvent), typeof(EventRegistrationCreatedNotification) },
-            { typeof(LiveEventService.Core.Registrations.EventRegistration.EventRegistrationPromotedDomainEvent), typeof(EventRegistrationPromotedNotification) },
-            { typeof(LiveEventService.Core.Registrations.EventRegistration.EventRegistrationCancelledDomainEvent), typeof(EventRegistrationCancelledNotification) },
-            { typeof(LiveEventService.Core.Registrations.EventRegistration.WaitlistPositionChangedDomainEvent), typeof(WaitlistPositionChangedNotification) },
-            { typeof(LiveEventService.Core.Registrations.EventRegistration.WaitlistRemovalDomainEvent), typeof(WaitlistRemovalNotification) },
-            { typeof(LiveEventService.Core.Registrations.EventRegistration.RegistrationWaitlistedDomainEvent), typeof(RegistrationWaitlistedNotification) },
-            { typeof(LiveEventService.Core.Events.EventCapacityIncreasedDomainEvent), typeof(EventCapacityIncreasedNotification) }
+            { typeof(Core.Registrations.EventRegistration.EventRegistrationCreatedDomainEvent), typeof(EventRegistrationCreatedNotification) },
+            { typeof(Core.Registrations.EventRegistration.EventRegistrationPromotedDomainEvent), typeof(EventRegistrationPromotedNotification) },
+            { typeof(Core.Registrations.EventRegistration.EventRegistrationCancelledDomainEvent), typeof(EventRegistrationCancelledNotification) },
+            { typeof(Core.Registrations.EventRegistration.WaitlistPositionChangedDomainEvent), typeof(WaitlistPositionChangedNotification) },
+            { typeof(Core.Registrations.EventRegistration.WaitlistRemovalDomainEvent), typeof(WaitlistRemovalNotification) },
+            { typeof(Core.Registrations.EventRegistration.RegistrationWaitlistedDomainEvent), typeof(RegistrationWaitlistedNotification) },
+            { typeof(Core.Events.EventCapacityIncreasedDomainEvent), typeof(EventCapacityIncreasedNotification) }
         };
     }
 

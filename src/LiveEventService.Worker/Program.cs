@@ -5,10 +5,6 @@ using LiveEventService.Application;
 using LiveEventService.Core.Common;
 using LiveEventService.Infrastructure;
 using LiveEventService.Infrastructure.Configuration;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
 

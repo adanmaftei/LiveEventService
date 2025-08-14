@@ -1,26 +1,18 @@
-using System.Security.Claims;
-using System.Text.Encodings.Web;
-using Amazon;
 using Amazon.SQS;
 using Amazon.SQS.Model;
 using Amazon.Runtime;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Testcontainers.LocalStack;
 using Testcontainers.PostgreSql;
 using DotNet.Testcontainers.Builders;
 using LiveEventService.Infrastructure.Data;
 using Npgsql;
 using LiveEventService.Core.Common;
-using System.Text.Json;
-using DotNet.Testcontainers.Containers;
-using LiveEventService.IntegrationTests.Infrastructure;
 
 namespace LiveEventService.IntegrationTests.Infrastructure.Sqs;
 

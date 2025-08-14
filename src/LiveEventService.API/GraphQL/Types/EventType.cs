@@ -1,7 +1,5 @@
 using LiveEventService.API.GraphQL.DataLoaders;
-using LiveEventService.Application.Common.Interfaces;
 using LiveEventService.Application.Features.Events.Event;
-using LiveEventService.Core.Users.User;
 
 namespace LiveEventService.API.GraphQL.Types;
 

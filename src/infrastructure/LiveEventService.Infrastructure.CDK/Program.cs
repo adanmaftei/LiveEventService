@@ -1,5 +1,4 @@
 using Amazon.CDK;
-using System;
 
 namespace LiveEventService.Infrastructure.CDK
 {

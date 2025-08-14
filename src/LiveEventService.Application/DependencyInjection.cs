@@ -7,7 +7,6 @@ using LiveEventService.Application.Common;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
 using LiveEventService.Application.Configuration;
 
 namespace LiveEventService.Application;
@@ -68,7 +67,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationHandler<EventCapacityIncreasedNotification>, EventCapacityIncreasedDomainEventHandler>();
 
         // Default metrics recorder (overridden in Infrastructure)
-        services.AddSingleton<LiveEventService.Core.Common.IMetricRecorder, LiveEventService.Core.Common.NoOpMetricRecorder>();
+        services.AddSingleton<IMetricRecorder, NoOpMetricRecorder>();
 
         return services;
     }

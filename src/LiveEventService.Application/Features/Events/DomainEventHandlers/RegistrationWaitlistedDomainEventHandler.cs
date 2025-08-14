@@ -1,7 +1,6 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using LiveEventService.Core.Common;
-using LiveEventService.Core.Events;
 using LiveEventService.Application.Common.Notifications;
 
 namespace LiveEventService.Application.Features.Events.DomainEventHandlers;
@@ -10,11 +9,11 @@ public class RegistrationWaitlistedDomainEventHandler
     : INotificationHandler<RegistrationWaitlistedNotification>
 {
     private readonly ILogger<RegistrationWaitlistedDomainEventHandler> _logger;
-    private readonly IRepository<LiveEventService.Core.Events.Event> _eventRepository;
+    private readonly IRepository<Core.Events.Event> _eventRepository;
 
     public RegistrationWaitlistedDomainEventHandler(
         ILogger<RegistrationWaitlistedDomainEventHandler> logger,
-        IRepository<LiveEventService.Core.Events.Event> eventRepository)
+        IRepository<Core.Events.Event> eventRepository)
     {
         _logger = logger;
         _eventRepository = eventRepository;

@@ -321,6 +321,6 @@ public async Task RegisterForFullEvent_ShouldRaiseDomainEvent()
 ## Local development notes
 
 - Docker Compose provisions LocalStack and mounts `localstack-init/01-setup-aws-resources.sh` to create S3, Cognito, CloudWatch log group, and SQS queues used by the app.
-- Observability containers (ADOT Collector, Prometheus, Loki, Promtail, Grafana) are included; the Grafana importer loads the LiveEvent overview dashboard automatically.
+- Observability containers (OpenTelemetry Collector, Prometheus, Loki, Promtail, Grafana) are included; the Grafana importer loads the LiveEvent overview dashboard automatically.
 
 The domain event system provides reliable, real-time communication between the backend and frontend, enabling rich user experiences with waitlist updates and registration changes.

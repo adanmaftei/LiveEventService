@@ -1,7 +1,5 @@
-using System.Globalization;
 using LiveEventService.API.Constants;
 using LiveEventService.API.Configuration;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace LiveEventService.API.Middleware;
@@ -21,7 +19,7 @@ public sealed class SecurityHeadersMiddleware
         this.securityOptions = options.Value;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public Task InvokeAsync(HttpContext context)
     {
         context.Response.OnStarting(() =>
         {
@@ -47,7 +45,7 @@ public sealed class SecurityHeadersMiddleware
             return Task.CompletedTask;
         });
 
-        await next(context);
+        return next(context);
     }
 }
 

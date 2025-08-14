@@ -102,7 +102,7 @@ public class ArchitectureTests
             .That()
             .HaveNameEndingWith("CommandHandler")
             .Should()
-            .ImplementInterface(typeof(LiveEventService.Application.Common.Interfaces.ICommandHandler<,>))
+            .ImplementInterface(typeof(Application.Common.Interfaces.ICommandHandler<,>))
             .GetResult();
 
         Assert.True(result.IsSuccessful, "Command handlers should implement ICommandHandler interface");
@@ -115,7 +115,7 @@ public class ArchitectureTests
             .That()
             .HaveNameEndingWith("QueryHandler")
             .Should()
-            .ImplementInterface(typeof(LiveEventService.Application.Common.Interfaces.IQueryHandler<,>))
+            .ImplementInterface(typeof(Application.Common.Interfaces.IQueryHandler<,>))
             .GetResult();
 
         Assert.True(result.IsSuccessful, "Query handlers should implement IQueryHandler interface");
@@ -164,7 +164,7 @@ public class ArchitectureTests
             .Or()
             .HaveName("EventRegistration")
             .Should()
-            .Inherit(typeof(LiveEventService.Core.Common.Entity))
+            .Inherit(typeof(Core.Common.Entity))
             .GetResult();
 
         Assert.True(result.IsSuccessful, "Domain entities should inherit from Entity base class");
@@ -181,7 +181,7 @@ public class ArchitectureTests
             .Or()
             .HaveName("EventRegistrationCancelledDomainEvent")
             .Should()
-            .Inherit(typeof(LiveEventService.Core.Common.DomainEvent))
+            .Inherit(typeof(Core.Common.DomainEvent))
             .GetResult();
 
         Assert.True(result.IsSuccessful, "Domain events should inherit from DomainEvent base class");

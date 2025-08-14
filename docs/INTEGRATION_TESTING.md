@@ -9,7 +9,7 @@ The Live Event Service includes comprehensive integration tests that verify the 
 ### 🧪 **Test Structure**
 
 ```
-src/LiveEventService.IntegrationTests/
+tests/LiveEventService.IntegrationTests/
 ├── Infrastructure/
 │   ├── LiveEventTestApplicationFactory.cs    # Test application setup with Testcontainers
 │   └── TestDataBuilder.cs                    # Test data generation using Bogus
@@ -245,19 +245,19 @@ This allows testing different user scenarios without complex token management.
 
 ```bash
 # Run all integration tests
-dotnet test src/LiveEventService.IntegrationTests/
+dotnet test tests/LiveEventService.IntegrationTests/
 
 # Run specific test class
-dotnet test src/LiveEventService.IntegrationTests/ --filter "EventEndpointsTests"
+dotnet test tests/LiveEventService.IntegrationTests/ --filter "FullyQualifiedName~EventEndpointsTests"
 
 # Run tests with verbose output
-dotnet test src/LiveEventService.IntegrationTests/ --verbosity normal
+dotnet test tests/LiveEventService.IntegrationTests/ --verbosity normal
 
 # Run tests in parallel (default). Isolation is handled per class.
-dotnet test src/LiveEventService.IntegrationTests/
+dotnet test tests/LiveEventService.IntegrationTests/
 
 # Generate coverage report
-dotnet test src/LiveEventService.IntegrationTests/ --collect:"XPlat Code Coverage"
+dotnet test tests/LiveEventService.IntegrationTests/ --collect:"XPlat Code Coverage"
 ```
 
 ### 🐳 **Container Management**
@@ -358,7 +358,7 @@ The tests are configured to run in GitHub Actions with Docker support:
 - name: Run Integration Tests
   run: |
     docker info  # Verify Docker is available
-    dotnet test src/LiveEventService.IntegrationTests/ --configuration Release
+    dotnet test tests/LiveEventService.IntegrationTests/LiveEventService.IntegrationTests.csproj --configuration Release
 ```
 
 ### 🎯 **Best Practices for CI**

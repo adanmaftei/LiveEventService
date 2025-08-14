@@ -177,7 +177,7 @@ public class UserTests : TestBase
     {
         // Arrange
         var user = new User("auth0|testuser123", "test@example.com", "John", "Doe", "+1234567890");
-        var @event = Fixture.Create<LiveEventService.Core.Events.Event>();
+        var @event = Fixture.Create<Event>();
         var registration = new EventRegistration(@event, user);
 
         // Act & Assert

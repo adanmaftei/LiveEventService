@@ -11,7 +11,7 @@ The monitoring and health check system is **completely working** with:
 - ✅ AWS Cognito configuration validation
 - ✅ S3 bucket reachability (enabled when `AWS:S3BucketName` is configured)
 - ✅ Structured logging integration for health events
-- ✅ OpenTelemetry metrics & tracing; export via OTLP (ADOT → X-Ray)
+- ✅ OpenTelemetry metrics & tracing; export via OTLP (OTel Collector → Jaeger locally; ADOT → X-Ray in prod)
 
 ## Overview
 
@@ -163,7 +163,7 @@ curl -w "Total time: %{time_total}s\n" -s http://localhost:5000/health > /dev/nu
 
 ### Cloud Monitoring (AWS)
 
-- Traces: exported via OTLP to ADOT Collector → AWS X-Ray
+- Traces: exported via OTLP to OTel Collector → Jaeger (local); ADOT Collector → AWS X-Ray (prod)
 - Metrics: exported via OTLP to ADOT Collector → CloudWatch EMF (service, infrastructure). Prometheus metrics are exposed at `/metrics` for AMP scraping when enabled.
 - Logs: container logs to CloudWatch Logs (short retention for cost control). Serilog structured logs support correlation IDs. Dedicated audit logs go to a separate log group.
 - Dashboard and alarms provisioned via CDK (ALB/ECS Fargate/RDS). Email alerts via SNS.
@@ -221,7 +221,7 @@ Available dashboards (auto-imported):
 - Cache Efficiency
 
 Notes:
-- The ADOT Collector is configured at `observability/otel-collector-config.yaml` to export traces to X-Ray (via LocalStack) and metrics to CloudWatch EMF locally.
+- The OpenTelemetry Collector is configured at `observability/otel-collector-config.yaml` to export traces to Jaeger locally and metrics to debug; in production the ADOT sidecar is used to export to X-Ray/EMF (see CDK).
 - Prometheus scrapes the API metrics at `/metrics` (see `observability/prometheus.yml`).
 
 ```bash

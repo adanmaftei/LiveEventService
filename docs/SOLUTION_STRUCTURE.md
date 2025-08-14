@@ -75,7 +75,7 @@ LiveEventService.sln
 │   └── 🔗 LiveEventService.IntegrationTests
 ├── 📁 docs/                         # All documentation files
 ├── 📁 .github/workflows/            # CI/CD workflows
-└── 📁 observability/                # Local observability configs (Prometheus, Grafana, Loki, ADOT)
+└── 📁 observability/                # Local observability configs (Prometheus, Grafana, Loki, OTel Collector)
 ```
 
 ### 🏗️ **Project Structure Details**

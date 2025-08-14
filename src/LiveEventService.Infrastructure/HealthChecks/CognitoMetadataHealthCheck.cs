@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
-using System.Net.Http;
 
 namespace LiveEventService.Infrastructure.HealthChecks;
 

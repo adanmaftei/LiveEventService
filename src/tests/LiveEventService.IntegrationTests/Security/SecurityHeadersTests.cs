@@ -1,10 +1,6 @@
 using System.Net;
-using System.Net.Http;
-using System.Threading.Tasks;
-using FluentAssertions;
 using LiveEventService.API.Constants;
 using LiveEventService.IntegrationTests.Infrastructure;
-using Xunit;
 
 namespace LiveEventService.IntegrationTests.Security;
 

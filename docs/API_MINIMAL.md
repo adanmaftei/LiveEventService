@@ -10,7 +10,7 @@ The Live Event Service API includes:
 - ✅ JWT authentication wiring (Cognito config; tests use test auth)
 - ✅ CORS policy sourced from `Security:Cors:AllowedOrigins` (allow-all in Development/Testing when unset)
 - ✅ Serilog structured logging with correlation IDs
-- ✅ OpenTelemetry metrics (Prometheus) and tracing via OTLP → ADOT Collector/X-Ray
+- ✅ OpenTelemetry metrics (Prometheus) and tracing via OTLP → OTel Collector → Jaeger (local); ADOT/X-Ray (prod)
 - ✅ Field-level encryption for PII via EF value converters; keys sourced from AWS Secrets Manager (KMS-backed)
 
 ## Overview
@@ -24,9 +24,11 @@ The Events REST API is implemented using .NET 9 Minimal APIs directly in `Progra
 ## Quick Access
 
 - **API Base URL**: http://localhost:5000
-- **Swagger UI**: http://localhost:5000/swagger/index.html
+- **Swagger UI** (Development): http://localhost:5000/
+- **Swagger JSON**: http://localhost:5000/swagger/v1/swagger.json
 - **Health Check**: http://localhost:5000/health
- - **GraphQL Playground**: http://localhost:5000/graphql (Development only)
+ - **GraphQL Endpoint**: http://localhost:5000/graphql
+ - **GraphQL Playground** (Development): http://localhost:5000/graphql/playground
  
 ### Security & Privacy
 - PII fields are encrypted at rest using AES; secrets are supplied via `Security:Encryption:Key` and `Security:Encryption:IV` injected from Secrets Manager. In dev/test without secrets, converters pass through for ease of setup.
@@ -68,7 +70,7 @@ The Events REST API is implemented using .NET 9 Minimal APIs directly in `Progra
 | Method | Route                | Description                           | Status |
 |--------|----------------------|---------------------------------------|--------|
 | GET    | `/health`           | Health check with service status     | ✅ Working |
-| GET    | `/swagger`          | API documentation (Swagger UI)       | ✅ Working |
+| GET    | `/`          | API documentation (Swagger UI in Dev)       | ✅ Working |
 | GET    | `/graphql`          | GraphQL endpoint (playground in development) | ✅ Working |
 
 ## Health Check Details
@@ -260,7 +262,7 @@ For validation failures (HTTP 400), the response is:
 ## Swagger/OpenAPI Documentation
 
 ### Access Swagger UI
-Navigate to: http://localhost:5000/swagger/index.html
+Navigate to: http://localhost:5000/
 
 ### Features
 - **Interactive API Testing**: Test endpoints directly from the browser
@@ -269,7 +271,7 @@ Navigate to: http://localhost:5000/swagger/index.html
 - **Schema Documentation**: Detailed model definitions
 
 ### Testing with Swagger
-1. Open http://localhost:5000/swagger/index.html
+1. Open http://localhost:5000/
 2. Click "Authorize" to add JWT token (when available)
 3. Select an endpoint to test
 4. Fill in required parameters
@@ -278,7 +280,8 @@ Navigate to: http://localhost:5000/swagger/index.html
 ## GraphQL Integration
 
 ### GraphQL Playground
-Access at: http://localhost:5000/graphql (development only)
+Access endpoint: http://localhost:5000/graphql
+Playground (Dev): http://localhost:5000/graphql/playground
 
 ### Available Operations
 - **Queries**: Fetch events, users, registrations
@@ -352,7 +355,8 @@ Public GETs include short Cache-Control headers to enable browser/CDN caching:
 - Event detail: `Cache-Control: public, max-age=120`
 
 ### Distributed Tracing
-- **X-Ray Integration**: All requests traced automatically
+- **Local**: Traces exported via OTLP to OTel Collector and visible in Jaeger
+- **Production**: ADOT Collector exports traces to X-Ray
 - **Correlation IDs**: Track requests across services
 - **SQL Query Tracing**: Database operations monitored
 
@@ -386,7 +390,7 @@ docker-compose up -d
 curl http://localhost:5000/health
 
 # Access Swagger UI
-open http://localhost:5000/swagger/index.html
+open http://localhost:5000/
 
 # Test GraphQL
 open http://localhost:5000/graphql
