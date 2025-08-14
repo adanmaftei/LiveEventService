@@ -13,8 +13,8 @@ The Live Event Service solution is organized using **Clean Architecture** and **
 │                    Presentation Layer                       │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │              LiveEventService.API                   │   │
-│  │  • REST Controllers                                 │   │
-│  │  • GraphQL Resolvers                                │   │
+│  │  • Minimal APIs (REST endpoints)                    │   │
+│  │  • GraphQL (Types, Queries, Mutations, Subscriptions)│   │
 │  │  • Middleware (Auth, Logging, etc.)                 │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘

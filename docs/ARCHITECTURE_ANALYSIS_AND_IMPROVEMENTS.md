@@ -41,14 +41,14 @@ The Live Event Service demonstrates **exemplary architecture** with Clean Archit
 #### **Security**
 - [x] Baseline implemented: HTTPS/HSTS (prod), security headers, rate limiting, CORS
 - [x] Audit logging via dedicated CloudWatch sink for admin-sensitive actions
-- [ ] Secret management via AWS Secrets Manager/SSM
-- [ ] CSP report endpoint + report-only rollout
+- [x] Secret management via AWS Secrets Manager (KMS‑backed); encryption key/IV provisioned via Secrets and injected into tasks
+- [ ] CSP report endpoint + report-only rollout (optional)
 
 #### **Resilience**
 - [x] Transactional outbox implemented (in-DB persistence)
 - [x] Outbox delivery via SQS worker with DLQ and autoscaling
 - [ ] Transient fault handling with Polly (retry/jitter, circuit breaker, timeouts)
-- [ ] Business/operational metrics and alerts beyond basic health checks
+- [x] Business/operational metrics: OpenTelemetry metrics exposed; outbox/cache metrics added; local Grafana dashboards
 
 ---
 
@@ -67,10 +67,10 @@ The Live Event Service demonstrates **exemplary architecture** with Clean Archit
 6) Outbox delivery to SQS with DLQ; worker processes domain events. (Completed)
 
 #### **🔵 Priority C: Medium–High effort**
-7) Read replicas (Aurora/RDS) and a replica `DbContext` for read-only queries.
+7) Read replicas (Aurora/RDS) and a replica `DbContext` for read-only queries. (Aurora Global primary/replica infra available; app read-split optional next)
 8) WebSocket/GraphQL subscription backplane (Redis) for multi-instance scale.
-9) CI/CD hardening: GitHub Actions → ECR/ECS via CDK, Blue/Green, secrets from AWS.
-10) Audit logging for admin operations; CSP report endpoint and secret management rollout.
+9) CI/CD hardening: GitHub Actions → ECR/ECS via CDK, Blue/Green (CodeDeploy) flags added; secrets via Secrets Manager.
+10) Audit logging for admin operations; CSP report endpoint rollout (optional).
 
 #### **🟡 Priority 1: Caching Layer Implementation (HIGH)**
 **Impact**: 60-80% performance improvement for read operations  
@@ -144,8 +144,8 @@ The Live Event Service demonstrates **exemplary architecture** with Clean Archit
 
 **Tasks:**
 - [ ] CSP report endpoint and report-only rollout
-- [ ] Audit logging for admin operations (entity + pipelines)
-- [ ] Secret management (AWS Secrets Manager/SSM) and removal from config
+- [x] Audit logging for admin operations (entity + pipelines)
+- [x] Secret management (AWS Secrets Manager) and removal from config
 - [ ] **Comprehensive Audit Logging**:
   - [ ] Create `AuditLog` entity and configuration
   - [ ] Implement `IAuditService` for all admin actions
@@ -223,7 +223,7 @@ The Live Event Service demonstrates **exemplary architecture** with Clean Archit
   - [ ] AWS AppConfig integration
   - [ ] Feature flag service implementation
   - [ ] Gradual feature rollout capability
-- [ ] **Canary Deployments**:
+  - [ ] **Canary Deployments** (future consideration):
   - [ ] 10% → 50% → 100% traffic shifting
   - [ ] Automated promotion based on metrics
   - [ ] Real-time monitoring during canary

@@ -5,47 +5,36 @@ This document outlines scalability enhancements for the Live Event Service.
 ## Current Scalability Assessment
 
 ### ✅ Current State
-- Docker Compose for local; proposed ECS features listed here are future-state
-- Database connection pooling: default EF Core/Npgsql
-- Baseline read-through caching at the API/GraphQL layer via Redis (IDistributedCache)
+- Local: Docker Compose; Cloud: ECS Fargate + ALB (WAF), autoscaling on CPU and request count
+- Database: RDS PostgreSQL (Multi-AZ); optional Aurora PostgreSQL Global Database (primary + replica stack)
+- Caching: Output caching for public GETs, read‑through caching helpers with Redis (`IDistributedCache`)
+- Async processing: SQS worker with autoscaling based on backlog; transactional outbox publishes to SNS
 
 ### ⚠️ Scalability Limitations
-- Single DB instance (local dev): no read replicas
-- No caching layer
-- No API Gateway in repo; no request caching
-- No CDN in repo
+- Application read‑split not implemented (writes/reads go to primary); infra for read replicas is available via Aurora Global
+- Connection pool tuning not customized yet
+- CDN not provisioned in repo (can add CloudFront in front of ALB)
 
 ## High-Priority Improvements
 
-### 1. Database Read Replicas
-```csharp
-var readReplica = new DatabaseInstanceReadReplica(this, "ReadReplica", new DatabaseInstanceReadReplicaProps
-{
-    SourceDatabaseInstance = database,
-    InstanceType = Amazon.CDK.AWS.EC2.InstanceType.Of(InstanceClass.T3, InstanceSize.MICRO)
-});
-```
+### 1. Database Read Replicas (Aurora Global)
+- Infra: Enable `-c EnableAuroraGlobal=true` in primary region and deploy `LiveEventReplicaStack` in secondary/reader regions.
+- App: Introduce an optional read‑only `DbContext`/connection string for query paths to target the Aurora reader endpoint.
 
-### 2. Redis Caching Layer
-```csharp
-var redisCluster = new CfnCacheCluster(this, "RedisCluster", new CfnCacheClusterProps
-{
-    Engine = "redis",
-    CacheNodeType = "cache.t3.micro",
-    NumCacheNodes = 1
-});
-```
+### 2. Redis Caching Tuning
+- Tune TTLs for event list/detail and user detail based on traffic patterns.
+- Consider cache key tagging/invalidation patterns if TTLs increase.
 
-### 3. API Gateway Caching
-```csharp
-DefaultMethodOptions = new MethodOptions
-{
-    CachingEnabled = true,
-    CacheTtl = Duration.Minutes(5)
-}
-```
+### 3. Edge Caching (CDN)
+- Add CloudFront in front of ALB; cache public GETs for short TTLs; respect `Cache-Control` headers.
+
+### 4. Autoscaling & Backpressure
+- Keep ECS request‑based and CPU autoscaling; add SQS backlog‑based scaling policies (already configured) for the worker.
+
+### 5. Connection Pooling
+- Tune Npgsql pool size/timeouts for peak concurrency; validate with load testing.
 
 ## Expected Gains
-- **Phase 1**: 3-5x capacity increase
-- **Phase 2**: Additional 2-3x capacity increase
-- **Total**: 10-50x capacity increase 
+- **Phase 1**: 2-3x capacity (caching TTL tuning, connection pool tuning)
+- **Phase 2**: Additional 2-3x (CDN + read‑split to Aurora reader)
+- **Total**: 5-10x capacity depending on traffic mix

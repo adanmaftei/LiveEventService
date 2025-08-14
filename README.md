@@ -25,6 +25,20 @@ This application is operational for local development and testing with:
 - **CI/CD Pipeline** - GitHub Actions for automated testing and deployment
 - **Observability** - Built-in logging, metrics, and tracing
 
+## What's implemented
+
+- **Deployed on AWS**: Infrastructure as Code with AWS CDK provisioning ECS Fargate (API/Worker), ALB + WAF, RDS PostgreSQL, ElastiCache Redis, SQS, Cognito, CloudWatch, X-Ray. Optional Route 53 failover DNS and Aurora Global.
+- **Business logic in C#**: .NET 9 solution with Clean Architecture (Core/Application/Infrastructure/API/Worker), CQRS + MediatR.
+- **REST and GraphQL APIs**: Minimal APIs for REST; HotChocolate for GraphQL Queries/Mutations/Subscriptions. Admin endpoints for event management and participant export.
+- **Global availability**: Multi‑AZ RDS; optional Route 53 failover DNS; optional Aurora PostgreSQL Global Database with a replica stack for a second region; secondary GitHub Actions workflow for NA region.
+- **Privacy & legal (PII)**: Field‑level encryption for PII via EF value converters (AES); secrets sourced from AWS Secrets Manager (KMS‑backed). DSAR export/erasure endpoints; opt‑in retention job for automated anonymization/deletion.
+- **CI/CD and Git**: GitHub Actions (lint/format, unit/integration tests, deploy with EF migrations and health smoke test). Secondary region deploy workflow included.
+- **Security best practices**: Cognito JWT auth, role‑based authorization, rate limiting, security headers (CSP, HSTS, Referrer‑Policy, Permissions‑Policy), Kestrel hardening, private subnets, VPC endpoints, dedicated audit log sink. Optional CSP report endpoint can be added.
+- **Observability**: Serilog structured logs with correlation IDs; OpenTelemetry metrics/traces; ADOT → X‑Ray; Prometheus endpoint; health checks (PostgreSQL, Cognito, S3 when configured).
+- **Maintainability/cost**: CDK parameters for capacity; autoscaling for API/Worker; VPC endpoints to reduce NAT costs; deferred AMP/AMG by default; blue/green traffic shifting optional.
+- **Scalability/elasticity**: ECS autoscaling (CPU/requests), SQS worker autoscaling based on backlog, Redis cache, output caching.
+- **Frontend not in scope**: This repo provides backend services only.
+
 ## Tech Stack
 
 - **Backend**: .NET 9, C#
@@ -60,6 +74,9 @@ curl http://localhost:5000/health
 - **Swagger UI**: http://localhost:5000/swagger/index.html
 - **GraphQL Playground**: http://localhost:5000/graphql (Development only)
 - **Database Admin**: http://localhost:5050 (admin@example.com / admin)
+- **Prometheus**: http://localhost:9090
+- **Grafana**: http://localhost:3000 (admin/admin)
+- **Jaeger (Tracing UI)**: http://localhost:16686
 
 ### Option 2: Development Mode
 
@@ -81,6 +98,13 @@ dotnet run --project src/LiveEventService.API
 | **PostgreSQL** | ✅ Running | http://localhost:5432 | Database with test data |
 | **pgAdmin** | ✅ Running | http://localhost:5050 | Database management |
 | **LocalStack** | ✅ Running | http://localhost:4566 | AWS services mocking |
+| **Redis** | ✅ Running | redis://localhost:6379 | Distributed cache / backplane |
+| **Prometheus** | ✅ Running | http://localhost:9090 | Metrics scraping & queries |
+| **Grafana** | ✅ Running | http://localhost:3000 | Dashboards (Prometheus/Loki) |
+| **Loki** | ✅ Running | http://localhost:3100 | Logs datastore (queried via Grafana) |
+| **Jaeger** | ✅ Running | http://localhost:16686 | Tracing UI |
+| **ADOT Collector** | ✅ Running | n/a | OpenTelemetry collector (no UI) |
+| **Promtail** | ✅ Running | n/a | Log shipper to Loki (no UI) |
 
 ## Project Structure
 
@@ -230,7 +254,8 @@ dotnet test /p:CollectCoverage=true
 ## Documentation
 
 - 📖 **[Local Development Setup](docs/LOCAL_DEVELOPMENT_SETUP.md)** - Complete setup guide
-- 🚀 **[CI/CD Pipeline](docs/CICD.md)** - GitHub Actions deployment automation
+ - 🚀 **[CI/CD Pipeline](docs/CICD.md)** - GitHub Actions deployment automation
+ - ✅ **[Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)** - Exact AWS and GitHub setup steps
 - 📁 **[Solution Structure](docs/SOLUTION_STRUCTURE.md)** - Project organization guide
 - 🧪 **[Integration Testing](docs/INTEGRATION_TESTING.md)** - Testcontainers & authentication testing
 - 🎟️ **[Waitlist Functionality](docs/WAITLIST_FUNCTIONALITY.md)** - Event waitlist and auto-promotion guide
@@ -247,9 +272,9 @@ dotnet test /p:CollectCoverage=true
  - 📈 **[Performance & Scalability](docs/PERFORMANCE_AND_SCALABILITY.md)** - Performance bottlenecks and plans
  - 📈 **[Scalability Improvements](docs/SCALABILITY_IMPROVEMENTS.md)** - Scaling strategies
  - 🧭 **[Domain Events & GraphQL](docs/DOMAIN_EVENTS_AND_GRAPHQL.md)** - Event flow and real-time notifications
- - 🧾 **[TODO: Performance Improvements](docs/TODO_PERFORMANCE_IMPROVEMENTS.md)** - Implementation checklist/roadmap
+ - 🧾 **[Performance Improvements (Aligned)](docs/TODO_PERFORMANCE_IMPROVEMENTS.md)** - Status-aligned implementation checklist
  - 💸 **[Cost Optimization](docs/COST_OPTIMIZATION.md)** - AWS cost-saving strategies
- - 🚢 **[Deployment Optimization](docs/DEPLOYMENT_OPTIMIZATION.md)** - Blue/green, canary, multi-region (future-state)
+ - 🚢 **[Deployment Optimization](docs/DEPLOYMENT_OPTIMIZATION.md)** - Blue/green (available), canary (future), multi-region (optional)
 
 ## Contributing
 

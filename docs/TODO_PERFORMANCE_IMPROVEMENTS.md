@@ -1,4 +1,4 @@
-# TODO: Performance Improvements Implementation
+# Performance Improvements Implementation (Aligned)
 
 ## 🎯 **Overview**
 
@@ -319,7 +319,7 @@ This document tracks the implementation of performance improvements for the Live
 ## 🚀 **Next Steps After Completion**
 
 ### **Phase 2: Advanced Optimizations**
-- [ ] **Microservices Preparation**: API Gateway implementation
+- [ ] **Microservices Preparation**: Edge remains ALB-only; evaluate service discovery and decomposition when needed
 - [ ] **Event Sourcing**: Prepare for event sourcing implementation
 - [ ] **CQRS Enhancement**: Separate read models optimization
 - [ ] **Distributed Caching**: Redis cluster implementation
@@ -332,4 +332,9 @@ This document tracks the implementation of performance improvements for the Live
 
 ---
 
-**This TODO document will be updated as items are completed and new requirements are identified during implementation.** 📝 
+This document reflects current status:
+
+- Baseline indexes and EF optimizations: DONE
+- Read-through/output caching: DONE (helpers + output cache)
+- Outbox metrics and monitoring: DONE (OpenTelemetry metrics)
+- Remaining: compiled queries for hottest read paths; connection pool tuning; load testing validation

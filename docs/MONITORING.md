@@ -164,12 +164,16 @@ curl -w "Total time: %{time_total}s\n" -s http://localhost:5000/health > /dev/nu
 ### Cloud Monitoring (AWS)
 
 - Traces: exported via OTLP to ADOT Collector → AWS X-Ray
-- Metrics: exported via OTLP to ADOT Collector → CloudWatch EMF (service, infrastructure)
+- Metrics: exported via OTLP to ADOT Collector → CloudWatch EMF (service, infrastructure). Prometheus metrics are exposed at `/metrics` for AMP scraping when enabled.
 - Logs: container logs to CloudWatch Logs (short retention for cost control). Serilog structured logs support correlation IDs. Dedicated audit logs go to a separate log group.
 - Dashboard and alarms provisioned via CDK (ALB/ECS Fargate/RDS). Email alerts via SNS.
 
 ### AMP/AMG
-Deferrred in the current stack to reduce cost. Use CloudWatch Dashboards and Logs Insights instead.
+Deferred in the current stack to reduce cost. To enable AMP/AMG, provision an AMP workspace and AMG instance, then configure remote write or scraping for `/metrics` and import the provided dashboards. 
+
+### Custom application metrics
+- Outbox: `outbox_pending_count`, `outbox_processed_total`, `outbox_failed_total`
+- Cache: `cache_hits_total`, `cache_misses_total`, `cache_sets_total`
 
 ### Serilog Integration
 Health check requests are automatically logged with:

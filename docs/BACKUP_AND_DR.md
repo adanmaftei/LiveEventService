@@ -114,7 +114,7 @@ aws s3api get-object \
 ### Multi-Region Deployment (Future)
 - Primary region: us-east-1 (current deployment target)
 - Secondary region: us-west-2 (future)
-- Route 53 DNS failover: planned; not currently provisioned in CDK
+- Route 53 DNS failover: available via CDK parameters (`HostedZoneId`, `DnsRecordName`, `DnsFailoverRole`) to create ALB alias records with health checks.
 
 ### Failover Procedure
 1. **Detection**: CloudWatch Alarms trigger on service degradation

@@ -50,17 +50,37 @@ Under GDPR, users have the following rights regarding their personal data:
 | Marketing Data | Until consent is withdrawn | Consent |
 
 ### Data Deletion
-- Automatic deletion at the end of the retention period: NOT YET IMPLEMENTED as a scheduled job; currently a policy/operational guideline
+- Automatic deletion/anonymization is available via an opt-in background retention service (disabled by default). Enable via configuration under `Security:Retention` to:
+  - Anonymize inactive users beyond configured retention days
+  - Delete cancelled registrations beyond configured retention days
 - Users can request early deletion via the service interface or by contacting support
 - API support: `DELETE /api/users/{id}` (admin-only) performs deactivation + anonymization to preserve event integrity while honoring privacy.
 - Backups retention is managed by RDS/Backup plans; production default is 35 days (see CDK stack)
+
+#### Example configuration (appsettings.Production.json)
+```json
+{
+  "Security": {
+    "Encryption": {
+      "Key": "{Injected from Secrets Manager}",
+      "IV": "{Injected from Secrets Manager}"
+    },
+    "Retention": {
+      "Enabled": true,
+      "IntervalHours": 6,
+      "UsersRetentionDays": 1095,
+      "CancelledRegistrationsRetentionDays": 365
+    }
+  }
+}
+```
 
 ## Security Measures
 
 ### Technical Measures
 - Data encryption in transit (TLS 1.2+)
 - Data encryption at rest at the storage level (RDS encryption via KMS)
-- Field-level encryption for PII: NOT YET IMPLEMENTED (planned via EF Core value converters and KMS-backed keys)
+ - Field-level encryption for PII: Implemented via EF Core value converters. Keys are provided via Secrets Manager (KMS-backed) and injected into the API/Worker tasks as secrets (`Security:Encryption:Key` and `Security:Encryption:IV`). If secrets are not set, encryption converters operate in pass-through mode (development/testing only).
 - Regular security audits and penetration testing
 - Access controls and principle of least privilege
 - Multi-factor authentication for administrative access

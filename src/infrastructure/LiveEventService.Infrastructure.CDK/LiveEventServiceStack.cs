@@ -14,6 +14,7 @@ using Amazon.CDK.AWS.Backup;
 using Amazon.CDK.AWS.KMS;
 using Amazon.CDK.AWS.WAFv2;
 using Amazon.CDK.AWS.Logs;
+using Amazon.CDK.AWS.Route53;
 using Constructs;
 using System.Text.Json;
 using Amazon.CDK.AWS.ApplicationAutoScaling;
@@ -21,11 +22,11 @@ using Amazon.CDK.AWS.APS;
 using Amazon.CDK.AWS.Grafana;
 using Amazon.CDK.AWS.S3;
 using Amazon.CDK.AWS.Lambda;
-// using Amazon.CDK.AWS.Lambda.Python;
 using Amazon.CDK.AWS.S3.Assets;
 using Amazon.CDK.CustomResources;
 using Amazon.CDK.AWS.SQS;
 using Amazon.CDK.AWS.ElastiCache;
+using Amazon.CDK.AWS.CodeDeploy;
 
 namespace LiveEventService.Infrastructure.CDK;
 
@@ -213,8 +214,8 @@ public class LiveEventServiceStack : Stack
             })
         });
 
-        // Create a database with backup and monitoring
-        var database = new DatabaseInstance(this, "LiveEventDatabase", new DatabaseInstanceProps
+        // Create a database with backup and monitoring (single-region RDS)
+        var rdsInstance = new DatabaseInstance(this, "LiveEventDatabase", new DatabaseInstanceProps
         {
             Engine = DatabaseInstanceEngine.Postgres(new PostgresInstanceEngineProps
             {
@@ -272,6 +273,8 @@ public class LiveEventServiceStack : Stack
                 }
             })
         });
+
+        IDatabaseInstance database = rdsInstance;
 
         // Create a new backup plan
         var customBackupPlan = new BackupPlan(this, "LiveEventBackupPlan", new BackupPlanProps
@@ -347,6 +350,26 @@ public class LiveEventServiceStack : Stack
             Vpc = vpc,            
             EnableFargateCapacityProviders = true,
             ClusterName = "LiveEventServiceCluster"
+        });
+
+        // Secrets for field-level encryption (KMS-backed)
+        var encryptionKeySecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "FieldEncryptionKey", new SecretProps
+        {
+            GenerateSecretString = new SecretStringGenerator
+            {
+                ExcludePunctuation = true,
+                PasswordLength = 44
+            },
+            Description = "Key material for field-level encryption (AES-256)"
+        });
+        var encryptionIvSecret = new Amazon.CDK.AWS.SecretsManager.Secret(this, "FieldEncryptionIV", new SecretProps
+        {
+            GenerateSecretString = new SecretStringGenerator
+            {
+                ExcludePunctuation = true,
+                PasswordLength = 24
+            },
+            Description = "Initialization vector for field-level encryption (AES)"
         });
 
         // ElastiCache (Redis) for caching and GraphQL subscriptions backplane
@@ -519,7 +542,9 @@ public class LiveEventServiceStack : Stack
             {
                 ["ConnectionStrings__DefaultConnection"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
                     databaseCredentialsSecret,
-                    "ConnectionStrings__DefaultConnection")
+                    "ConnectionStrings__DefaultConnection"),
+                ["Security__Encryption__Key"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(encryptionKeySecret),
+                ["Security__Encryption__IV"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(encryptionIvSecret)
             }
         });
 
@@ -626,7 +651,9 @@ public class LiveEventServiceStack : Stack
             {
                 ["ConnectionStrings__DefaultConnection"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
                     databaseCredentialsSecret,
-                    "ConnectionStrings__DefaultConnection")
+                    "ConnectionStrings__DefaultConnection"),
+                ["Security__Encryption__Key"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(encryptionKeySecret),
+                ["Security__Encryption__IV"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(encryptionIvSecret)
             }
         });
 
@@ -731,6 +758,27 @@ service:
             Description = "Maximum number of API tasks"
         });
 
+        // Parameters for CodeDeploy blue/green and Aurora Global
+        var codeDeployShiftingParam = new CfnParameter(this, "CodeDeployShiftingConfig", new CfnParameterProps
+        {
+            Type = "String",
+            Default = "AllAtOnce",
+            AllowedValues = new[] { "AllAtOnce", "Linear10PercentEvery5Minutes" },
+            Description = "Traffic shifting config for ECS CodeDeploy"
+        });
+        var auroraPrimaryRegionParam = new CfnParameter(this, "AuroraPrimaryRegion", new CfnParameterProps
+        {
+            Type = "String",
+            Default = this.Region,
+            Description = "Primary region for Aurora Global (deploy this stack in primary region)"
+        });
+        var auroraSecondaryRegionsParam = new CfnParameter(this, "AuroraSecondaryRegions", new CfnParameterProps
+        {
+            Type = "CommaDelimitedList",
+            Default = "",
+            Description = "Comma-separated list of secondary regions for Aurora Global (deploy replica stacks separately)"
+        });
+
         // Create a load balanced Fargate service with HTTPS
         var service = new ApplicationLoadBalancedFargateService(this, "LiveEventService", new ApplicationLoadBalancedFargateServiceProps
         {
@@ -769,13 +817,190 @@ service:
                 {
                     ["ConnectionStrings__DefaultConnection"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(
                         databaseCredentialsSecret,
-                        "ConnectionStrings__DefaultConnection")
+                        "ConnectionStrings__DefaultConnection"),
+                    ["Security__Encryption__Key"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(encryptionKeySecret),
+                    ["Security__Encryption__IV"] = Amazon.CDK.AWS.ECS.Secret.FromSecretsManager(encryptionIvSecret)
                 }
             }
         });
 
         // Allow API tasks to connect to Redis
         redisSecurityGroup.AddIngressRule(service.Service.Connections.SecurityGroups[0], Amazon.CDK.AWS.EC2.Port.Tcp(6379), "Allow API to access Redis");
+
+        // Progressive rollout (Blue/Green via CodeDeploy): optional toggle
+        // CodeDeploy Blue/Green for ECS: create test listener, second target group, application, and deployment group
+        var enableBlueGreenParam = new CfnParameter(this, "EnableBlueGreen", new CfnParameterProps
+        {
+            Type = "String",
+            Default = "false",
+            AllowedValues = new[] { "true", "false" },
+            Description = "Enable ECS Blue/Green deployments via CodeDeploy"
+        });
+        if (enableBlueGreenParam.ValueAsString == "true")
+        {
+            // Add test listener
+            var testListener = service.LoadBalancer.AddListener("TestListener", new Amazon.CDK.AWS.ElasticLoadBalancingV2.ApplicationListenerProps
+            {
+                Port = 9000,
+                Protocol = ApplicationProtocol.HTTP,
+                Open = true
+            });
+
+            // Create a second target group (green) and attach the ECS service to it
+            var greenTg = new ApplicationTargetGroup(this, "GreenTargetGroup", new ApplicationTargetGroupProps
+            {
+                Vpc = vpc,
+                Port = 80,
+                Protocol = ApplicationProtocol.HTTP,
+                TargetType = TargetType.IP,
+                HealthCheck = new Amazon.CDK.AWS.ElasticLoadBalancingV2.HealthCheck { Path = "/health" }
+            });
+            service.Service.AttachToApplicationTargetGroup(greenTg);
+            testListener.AddTargetGroups("TestForward", new AddApplicationTargetGroupsProps
+            {
+                TargetGroups = new[] { greenTg }
+            });
+
+            // Switch ECS service deployment controller to CodeDeploy
+            var cfnService = service.Service.Node.DefaultChild as CfnService;
+            if (cfnService != null)
+            {
+                cfnService.DeploymentController = new CfnService.DeploymentControllerProperty { Type = "CODE_DEPLOY" };
+            }
+
+            // CodeDeploy ECS application
+            var cdApp = new Amazon.CDK.AWS.CodeDeploy.CfnApplication(this, "EcsCdApp", new Amazon.CDK.AWS.CodeDeploy.CfnApplicationProps
+            {
+                ApplicationName = "LiveEventServiceApp",
+                ComputePlatform = "ECS"
+            });
+
+            // CodeDeploy role
+            var cdRole = new Role(this, "CodeDeployRole", new RoleProps
+            {
+                AssumedBy = new ServicePrincipal("codedeploy.amazonaws.com")
+            });
+            cdRole.AddManagedPolicy(ManagedPolicy.FromAwsManagedPolicyName("AWSCodeDeployRoleForECS"));
+
+            // Map deployment config name
+            var depConfigName = codeDeployShiftingParam.ValueAsString == "AllAtOnce"
+                ? "CodeDeployDefault.ECSAllAtOnce"
+                : "CodeDeployDefault.ECSLinear10PercentEvery5Minutes";
+
+            // CodeDeploy deployment group using L1 (Cfn) to avoid version gaps
+            _ = new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup(this, "EcsCdDeploymentGroup", new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroupProps
+            {
+                ApplicationName = cdApp.Ref,
+                DeploymentGroupName = "LiveEventServiceDG",
+                ServiceRoleArn = cdRole.RoleArn,
+                DeploymentStyle = new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup.DeploymentStyleProperty
+                {
+                    DeploymentType = "BLUE_GREEN",
+                    DeploymentOption = "WITH_TRAFFIC_CONTROL"
+                },
+                DeploymentConfigName = depConfigName,
+                BlueGreenDeploymentConfiguration = new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup.BlueGreenDeploymentConfigurationProperty
+                {
+                    DeploymentReadyOption = new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup.DeploymentReadyOptionProperty
+                    {
+                        ActionOnTimeout = "CONTINUE_DEPLOYMENT",
+                        WaitTimeInMinutes = 0
+                    }
+                },
+                EcsServices = new[]
+                {
+                    new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup.ECSServiceProperty
+                    {
+                        ClusterName = cluster.ClusterName,
+                        ServiceName = service.Service.ServiceName
+                    }
+                },
+                LoadBalancerInfo = new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup.LoadBalancerInfoProperty
+                {
+                    TargetGroupPairInfoList = new[]
+                    {
+                        new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup.TargetGroupPairInfoProperty
+                        {
+                            ProdTrafficRoute = new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup.TrafficRouteProperty
+                            {
+                                ListenerArns = new[] { service.Listener.ListenerArn }
+                            },
+                            TestTrafficRoute = new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup.TrafficRouteProperty
+                            {
+                                ListenerArns = new[] { testListener.ListenerArn }
+                            },
+                            TargetGroups = new[]
+                            {
+                                new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup.TargetGroupInfoProperty
+                                {
+                                    Name = service.TargetGroup.TargetGroupName
+                                },
+                                new Amazon.CDK.AWS.CodeDeploy.CfnDeploymentGroup.TargetGroupInfoProperty
+                                {
+                                    Name = greenTg.TargetGroupName
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Optional: Route 53 DNS record and health check for failover/latency-based routing
+        // Provide HostedZoneId and DnsRecordName to enable
+        var hostedZoneIdParam = new CfnParameter(this, "HostedZoneId", new CfnParameterProps
+        {
+            Type = "String",
+            Default = "",
+            Description = "Optional Route 53 HostedZoneId to create an alias A record for the ALB"
+        });
+        var dnsRecordNameParam = new CfnParameter(this, "DnsRecordName", new CfnParameterProps
+        {
+            Type = "String",
+            Default = "",
+            Description = "Optional DNS record name (e.g., events.example.com)"
+        });
+        var failoverRoleParam = new CfnParameter(this, "DnsFailoverRole", new CfnParameterProps
+        {
+            Type = "String",
+            Default = "PRIMARY",
+            AllowedValues = new[] { "PRIMARY", "SECONDARY" },
+            Description = "If set, the record will be marked as PRIMARY or SECONDARY for Route 53 failover (deploy secondary stack in another region)"
+        });
+
+        var hasDns = !string.IsNullOrWhiteSpace(hostedZoneIdParam.ValueAsString) && !string.IsNullOrWhiteSpace(dnsRecordNameParam.ValueAsString);
+        if (hasDns)
+        {
+            // Create a health check that pings the ALB /health endpoint over HTTPS
+            var healthCheck = new Amazon.CDK.AWS.Route53.CfnHealthCheck(this, "AlbHealthCheck", new Amazon.CDK.AWS.Route53.CfnHealthCheckProps
+            {
+                HealthCheckConfig = new Amazon.CDK.AWS.Route53.CfnHealthCheck.HealthCheckConfigProperty
+                {
+                    Type = "HTTPS",
+                    ResourcePath = "/health",
+                    FullyQualifiedDomainName = service.LoadBalancer.LoadBalancerDnsName,
+                    RequestInterval = 30,
+                    FailureThreshold = 3
+                }
+            });
+
+            // Alias A record pointing to ALB with optional failover
+            _ = new CfnRecordSet(this, "AlbAliasRecord", new CfnRecordSetProps
+            {
+                HostedZoneId = hostedZoneIdParam.ValueAsString,
+                Name = dnsRecordNameParam.ValueAsString,
+                Type = "A",
+                AliasTarget = new CfnRecordSet.AliasTargetProperty
+                {
+                    DnsName = service.LoadBalancer.LoadBalancerDnsName,
+                    HostedZoneId = service.LoadBalancer.LoadBalancerCanonicalHostedZoneId
+                },
+                SetIdentifier = failoverRoleParam.ValueAsString,
+                Failover = failoverRoleParam.ValueAsString,
+                HealthCheckId = healthCheck.AttrHealthCheckId,
+                Comment = "Alias to ALB with health check for failover"
+            });
+        }
 
         // Dedicated CloudWatch Log Group for audit logs with 90-day retention
         var auditLogGroup = new LogGroup(this, "AuditLogGroup", new LogGroupProps
@@ -901,5 +1126,66 @@ service:
         sqsOldestAgeAlarm.AddAlarmAction(sqsAlarmAction);
         sqsDepthAlarm.AddAlarmAction(sqsAlarmAction);
         sqsDlqAlarm.AddAlarmAction(sqsAlarmAction);
+
+		// Optional: Aurora PostgreSQL Global Database (primary cluster in this region)
+		var enableAuroraGlobal = new CfnParameter(this, "EnableAuroraGlobal", new CfnParameterProps
+		{
+			Type = "String",
+			Default = "false",
+			AllowedValues = new[] { "true", "false" },
+			Description = "Create Aurora PostgreSQL Global Database primary cluster alongside RDS (for cutover)."
+		});
+		var auroraGlobalId = new CfnParameter(this, "AuroraGlobalClusterId", new CfnParameterProps
+		{
+			Type = "String",
+			Default = "liveevent-global-cluster",
+			Description = "Identifier for the Aurora Global Database"
+		});
+
+		if (enableAuroraGlobal.ValueAsString == "true")
+		{
+			// Global cluster definition
+			var global = new CfnGlobalCluster(this, "AuroraGlobalCluster", new CfnGlobalClusterProps
+			{
+				Engine = "aurora-postgresql",
+				GlobalClusterIdentifier = auroraGlobalId.ValueAsString
+			});
+
+			// Primary regional cluster
+			var auroraCluster = new DatabaseCluster(this, "AuroraPrimaryCluster", new DatabaseClusterProps
+			{
+				Engine = DatabaseClusterEngine.AuroraPostgres(new AuroraPostgresClusterEngineProps
+				{
+					Version = AuroraPostgresEngineVersion.VER_15_3
+				}),
+				Writer = ClusterInstance.Provisioned("Writer", new ProvisionedClusterInstanceProps
+				{
+					InstanceType = Amazon.CDK.AWS.EC2.InstanceType.Of(InstanceClass.T4G, InstanceSize.MEDIUM),
+					PubliclyAccessible = false
+				}),
+				Readers = new[]
+				{
+					ClusterInstance.Provisioned("Reader", new ProvisionedClusterInstanceProps
+					{
+						InstanceType = Amazon.CDK.AWS.EC2.InstanceType.Of(InstanceClass.T4G, InstanceSize.MEDIUM),
+						PubliclyAccessible = false
+					})
+				},
+				Credentials = Credentials.FromSecret(databaseCredentialsSecret),
+				Vpc = vpc,
+				VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_WITH_EGRESS }
+			});
+
+			// Attach regional cluster to the Global Cluster via L1 override
+			var cfnDbCluster = auroraCluster.Node.DefaultChild as CfnDBCluster;
+			if (cfnDbCluster != null)
+			{
+				cfnDbCluster.GlobalClusterIdentifier = auroraGlobalId.ValueAsString;
+			}
+
+			// Output endpoints for cutover planning
+			_ = new CfnOutput(this, "AuroraWriterEndpoint", new CfnOutputProps { Value = auroraCluster.ClusterEndpoint.Hostname });
+			_ = new CfnOutput(this, "AuroraReaderEndpoint", new CfnOutputProps { Value = auroraCluster.ClusterReadEndpoint.Hostname });
+		}
     }
 }

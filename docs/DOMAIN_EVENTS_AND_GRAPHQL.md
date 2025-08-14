@@ -25,6 +25,11 @@ Runtime delivery is dual-mode and configurable per environment:
 
 - In the domain model (e.g., `EventRegistration`), after a business action (register, promote, cancel), the entity calls `AddDomainEvent(new EventRegistration...DomainEvent(this))`.
 - After `SaveChangesAsync`, the DbContext collects all domain events and dispatches them via MediatR.
+
+## Outbox Processing & Metrics
+- Outbox pattern is used to persist domain integration events.
+- Background processor publishes events to SNS and updates metrics:
+  - `outbox_processed_total`, `outbox_failed_total`, and `outbox_pending_count`.
 - Events are processed in the same transaction as the main operation, ensuring consistency.
 
 ## How Events Are Handled

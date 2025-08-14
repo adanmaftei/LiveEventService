@@ -29,3 +29,13 @@ Notes:
 - CDK builds/publishes container images from the API and Worker directories via `ContainerImage.FromAsset`.
 - EF migrations run as a separate step post-deploy.
 - For multi-environment promotion, parameterize capacity and environment-specific values in CDK (`ApiDesiredCount`, `WorkerDesiredCount`, etc.) and deploy distinct stacks.
+
+## Multi-region workflow (optional)
+- Run the existing deploy workflow twice with different `AWS_REGION` and CDK context:
+  - Primary: `DnsFailoverRole=PRIMARY`
+  - Secondary: `DnsFailoverRole=SECONDARY`
+- Use Route 53 health-checked alias records (configured via CDK) to enable automated failover.
+
+## Progressive rollout workflow (optional)
+- To enable Blue/Green, set CDK context `EnableBlueGreen=true` in the deploy job.
+- Validate on the test listener path before CodeDeploy shifts traffic.

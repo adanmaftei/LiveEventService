@@ -1,0 +1,61 @@
+name: Deploy Live Event Service (Secondary Region)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  AWS_DEFAULT_REGION: us-east-1
+
+jobs:
+  build-and-deploy-secondary:
+    name: Build and Deploy (Secondary)
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Deploy CDK Replica Stack (Secondary Region)
+      run: |
+        cd src/infrastructure
+        dotnet build
+        npm install -g aws-cdk
+        cdk deploy LiveEventReplicaStack --require-approval never \
+          -c SkipPrimaryStack=true \
+          -c CreateReplicaStack=true \
+          -c AuroraGlobalClusterId=${{ secrets.AURORA_GLOBAL_CLUSTER_ID }}
+
+    - name: Install dotnet-ef tool
+      run: |
+        dotnet tool install -g dotnet-ef
+        echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+    - name: Run database migrations (Secondary Region)
+      run: |
+        cd src/LiveEventService.API
+        dotnet ef database update --project ../LiveEventService.Infrastructure/LiveEventService.Infrastructure.csproj --context LiveEventDbContext
+
+

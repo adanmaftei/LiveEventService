@@ -135,9 +135,9 @@ UserService.API
 NotificationService.API
 ```
 
-**Preparation Steps:**
-1. **API Gateway**: Implement API Gateway for routing
-2. **Service Discovery**: Add service discovery mechanism
+**Preparation Steps (future considerations):**
+1. Edge stack remains ALB-only by design; API Gateway is optional and not planned.
+2. **Service Discovery**: Add service discovery mechanism (if decomposed to microservices)
 3. **Event Sourcing**: Prepare for event sourcing implementation
 4. **Database Per Service**: Plan database separation
 
@@ -222,6 +222,7 @@ public static class TelemetryExtensions
 - **Event Popularity**: Registrations per event
 - **System Performance**: Response times, throughput
 - **Error Rates**: Failed registrations, system errors
+- **Outbox Health**: `outbox_pending_count`, `outbox_processed_total`, `outbox_failed_total`
 
 **Implementation:**
 ```csharp

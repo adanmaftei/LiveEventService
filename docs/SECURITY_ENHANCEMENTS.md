@@ -17,18 +17,16 @@ This document outlines critical security improvements for the Live Event Service
 - Rate limiting: general policy and stricter registration policy
 
 ### ⏳ Not Yet Implemented (Planned)
-- Field-level encryption at rest (KMS-backed)
-- Advanced input sanitization/content filtering
+- Advanced input sanitization/content filtering (policy-driven)
 
 ### ⚠️ **Identified Security Gaps**
 1. **Input Sanitization**: Limited protection against injection attacks
-2. **Audit Logging**: No comprehensive audit trail
-3. **Data Encryption**: Sensitive data not encrypted at rest
-4. **CORS Hardening**: Review per-environment origins for production
+2. **Audit Logging**: Improve breadth of audit events (baseline implemented)
+3. **CORS Hardening**: Review per-environment origins for production
 
-## 🚀 **Phase 1: Critical Security Improvements**
+## 🚀 **Baseline Security Improvements (Completed)**
 
-### 1. **Rate Limiting Implementation (COMPLETED)**
+### 1. **Rate Limiting (COMPLETED)**
 
 **Current Issue:**
 - No protection against brute force attacks
@@ -64,7 +62,7 @@ public class RateLimitingMiddleware
 - **General API**: 100 requests/minute per IP
 Note: Testing environment disables rate limiting.
 
-### 2. **Enhanced Input Validation & Sanitization**
+### 2. **Enhanced Input Validation & Sanitization (PARTIAL / PLANNED)**
 
 **Current Validation:**
 ```csharp
@@ -135,66 +133,13 @@ public interface IAuditService
 // In Production, audit logs are written to a dedicated CloudWatch log group (`/live-event-service/audit`) via a separate Serilog logger.
 ```
 
-### 4. **Data Encryption at Rest**
+### 4. **Data Encryption at Rest (Implemented)**
+Field-level encryption is implemented via EF Core value converters over AES. Secrets are provided via AWS Secrets Manager and injected into ECS tasks as `Security:Encryption:Key` and `Security:Encryption:IV`. The service accepts base64-encoded secrets or raw strings and derives a 32-byte key and 16-byte IV when raw strings are used. In dev/test without secrets, converters operate in pass-through mode for convenience.
 
-**Encryption Service:**
-```csharp
-public interface IEncryptionService
-{
-    string Encrypt(string plainText);
-    string Decrypt(string cipherText);
-    byte[] EncryptBytes(byte[] plainBytes);
-    byte[] DecryptBytes(byte[] cipherBytes);
-}
+## 🛡️ **Advanced Security Features (Next)**
 
-public class AesEncryptionService : IEncryptionService
-{
-    private readonly byte[] _key;
-    private readonly byte[] _iv;
-
-    public AesEncryptionService(IConfiguration configuration)
-    {
-        _key = Convert.FromBase64String(configuration["Encryption:Key"]);
-        _iv = Convert.FromBase64String(configuration["Encryption:IV"]);
-    }
-
-    public string Encrypt(string plainText)
-    {
-        using var aes = Aes.Create();
-        aes.Key = _key;
-        aes.IV = _iv;
-
-        using var encryptor = aes.CreateEncryptor();
-        var plainBytes = Encoding.UTF8.GetBytes(plainText);
-        var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
-        
-        return Convert.ToBase64String(cipherBytes);
-    }
-}
-```
-
-**Entity Configuration for Encrypted Fields (Planned):**
-```csharp
-public class UserConfiguration : IEntityTypeConfiguration<User>
-{
-    public void Configure(EntityTypeBuilder<User> builder)
-    {
-        builder.Property(u => u.Email)
-            .HasConversion(
-                v => _encryptionService.Encrypt(v),
-                v => _encryptionService.Decrypt(v));
-        
-        builder.Property(u => u.PhoneNumber)
-            .HasConversion(
-                v => v != null ? _encryptionService.Encrypt(v) : null,
-                v => v != null ? _encryptionService.Decrypt(v) : null);
-    }
-}
-```
-
-## 🛡️ **Phase 2: Advanced Security Features**
-
-### 1. **Security Headers Implementation**
+### 1. **Security Headers Implementation** (DONE)
+Implemented in `SecurityHeadersMiddleware`; CSP is configurable via `Security:Csp` with a strict default in non-development.
 
 **Security Headers Middleware:**
 ```csharp
@@ -226,7 +171,8 @@ public class SecurityHeadersMiddleware
 }
 ```
 
-### 2. **CORS Configuration**
+### 2. **CORS Configuration** (DONE)
+Environment-driven: default policy allows configured origins; dev/testing allow-all.
 
 **Secure CORS Setup:**
 ```csharp
@@ -251,7 +197,7 @@ public static class CorsExtensions
 }
 ```
 
-### 3. **JWT Token Security Enhancements**
+### 3. **JWT Token Security Enhancements** (Baseline DONE; advanced policies optional)
 
 **Enhanced JWT Configuration:**
 ```csharp
@@ -297,7 +243,7 @@ public static class JwtExtensions
 }
 ```
 
-### 4. **Content Security Policy (CSP)**
+### 4. **Content Security Policy (CSP)** (DONE; report endpoint optional)
 
 **CSP Implementation:**
 ```csharp
@@ -406,31 +352,19 @@ public class ThreatDetectionService
 }
 ```
 
-## 📋 **Implementation Plan**
+## 📋 **Implementation Plan (Trimmed to pending items)**
 
-### **Week 1: Foundation Security**
-- [ ] Implement rate limiting middleware
-- [ ] Add security headers middleware
-- [ ] Configure secure CORS policy
-- [ ] Set up audit logging infrastructure
+### **Input Validation & Sanitization**
+- [ ] Extend validation with content filtering (e.g., profanity)
+- [ ] Add sanitization where user-provided text is persisted
 
-### **Week 2: Input Validation & Sanitization**
-- [ ] Enhance input validation with content filtering
-- [ ] Implement input sanitization
-- [ ] Add SQL injection protection
-- [ ] Implement XSS protection
+### **Data Protection Enhancements**
+- [ ] Key rotation strategy for field encryption secrets
+- [ ] Data masking in non-production environments
 
-### **Week 3: Data Protection**
-- [ ] Implement data encryption at rest
-- [ ] Add encryption for sensitive fields
-- [ ] Implement secure key management
-- [ ] Add data masking for logs
-
-### **Week 4: Monitoring & Alerting**
-- [ ] Set up security event monitoring
-- [ ] Implement automated threat detection
-- [ ] Configure security alerting
-- [ ] Create security dashboards
+### **Security Monitoring & Alerting**
+- [ ] Security event monitoring and alerting
+- [ ] Automated threat detection rules
 
 ## 🔧 **Security Configuration**
 

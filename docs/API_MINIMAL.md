@@ -11,6 +11,7 @@ The Live Event Service API includes:
 - ✅ CORS policy sourced from `Security:Cors:AllowedOrigins` (allow-all in Development/Testing when unset)
 - ✅ Serilog structured logging with correlation IDs
 - ✅ OpenTelemetry metrics (Prometheus) and tracing via OTLP → ADOT Collector/X-Ray
+- ✅ Field-level encryption for PII via EF value converters; keys sourced from AWS Secrets Manager (KMS-backed)
 
 ## Overview
 
@@ -25,7 +26,10 @@ The Events REST API is implemented using .NET 9 Minimal APIs directly in `Progra
 - **API Base URL**: http://localhost:5000
 - **Swagger UI**: http://localhost:5000/swagger/index.html
 - **Health Check**: http://localhost:5000/health
-- **GraphQL Playground**: http://localhost:5000/graphql (Development only)
+ - **GraphQL Playground**: http://localhost:5000/graphql (Development only)
+ 
+### Security & Privacy
+- PII fields are encrypted at rest using AES; secrets are supplied via `Security:Encryption:Key` and `Security:Encryption:IV` injected from Secrets Manager. In dev/test without secrets, converters pass through for ease of setup.
 
 ## REST API Endpoints
 

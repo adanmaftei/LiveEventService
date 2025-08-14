@@ -14,11 +14,10 @@ This document outlines deployment optimization strategies for the Live Event Ser
 - **Monitoring**: CloudWatch dashboards and alarms
 
 ### ⚠️ Deployment Limitations
-- **Single region deployment**: No multi-region failover (CDK provisions one regional stack)
-- **Limited blue-green deployments**: Basic rolling updates only
-- **No canary deployments**: All traffic goes to new version immediately
-- **Manual rollback process**: No automated rollback capabilities
-- **Limited deployment strategies**: No A/B testing or feature flags
+- **Single region by default**: The stack deploys to one region with Multi-AZ RDS for HA. Multi‑region is available via parameters: deploy a secondary `LiveEventReplicaStack` and configure Route 53 failover records; optionally enable Aurora PostgreSQL Global Database.
+- **Blue/green optional (canary not built-in)**: Rolling updates are default. Blue/green with traffic shifting is available when `EnableBlueGreen=true` (ECS CodeDeploy). Canary via weighted routing is not provided out‑of‑the‑box.
+- **Rollback**: CodeDeploy blue/green provides health‑based automated rollback. Alarm‑driven rollbacks and advanced policies are not configured by default.
+- **Limited experimentation**: A/B testing and feature flags are not included.
 
 ## High-Priority Deployment Optimizations
 
@@ -75,70 +74,14 @@ Notes:
 - Pair capacity settings with autoscaling policies (CPU and ALB request-count-per-target) already configured in the stack.
 - Review CloudWatch alarms and adjust thresholds if you significantly change capacity.
 
-### 1. Blue-Green Deployment Strategy (future consideration)
+### 1. Blue-Green Deployment Strategy (available via parameter)
 
-#### Current Configuration
-Note: The current stack uses ALB + ECS Fargate with rolling deployments and a deployment circuit breaker. The following blue/green patterns are future considerations and are not provisioned by the current CDK stack.
-
-#### Recommended Implementation
-```csharp
-// Blue-Green deployment with traffic shifting
-var blueService = new FargateService(this, "BlueService", new FargateServiceProps
-{
-    Cluster = cluster,
-    TaskDefinition = blueTaskDefinition,
-    DesiredCount = 2
-});
-
-var greenService = new FargateService(this, "GreenService", new FargateServiceProps
-{
-    Cluster = cluster,
-    TaskDefinition = greenTaskDefinition,
-    DesiredCount = 0  // Start with zero instances
-});
-
-// Traffic shifting configuration
-var trafficShifting = new CfnListenerRule(this, "TrafficShifting", new CfnListenerRuleProps
-{
-    ListenerArn = loadBalancer.Listener.ListenerArn,
-    Priority = 1,
-    Actions = new[]
-    {
-        new CfnListenerRule.ActionProperty
-        {
-            Type = "forward",
-            TargetGroupArn = blueTargetGroup.TargetGroupArn,
-            ForwardConfig = new CfnListenerRule.ForwardConfigProperty
-            {
-                TargetGroups = new[]
-                {
-                    new CfnListenerRule.TargetGroupTupleProperty
-                    {
-                        TargetGroupArn = blueTargetGroup.TargetGroupArn,
-                        Weight = 90  // 90% traffic to blue
-                    },
-                    new CfnListenerRule.TargetGroupTupleProperty
-                    {
-                        TargetGroupArn = greenTargetGroup.TargetGroupArn,
-                        Weight = 10  // 10% traffic to green
-                    }
-                }
-            }
-        }
-    }
-});
-```
-
-**Benefits:**
-- Zero-downtime deployments
-- Easy rollback capability
-- Risk mitigation through gradual traffic shifting
-- **Deployment Reliability**: 99.9%+ uptime during deployments
+Enable blue/green with ECS CodeDeploy by setting the CDK context parameter `EnableBlueGreen=true`. You can control traffic shifting with `-c CodeDeployShiftingConfig=<strategy>` (for example, `Linear10PercentEvery5Minutes`). See the "Progressive Rollouts" section below for CLI examples.
 
 ### 2. Canary Deployment Strategy (future consideration)
 
 #### Implementation
-Note: The current stack uses ALB + ECS Fargate. If adopting API Gateway in the future, canary deployments can be configured there (example omitted here to avoid confusion with the current ALB architecture).
+The current stack uses ALB + ECS Fargate. Canary can be approximated with ALB weighted target groups or additional listeners; not provisioned out of the box.
 
 #### GitHub Actions Integration
 ```yaml
@@ -167,134 +110,13 @@ Note: The current stack uses ALB + ECS Fargate. If adopting API Gateway in the f
     aws elbv2 modify-listener --listener-arn $LISTENER_ARN --default-actions Type=forward,TargetGroupArn=$CANARY_TARGET_GROUP_ARN
 ```
 
-### 3. Multi-Region Deployment (future consideration)
+### 3. Multi-Region Deployment (optional)
 
-#### Primary Region (us-east-1)
-```csharp
-var primaryStack = new LiveEventServiceStack(app, "LiveEventService-East", new StackProps
-{
-    Env = new Environment { Account = "123456789012", Region = "us-east-1" },
-    Tags = new Dictionary<string, string>
-    {
-        ["Environment"] = "production",
-        ["Region"] = "primary"
-    }
-});
-```
-
-#### Secondary Region (us-west-2)
-```csharp
-var secondaryStack = new LiveEventServiceStack(app, "LiveEventService-West", new StackProps
-{
-    Env = new Environment { Account = "123456789012", Region = "us-west-2" },
-    Tags = new Dictionary<string, string>
-    {
-        ["Environment"] = "production",
-        ["Region"] = "secondary"
-    }
-});
-```
-
-#### Route 53 Failover Configuration
-```csharp
-var hostedZone = new CfnHostedZone(this, "HostedZone", new CfnHostedZoneProps
-{
-    Name = "liveeventservice.com"
-});
-
-// Primary record
-var primaryRecord = new CfnRecordSet(this, "PrimaryRecord", new CfnRecordSetProps
-{
-    Name = "api.liveeventservice.com",
-    Type = "A",
-    HostedZoneId = hostedZone.HostedZoneId,
-    Failover = "PRIMARY",
-    SetIdentifier = "primary",
-    AliasTarget = new CfnRecordSet.AliasTargetProperty
-    {
-        DNSName = primaryLoadBalancer.LoadBalancerDnsName,
-        HostedZoneId = primaryLoadBalancer.LoadBalancerCanonicalHostedZoneId
-    },
-    HealthCheckId = primaryHealthCheck.Ref
-});
-
-// Secondary record
-var secondaryRecord = new CfnRecordSet(this, "SecondaryRecord", new CfnRecordSetProps
-{
-    Name = "api.liveeventservice.com",
-    Type = "A",
-    HostedZoneId = hostedZone.HostedZoneId,
-    Failover = "SECONDARY",
-    SetIdentifier = "secondary",
-    AliasTarget = new CfnRecordSet.AliasTargetProperty
-    {
-        DNSName = secondaryLoadBalancer.LoadBalancerDnsName,
-        HostedZoneId = secondaryLoadBalancer.LoadBalancerCanonicalHostedZoneId
-    },
-    HealthCheckId = secondaryHealthCheck.Ref
-});
-```
+Deploy a primary stack in one region and the `LiveEventReplicaStack` in a second region, then create Route 53 failover alias records pointing to each ALB. Pass your existing `HostedZoneId` and `DnsRecordName` via CDK context parameters. See the examples below.
 
 ### 4. Automated Rollback Strategy (future consideration)
 
-#### CloudWatch Alarms for Rollback
-```csharp
-// Create alarms that trigger rollback
-var errorRateAlarm = new Alarm(this, "ErrorRateAlarm", new AlarmProps
-{
-    AlarmDescription = "Error rate > 5% triggers rollback",
-    Metric = new Metric(new MetricProps
-    {
-        Namespace = "AWS/ApiGateway",
-        MetricName = "5XXError",
-        DimensionsMap = new Dictionary<string, string> { ["ApiName"] = api.RestApiName },
-        Statistic = "Sum",
-        Period = Duration.Minutes(1)
-    }),
-    Threshold = 5,
-    EvaluationPeriods = 2,
-    ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD
-});
-
-var responseTimeAlarm = new Alarm(this, "ResponseTimeAlarm", new AlarmProps
-{
-    AlarmDescription = "Response time > 2s triggers rollback",
-    Metric = new Metric(new MetricProps
-    {
-        Namespace = "AWS/ApiGateway",
-        MetricName = "Latency",
-        DimensionsMap = new Dictionary<string, string> { ["ApiName"] = api.RestApiName },
-        Statistic = "p95",
-        Period = Duration.Minutes(1)
-    }),
-    Threshold = 2000,  // 2 seconds
-    EvaluationPeriods = 3,
-    ComparisonOperator = ComparisonOperator.GREATER_THAN_THRESHOLD
-});
-```
-
-#### Lambda Function for Automated Rollback
-```csharp
-var rollbackFunction = new Function(this, "RollbackFunction", new FunctionProps
-{
-    Runtime = Runtime.DOTNET_9,
-    Handler = "LiveEventService.Rollback::LiveEventService.Rollback.Function::FunctionHandler",
-    Code = Code.FromAsset("src/LiveEventService.Rollback"),
-    Environment = new Dictionary<string, string>
-    {
-        ["ECS_CLUSTER"] = cluster.ClusterName,
-        ["ECS_SERVICE"] = service.ServiceName
-    }
-});
-
-// Grant permissions to rollback function
-service.GrantTaskPassRole(rollbackFunction);
-service.GrantUpdateService(rollbackFunction);
-
-// Connect alarms to rollback function
-errorRateAlarm.AddAlarmAction(new LambdaAction(rollbackFunction));
-responseTimeAlarm.AddAlarmAction(new LambdaAction(rollbackFunction));
-```
+Alarm‑driven or custom rollback workflows (beyond CodeDeploy health checks) can be added with CloudWatch alarms on ECS/ALB metrics and an automation target (e.g., Step Functions or Lambda) to initiate rollback.
 
 ### 5. Feature Flag Implementation
 
@@ -444,10 +266,27 @@ var deploymentDashboard = new Dashboard(this, "DeploymentDashboard", new Dashboa
 4. Implement feature flags
 
 ### Phase 2 (Short-term - 1-2 months)
-1. Implement canary deployments
-2. Add multi-region deployment
+1. Implement canary or blue/green deployments (CodeDeploy + weighted target groups)
+2. Add multi-region deployment and failover (Route 53 health checks, active/passive)
 3. Implement zero-downtime database migrations
-4. Add configuration management
+4. Add centralized configuration management (AppConfig/Parameter Store)
+
+#### Secondary region deployment example
+```bash
+# Primary region deploy (e.g., us-east-1)
+cd src/infrastructure
+cdk deploy --require-approval never \
+  -c HostedZoneId=Z123EXAMPLE \
+  -c DnsRecordName=events.example.com \
+  -c DnsFailoverRole=PRIMARY
+
+# Secondary region deploy (e.g., eu-central-1)
+setx CDK_DEFAULT_REGION eu-central-1
+cdk deploy --require-approval never \
+  -c HostedZoneId=Z123EXAMPLE \
+  -c DnsRecordName=events.example.com \
+  -c DnsFailoverRole=SECONDARY
+```
 
 ### Phase 3 (Long-term - 2-3 months)
 1. Implement advanced deployment strategies
@@ -476,6 +315,36 @@ var deploymentDashboard = new Dashboard(this, "DeploymentDashboard", new Dashboa
 - **Multi-region**: Disaster recovery and global availability
 
 ## Risk Mitigation
+
+### Multi-Region Deployment Guidance
+1. Deploy identical stacks per target region (e.g., `us-east-1`, `eu-central-1`).
+2. Use Route 53 failover records (PRIMARY/SECONDARY) with health checks to `/health`.
+3. Consider data strategy:
+   - Read replicas with asynchronous replication
+   - Aurora Global Database for lower RPO/RTO
+   - Region-pinned data by market for data residency
+4. This repo includes optional Route 53 alias record and health check parameters in the CDK (`HostedZoneId`, `DnsRecordName`, `DnsFailoverRole`) to accelerate setup.
+
+## Progressive Rollouts (Blue/Green / Canary)
+- Enable Blue/Green via CDK context parameter `EnableBlueGreen=true`.
+- CDK provisions a test listener and an ECS CodeDeploy Deployment Group (using L1 resources for broad compatibility).
+- Default deployment config is `ALL_AT_ONCE` (adjustable via `-c CodeDeployShiftingConfig=Linear10PercentEvery5Minutes`).
+
+### Example
+```bash
+cd src/infrastructure
+cdk deploy --require-approval never \
+  -c EnableBlueGreen=true \
+  -c CodeDeployShiftingConfig=Linear10PercentEvery5Minutes \
+  -c HostedZoneId=Z123EXAMPLE \
+  -c DnsRecordName=events.example.com \
+  -c DnsFailoverRole=PRIMARY
+```
+
+### Aurora PostgreSQL Global
+- Primary region: enable with `-c EnableAuroraGlobal=true -c AuroraGlobalClusterId=liveevent-global-cluster`.
+- Secondary region: deploy `LiveEventReplicaStack` with the same `AuroraGlobalClusterId` to attach a replica cluster.
+- Cutover: update the API/Worker DB connection secret to the Aurora writer endpoint.
 
 ### Testing Strategy
 - **Staging environment**: Test all deployment strategies in staging

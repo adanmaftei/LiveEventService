@@ -11,20 +11,46 @@ public sealed class FieldEncryptionService : IFieldEncryptionService
 
     public FieldEncryptionService(IConfiguration configuration)
     {
-        // Expect base64 strings in configuration
-        var keyB64 = configuration["Security:Encryption:Key"];
-        var ivB64 = configuration["Security:Encryption:IV"];
+        // Prefer base64-encoded key/iv; if not base64, derive bytes deterministically from provided strings
+        var keyRaw = configuration["Security:Encryption:Key"];
+        var ivRaw = configuration["Security:Encryption:IV"];
 
-        if (string.IsNullOrWhiteSpace(keyB64) || string.IsNullOrWhiteSpace(ivB64))
+        if (string.IsNullOrWhiteSpace(keyRaw) || string.IsNullOrWhiteSpace(ivRaw))
         {
-            // Fallback to pass-through if not configured
+            // Not configured: pass-through
             _key = Array.Empty<byte>();
             _iv = Array.Empty<byte>();
+            return;
         }
-        else
+
+        // Try base64 first
+        if (TryFromBase64(keyRaw, out var keyBytes) && TryFromBase64(ivRaw, out var ivBytes))
         {
-            _key = Convert.FromBase64String(keyB64);
-            _iv = Convert.FromBase64String(ivB64);
+            _key = keyBytes!;
+            _iv = ivBytes!;
+            return;
+        }
+
+        // Derive from arbitrary secrets: produce AES-256 key (32 bytes) and IV (16 bytes)
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var keyHash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(keyRaw));
+        var ivHash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes("iv:" + ivRaw));
+        _key = keyHash; // 32 bytes
+        _iv = new byte[16];
+        Array.Copy(ivHash, _iv, 16);
+    }
+
+    private static bool TryFromBase64(string input, out byte[]? bytes)
+    {
+        try
+        {
+            bytes = Convert.FromBase64String(input);
+            return true;
+        }
+        catch
+        {
+            bytes = null;
+            return false;
         }
     }
 
