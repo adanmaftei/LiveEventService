@@ -102,7 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     needs: [lint-format, unit-tests, integration-tests]
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     
     steps:
     - name: Checkout
