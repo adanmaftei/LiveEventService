@@ -2,9 +2,9 @@ name: Security Testing
 
 on:
   push:
-    branches: [ main, develop, master ]
+    branches: [ develop, master ]
   pull_request:
-    branches: [ main, develop, master ]
+    branches: [ develop, master ]
   schedule:
     # Weekly security scan (Sundays at midnight)
     - cron: '0 0 * * 0'
