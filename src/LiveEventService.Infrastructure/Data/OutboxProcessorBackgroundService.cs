@@ -5,6 +5,10 @@ using Microsoft.Extensions.Logging;
 
 namespace LiveEventService.Infrastructure.Data;
 
+/// <summary>
+/// Hosted service that continuously invokes the <see cref="OutboxProcessor"/>
+/// to publish domain events from the outbox. Uses DI scopes per iteration.
+/// </summary>
 public sealed class OutboxProcessorBackgroundService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
@@ -14,12 +18,20 @@ public sealed class OutboxProcessorBackgroundService : BackgroundService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OutboxProcessorBackgroundService"/> class.
+    /// Creates a new background service instance.
+    /// </summary>
+    /// <param name="serviceProvider">The service provider for creating scoped services.</param>
+    /// <param name="logger">The logger for recording service events.</param>
     public OutboxProcessorBackgroundService(IServiceProvider serviceProvider, ILogger<OutboxProcessorBackgroundService> logger)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
+    /// <inheritdoc />
+    /// <param name="stoppingToken">Signals service stop and cancels the loop.</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Outbox processor started");
@@ -55,5 +67,3 @@ public sealed class OutboxProcessorBackgroundService : BackgroundService
 
     // Intentionally no dispatch for now to avoid duplicating in-process handlers
 }
-
-

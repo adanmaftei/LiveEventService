@@ -11,8 +11,18 @@ using LiveEventService.Application.Configuration;
 
 namespace LiveEventService.Application;
 
+/// <summary>
+/// Provides service registration helpers for the Application layer.
+/// Configures MediatR, AutoMapper, validation, background processing, and default metrics.
+/// </summary>
 public static class DependencyInjection
 {
+    /// <summary>
+    /// Registers Application layer services into the provided <see cref="IServiceCollection"/>.
+    /// </summary>
+    /// <param name="services">The service collection to add services to.</param>
+    /// <param name="configuration">The application configuration used for binding options.</param>
+    /// <returns>The same <see cref="IServiceCollection"/> instance for chaining.</returns>
     public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
         // Register MediatR from Application assembly
@@ -40,19 +50,8 @@ public static class DependencyInjection
         services.Configure<BackgroundProcessingOptions>(configuration.GetSection("Performance:BackgroundProcessing"));
         services.Configure<BackgroundProcessingRootOptions>(configuration.GetSection("Performance:BackgroundProcessing"));
 
-        // Register background service (can be disabled via config when using external queue workers)
-        var rootOptions = configuration.GetSection("Performance:BackgroundProcessing").Get<BackgroundProcessingRootOptions>() ?? new BackgroundProcessingRootOptions();
-        var useInProcess = rootOptions.UseInProcess;
-        // If SQS is configured for domain events, prefer external worker and disable in-process background processing
-        var useSqsForDomainEvents = configuration.GetSection("AWS:SQS").GetValue<bool>("UseSqsForDomainEvents");
-        if (useSqsForDomainEvents)
-        {
-            useInProcess = false;
-        }
-        if (useInProcess)
-        {
-            services.AddHostedService<DomainEventBackgroundService>();
-        }
+        // Hosting/background worker registration is decided in the composition root
+        // to keep the Application layer independent of hosting and vendor specifics.
 
         // Register domain event dispatcher
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();

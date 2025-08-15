@@ -5,6 +5,9 @@ using User = LiveEventService.Core.Users.User.User;
 
 namespace LiveEventService.Core.Registrations.EventRegistration;
 
+/// <summary>
+/// Aggregate representing a user's registration for an event including waitlist state.
+/// </summary>
 public class EventRegistration : Entity
 {
     public Guid EventId { get; private set; }
@@ -22,6 +25,13 @@ public class EventRegistration : Entity
 
     protected EventRegistration() { } // For EF Core
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventRegistration"/> class.
+    /// Creates a new registration for an event and raises a created domain event.
+    /// </summary>
+    /// <param name="event">The event for which the registration is being created.</param>
+    /// <param name="user">The user registering for the event.</param>
+    /// <param name="notes">Optional notes for the registration.</param>
     public EventRegistration(Event @event, User user, string? notes = null)
     {
         Event = Guard.Against.Null(@event, nameof(@event));
@@ -48,6 +58,9 @@ public class EventRegistration : Entity
         AddDomainEvent(new EventRegistrationCreatedDomainEvent(this));
     }
 
+    /// <summary>
+    /// Confirms the registration if currently pending or waitlisted, and raises a promoted event.
+    /// </summary>
     public void Confirm()
     {
         if (Status == RegistrationStatus.Confirmed)
@@ -67,6 +80,9 @@ public class EventRegistration : Entity
         AddDomainEvent(new EventRegistrationPromotedDomainEvent(this));
     }
 
+    /// <summary>
+    /// Cancels the registration and raises cancellation (and possibly waitlist removal) events.
+    /// </summary>
     public void Cancel()
     {
         if (Status == RegistrationStatus.Cancelled)
@@ -90,6 +106,9 @@ public class EventRegistration : Entity
         }
     }
 
+    /// <summary>
+    /// Marks the registration as attended. Only valid for confirmed registrations.
+    /// </summary>
     public void MarkAsAttended()
     {
         if (Status != RegistrationStatus.Confirmed)
@@ -101,6 +120,9 @@ public class EventRegistration : Entity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Marks the registration as no-show. Only valid for confirmed registrations.
+    /// </summary>
     public void MarkAsNoShow()
     {
         if (Status != RegistrationStatus.Confirmed)
@@ -112,6 +134,10 @@ public class EventRegistration : Entity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Adds the registration to the waitlist with an optional initial position and raises a waitlisted event.
+    /// </summary>
+    /// <param name="position">Optional initial position in the waitlist queue.</param>
     public void AddToWaitlist(int? position = null)
     {
         if (Status == RegistrationStatus.Waitlisted)
@@ -125,6 +151,10 @@ public class EventRegistration : Entity
         AddDomainEvent(new RegistrationWaitlistedDomainEvent(this));
     }
 
+    /// <summary>
+    /// Updates the waitlist position and raises a position changed event if changed.
+    /// </summary>
+    /// <param name="position">The new position in the waitlist queue.</param>
     public void UpdateWaitlistPosition(int? position)
     {
         if (Status != RegistrationStatus.Waitlisted)
@@ -150,6 +180,10 @@ public class EventRegistration : Entity
         }
     }
 
+    /// <summary>
+    /// Removes the registration from the waitlist and sets status to Cancelled, raising a removal event.
+    /// </summary>
+    /// <param name="reason">Optional reason for removing from waitlist.</param>
     public void RemoveFromWaitlist(string? reason = null)
     {
         if (Status != RegistrationStatus.Waitlisted)
@@ -165,5 +199,8 @@ public class EventRegistration : Entity
     }
 
     // Business logic methods (not EF properties)
+
+    /// <summary>True if the registration is waitlisted and has a valid queue position.</summary>
+    /// <returns>True if the registration is waitlisted with a valid position; otherwise false.</returns>
     public bool IsWaitlisted() => Status == RegistrationStatus.Waitlisted && PositionInQueue.HasValue && PositionInQueue > 0;
 }

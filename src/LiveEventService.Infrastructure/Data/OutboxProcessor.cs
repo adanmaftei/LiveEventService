@@ -5,6 +5,10 @@ namespace LiveEventService.Infrastructure.Data;
 
 using Amazon.SimpleNotificationService;
 
+/// <summary>
+/// Processes pending outbox messages and publishes them to AWS SNS topics
+/// (one topic per event type). Implements claiming and retry with backoff.
+/// </summary>
 public sealed class OutboxProcessor
 {
     private readonly LiveEventDbContext _dbContext;
@@ -12,6 +16,12 @@ public sealed class OutboxProcessor
 
     private readonly IAmazonSimpleNotificationService _sns;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OutboxProcessor"/> class.
+    /// </summary>
+    /// <param name="dbContext">The database context for accessing outbox messages.</param>
+    /// <param name="logger">The logger for recording processing events.</param>
+    /// <param name="sns">The SNS service for publishing messages.</param>
     public OutboxProcessor(LiveEventDbContext dbContext, ILogger<OutboxProcessor> logger, IAmazonSimpleNotificationService sns)
     {
         _dbContext = dbContext;
@@ -117,5 +127,3 @@ public sealed class OutboxProcessor
         return processed;
     }
 }
-
-

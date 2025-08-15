@@ -9,6 +9,9 @@ using LiveEventService.Application.Features.Events.Queries.GetEventRegistrations
 
 namespace LiveEventService.Application.Features.Events.EventRegistration.Get;
 
+/// <summary>
+/// Handles listing of event registrations for a given event with filtering and pagination.
+/// </summary>
 public class GetEventRegistrationsQueryHandler : IQueryHandler<GetEventRegistrationsQuery, BaseResponse<EventRegistrationListDto>>
 {
     private readonly IEventRepository _eventRepository;
@@ -16,6 +19,13 @@ public class GetEventRegistrationsQueryHandler : IQueryHandler<GetEventRegistrat
     private readonly IUserRepository _userRepository;
     private readonly IMapper _mapper;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GetEventRegistrationsQueryHandler"/> class.
+    /// </summary>
+    /// <param name="eventRepository">The repository for accessing event data.</param>
+    /// <param name="registrationRepository">The repository for accessing event registration data.</param>
+    /// <param name="userRepository">The repository for accessing user data.</param>
+    /// <param name="mapper">The mapper for converting entities to DTOs.</param>
     public GetEventRegistrationsQueryHandler(
         IEventRepository eventRepository,
         IRepository<EventRegistrationEntity> registrationRepository,
@@ -28,6 +38,7 @@ public class GetEventRegistrationsQueryHandler : IQueryHandler<GetEventRegistrat
         _mapper = mapper;
     }
 
+    /// <inheritdoc />
     public async Task<BaseResponse<EventRegistrationListDto>> Handle(
         GetEventRegistrationsQuery request,
         CancellationToken cancellationToken)

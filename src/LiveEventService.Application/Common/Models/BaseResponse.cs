@@ -1,5 +1,8 @@
 namespace LiveEventService.Application.Common.Models;
 
+/// <summary>
+/// Standard envelope for command/query responses without data payload.
+/// </summary>
 public class BaseResponse
 {
     public bool Success { get; set; }
@@ -26,7 +29,7 @@ public class BaseResponse<T> : BaseResponse
         return new BaseResponse<T> { Success = true, Data = data, Message = message };
     }
 
-    public new static BaseResponse<T> Failed(string message, IEnumerable<string>? errors = null)
+    public static new BaseResponse<T> Failed(string message, IEnumerable<string>? errors = null)
     {
         return new BaseResponse<T> { Success = false, Message = message, Errors = errors };
     }

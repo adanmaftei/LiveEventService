@@ -4,11 +4,20 @@ using Microsoft.Extensions.Configuration;
 
 namespace LiveEventService.Infrastructure.Security;
 
+/// <summary>
+/// Service for encrypting and decrypting sensitive field values using AES encryption.
+/// </summary>
 public sealed class FieldEncryptionService : IFieldEncryptionService
 {
     private readonly byte[] _key;
     private readonly byte[] _iv;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FieldEncryptionService"/> class.
+    /// Initializes the service from configuration values. Accepts base64-encoded keys
+    /// or derives bytes deterministically from arbitrary secrets.
+    /// </summary>
+    /// <param name="configuration">The configuration containing encryption settings.</param>
     public FieldEncryptionService(IConfiguration configuration)
     {
         // Prefer base64-encoded key/iv; if not base64, derive bytes deterministically from provided strings
@@ -40,6 +49,12 @@ public sealed class FieldEncryptionService : IFieldEncryptionService
         Array.Copy(ivHash, _iv, 16);
     }
 
+    /// <summary>
+    /// Attempts to parse a base64-encoded string into bytes.
+    /// </summary>
+    /// <param name="input">The base64 string to parse.</param>
+    /// <param name="bytes">The parsed bytes, or null if parsing failed.</param>
+    /// <returns>True if parsing was successful; otherwise false.</returns>
     private static bool TryFromBase64(string input, out byte[]? bytes)
     {
         try
@@ -54,6 +69,7 @@ public sealed class FieldEncryptionService : IFieldEncryptionService
         }
     }
 
+    /// <inheritdoc />
     public string? EncryptNullable(string? plaintext)
     {
         if (string.IsNullOrEmpty(plaintext)) return plaintext;
@@ -70,6 +86,7 @@ public sealed class FieldEncryptionService : IFieldEncryptionService
         return Convert.ToBase64String(cipherBytes);
     }
 
+    /// <inheritdoc />
     public string? DecryptNullable(string? ciphertext)
     {
         if (string.IsNullOrEmpty(ciphertext)) return ciphertext;
@@ -94,5 +111,3 @@ public sealed class FieldEncryptionService : IFieldEncryptionService
         }
     }
 }
-
-

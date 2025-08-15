@@ -8,6 +8,9 @@ using System.Text.Json;
 
 namespace LiveEventService.Application.Features.Events.Event.Get;
 
+/// <summary>
+/// Handles retrieval of a single event with organizer enrichment and simple cache-aside.
+/// </summary>
 public class GetEventQueryHandler : IQueryHandler<GetEventQuery, BaseResponse<EventDto>>
 {
     private readonly IEventRepository _eventRepository;
@@ -15,6 +18,13 @@ public class GetEventQueryHandler : IQueryHandler<GetEventQuery, BaseResponse<Ev
     private readonly IMapper _mapper;
     private readonly IDistributedCache _cache;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GetEventQueryHandler"/> class.
+    /// </summary>
+    /// <param name="eventRepository">The event repository for data access.</param>
+    /// <param name="userRepository">The user repository for organizer data.</param>
+    /// <param name="mapper">The AutoMapper instance for object mapping.</param>
+    /// <param name="cache">The distributed cache for caching results.</param>
     public GetEventQueryHandler(
         IEventRepository eventRepository,
         IUserRepository userRepository,

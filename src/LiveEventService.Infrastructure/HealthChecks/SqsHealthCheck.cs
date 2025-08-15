@@ -4,11 +4,19 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace LiveEventService.Infrastructure.HealthChecks;
 
+/// <summary>
+/// Confirms that the configured SQS queue URL can be resolved.
+/// </summary>
 public sealed class SqsHealthCheck : IHealthCheck
 {
     private readonly IAmazonSQS sqs;
     private readonly IConfiguration configuration;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqsHealthCheck"/> class.
+    /// </summary>
+    /// <param name="sqs">The SQS client for checking queue availability.</param>
+    /// <param name="configuration">The configuration containing SQS settings.</param>
     public SqsHealthCheck(IAmazonSQS sqs, IConfiguration configuration)
     {
         this.sqs = sqs;
@@ -39,5 +47,3 @@ public sealed class SqsHealthCheck : IHealthCheck
         }
     }
 }
-
-

@@ -63,9 +63,12 @@ public class EventRegistrationCancelledDomainEventHandler : INotificationHandler
                 promote.Id, registration.Id);
 
             // Update positions for remaining waitlisted registrations
-            for (int i = 0; i < waitlisted.Skip(1).Count(); i++)
+            // Recompute positions from the updated, current waitlist order to avoid off-by-one errors
+            var remainingWaitlisted = await _registrationRepository.ListAsync(
+                new WaitlistedRegistrationsForEventSpecification(registration.EventId), cancellationToken);
+            for (int i = 0; i < remainingWaitlisted.Count; i++)
             {
-                var waitlistedRegistration = waitlisted.Skip(1).ElementAt(i);
+                var waitlistedRegistration = remainingWaitlisted[i];
                 var newPosition = i + 1;
 
                 if (waitlistedRegistration.PositionInQueue != newPosition)

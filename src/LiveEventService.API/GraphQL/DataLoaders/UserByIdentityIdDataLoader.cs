@@ -48,5 +48,3 @@ public sealed class UserByIdentityIdDataLoader : BatchDataLoader<string, User>
         return map;
     }
 }
-
-

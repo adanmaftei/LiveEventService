@@ -20,8 +20,19 @@ using LiveEventService.Infrastructure.Messaging;
 
 namespace LiveEventService.Infrastructure;
 
+/// <summary>
+/// Composition root for the Infrastructure layer. Registers database, repositories,
+/// AWS clients, health checks, background services, and telemetry bindings.
+/// </summary>
 public static class DependencyInjection
 {
+    /// <summary>
+    /// Registers Infrastructure services into the container.
+    /// </summary>
+    /// <param name="services">The DI service collection.</param>
+    /// <param name="configuration">Application configuration for connection strings and AWS settings.</param>
+    /// <param name="isTesting">When true, skips external dependencies and hosted services.</param>
+    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration, bool isTesting = false)
     {
         services.Configure<AwsOptions>(configuration.GetSection("AWS"));

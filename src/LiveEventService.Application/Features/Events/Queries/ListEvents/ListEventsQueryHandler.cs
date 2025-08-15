@@ -10,6 +10,9 @@ using LiveEventService.Application.Features.Users.Queries.GetUsersByIdentityIds;
 
 namespace LiveEventService.Application.Features.Events.Event.List;
 
+/// <summary>
+/// Handles listing of events with filtering, pagination, organizer enrichment, and cache-aside.
+/// </summary>
 public class ListEventsQueryHandler : IQueryHandler<ListEventsQuery, BaseResponse<EventListDto>>
 {
     private readonly IEventRepository _eventRepository;
@@ -17,6 +20,13 @@ public class ListEventsQueryHandler : IQueryHandler<ListEventsQuery, BaseRespons
     private readonly IMapper _mapper;
     private readonly IDistributedCache _cache;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ListEventsQueryHandler"/> class.
+    /// </summary>
+    /// <param name="eventRepository">The event repository for data access.</param>
+    /// <param name="userRepository">The user repository for organizer data.</param>
+    /// <param name="mapper">The AutoMapper instance for object mapping.</param>
+    /// <param name="cache">The distributed cache for caching results.</param>
     public ListEventsQueryHandler(
         IEventRepository eventRepository,
         IUserRepository userRepository,

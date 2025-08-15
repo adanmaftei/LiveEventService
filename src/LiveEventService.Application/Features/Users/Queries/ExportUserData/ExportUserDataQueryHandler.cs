@@ -59,5 +59,3 @@ public class ExportUserDataQueryHandler : IQueryHandler<ExportUserDataQuery, Bas
         return BaseResponse<ExportUserDataResult>.Succeeded(new ExportUserDataResult { Json = json });
     }
 }
-
-

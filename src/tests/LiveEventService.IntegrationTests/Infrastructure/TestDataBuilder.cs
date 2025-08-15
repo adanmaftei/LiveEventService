@@ -114,7 +114,7 @@ public static class TestDataBuilder
                     Email = email ?? _faker.Internet.Email(),
                     FirstName = firstName ?? _faker.Name.FirstName(),
                     LastName = lastName ?? _faker.Name.LastName(),
-                    PhoneNumber = _faker.Phone.PhoneNumber("##########")
+                    PhoneNumber = _faker.Phone.PhoneNumber("##########") ?? "5551234567"
                 }
             };
         }
@@ -153,14 +153,15 @@ public static class TestDataBuilder
             int? capacity = null)
         {
             var start = startDate ?? DateTime.SpecifyKind(_faker.Date.Future(1), DateTimeKind.Utc);
+            var end = endDate ?? start.AddHours(_faker.Random.Int(1, 8));
             return new CreateEventCommand
             {
                 Event = new CreateEventDto
                 {
-                    Title = name, // Don't use fallback for validation tests
+                    Title = name!, // Don't use fallback for validation tests - suppress warning for test purposes
                     Description = description ?? _faker.Lorem.Paragraph(3),
                     StartDateTime = start,
-                    EndDateTime = endDate ?? start.AddHours(_faker.Random.Int(1, 8)),
+                    EndDateTime = end,
                     Location = location ?? _faker.Address.FullAddress(),
                     Capacity = capacity ?? _faker.Random.Int(10, 500),
                     TimeZone = "UTC"

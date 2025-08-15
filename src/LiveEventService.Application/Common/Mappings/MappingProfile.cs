@@ -8,6 +8,9 @@ using EventRegistrationEntity = LiveEventService.Core.Registrations.EventRegistr
 
 namespace LiveEventService.Application.Common.Mappings;
 
+/// <summary>
+/// AutoMapper profile defining mappings between Core domain entities and Application DTOs.
+/// </summary>
 public class MappingProfile : Profile
 {
     public MappingProfile()

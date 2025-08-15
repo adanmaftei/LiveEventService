@@ -109,7 +109,9 @@ public class EventMutations
 }
 
 public class CreateEventInput : CreateEventDto { }
+
 public class UpdateEventInput : UpdateEventDto { }
+
 public class RegisterForEventInput
 {
     public Guid EventId { get; set; }

@@ -2,6 +2,10 @@ using LiveEventService.Application.Features.Users.User;
 
 namespace LiveEventService.API.GraphQL.Types;
 
+/// <summary>
+/// GraphQL type definition for User entities.
+/// Provides field descriptions for user data in GraphQL queries.
+/// </summary>
 public class UserType : ObjectType<UserDto>
 {
     protected override void Configure(IObjectTypeDescriptor<UserDto> descriptor)

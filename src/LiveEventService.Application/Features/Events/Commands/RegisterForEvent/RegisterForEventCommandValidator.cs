@@ -2,6 +2,9 @@ using FluentValidation;
 
 namespace LiveEventService.Application.Features.Events.EventRegistration.Register;
 
+/// <summary>
+/// FluentValidation rules for <see cref="RegisterForEventCommand"/>.
+/// </summary>
 public class RegisterForEventCommandValidator : AbstractValidator<RegisterForEventCommand>
 {
     public RegisterForEventCommandValidator()

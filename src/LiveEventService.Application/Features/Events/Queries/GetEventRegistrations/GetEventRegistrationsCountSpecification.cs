@@ -4,7 +4,7 @@ using EventRegistrationEntity = LiveEventService.Core.Registrations.EventRegistr
 namespace LiveEventService.Application.Features.Events.Queries.GetEventRegistrations;
 
 /// <summary>
-/// Optimized specification for counting registrations without including related entities
+/// Optimized specification for counting registrations without including related entities.
 /// </summary>
 public class GetEventRegistrationsCountSpecification : BaseSpecification<EventRegistrationEntity>
 {

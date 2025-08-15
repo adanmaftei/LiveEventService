@@ -13,8 +13,8 @@ public class EventRegistrationPromotedDomainEventHandler : INotificationHandler<
     {
         _notifier = notifier;
     }
-    public async Task Handle(EventRegistrationPromotedNotification notification, CancellationToken cancellationToken)
+    public Task Handle(EventRegistrationPromotedNotification notification, CancellationToken cancellationToken)
     {
-        await _notifier.NotifyAsync(notification.DomainEvent.Registration, "promoted", cancellationToken);
+        return _notifier.NotifyAsync(notification.DomainEvent.Registration, "promoted", cancellationToken);
     }
 }

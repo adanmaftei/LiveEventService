@@ -39,5 +39,3 @@ public static class SecurityHeaderNames
     public const string PermissionsPolicy = "Permissions-Policy";
     public const string ContentSecurityPolicy = "Content-Security-Policy";
 }
-
-

@@ -5,12 +5,24 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LiveEventService.Infrastructure.Events;
 
+/// <summary>
+/// Repository implementation for <see cref="Event"/> providing event-specific query methods.
+/// </summary>
 public class EventRepository : RepositoryBase<Event>, IEventRepository
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventRepository"/> class.
+    /// </summary>
+    /// <param name="dbContext">The database context for data access.</param>
     public EventRepository(LiveEventDbContext dbContext) : base(dbContext)
     {
     }
 
+    /// <summary>
+    /// Gets upcoming published events ordered by start date.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Published events starting in the future ordered by start date.</returns>
     public async Task<IEnumerable<Event>> GetUpcomingEventsAsync(CancellationToken cancellationToken = default)
     {
         return await _dbContext.Events
@@ -20,6 +32,12 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Gets events organized by a specific user.
+    /// </summary>
+    /// <param name="organizerId">Organizer identity id.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Events organized by the specified user.</returns>
     public async Task<IEnumerable<Event>> GetEventsByOrganizerAsync(string organizerId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Events
@@ -29,6 +47,13 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Gets a page of published events.
+    /// </summary>
+    /// <param name="skip">Number of items to skip.</param>
+    /// <param name="take">Number of items to take.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Page of published events ordered by start date descending.</returns>
     public async Task<IReadOnlyList<Event>> GetPublishedEventsAsync(int skip, int take, CancellationToken cancellationToken = default)
     {
         return await _dbSet
@@ -40,21 +65,47 @@ public class EventRepository : RepositoryBase<Event>, IEventRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<bool> IsUserRegisteredForEventAsync(Guid eventId, Guid userId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Checks if a user is registered for a specific event.
+    /// </summary>
+    /// <param name="eventId">Event identifier.</param>
+    /// <param name="userId">User identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if a registration exists for the user and event.</returns>
+    public Task<bool> IsUserRegisteredForEventAsync(Guid eventId, Guid userId, CancellationToken cancellationToken = default)
     {
-        return await _dbContext.EventRegistrations.AnyAsync(r => r.EventId == eventId && r.UserId == userId, cancellationToken);
+        return _dbContext.EventRegistrations.AnyAsync(r => r.EventId == eventId && r.UserId == userId, cancellationToken);
     }
 
-    public async Task<int> GetRegistrationCountForEventAsync(Guid eventId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Gets the count of active registrations for an event.
+    /// </summary>
+    /// <param name="eventId">Event identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Number of non-cancelled registrations for the event.</returns>
+    public Task<int> GetRegistrationCountForEventAsync(Guid eventId, CancellationToken cancellationToken = default)
     {
-        return await _dbContext.EventRegistrations.CountAsync(r => r.EventId == eventId && r.Status != RegistrationStatus.Cancelled, cancellationToken);
+        return _dbContext.EventRegistrations.CountAsync(r => r.EventId == eventId && r.Status != RegistrationStatus.Cancelled, cancellationToken);
     }
 
-    public async Task<int> GetWaitlistCountForEventAsync(Guid eventId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Gets the count of waitlisted registrations for an event.
+    /// </summary>
+    /// <param name="eventId">Event identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Number of registrations currently waitlisted for the event.</returns>
+    public Task<int> GetWaitlistCountForEventAsync(Guid eventId, CancellationToken cancellationToken = default)
     {
-        return await _dbContext.EventRegistrations.CountAsync(r => r.EventId == eventId && r.Status == RegistrationStatus.Waitlisted, cancellationToken);
+        return _dbContext.EventRegistrations.CountAsync(r => r.EventId == eventId && r.Status == RegistrationStatus.Waitlisted, cancellationToken);
     }
 
+    /// <summary>
+    /// Calculates the position of a registration in the waitlist for an event.
+    /// </summary>
+    /// <param name="eventId">Event identifier.</param>
+    /// <param name="registrationId">Registration identifier to evaluate position for.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>1-based position of the registration in the waitlist.</returns>
     public async Task<int> CalculateWaitlistPositionAsync(Guid eventId, Guid registrationId, CancellationToken cancellationToken = default)
     {
         // Calculate position based on the order of creation (using CreatedAt and Id for tie-breaking)

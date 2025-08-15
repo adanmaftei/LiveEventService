@@ -2,14 +2,36 @@ using System.Text.Json;
 
 namespace LiveEventService.Infrastructure.Data;
 
+/// <summary>
+/// Processing state for outbox messages.
+/// </summary>
 public enum OutboxStatus
 {
+    /// <summary>
+    /// Message is waiting to be processed.
+    /// </summary>
     Pending = 0,
+
+    /// <summary>
+    /// Message is currently being processed.
+    /// </summary>
     Processing = 1,
+
+    /// <summary>
+    /// Message has been successfully processed.
+    /// </summary>
     Processed = 2,
+
+    /// <summary>
+    /// Message processing failed.
+    /// </summary>
     Failed = 3
 }
 
+/// <summary>
+/// Outbox message record used to persist domain events for reliable publication
+/// to external transports (e.g., SNS/SQS) outside the transaction boundary.
+/// </summary>
 public class OutboxMessage
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -33,9 +55,20 @@ public class OutboxMessage
     public DateTime? ClaimedAt { get; set; }
         = null;
 
+    /// <summary>
+    /// Creates a new <see cref="OutboxMessage"/> from a domain event instance,
+    /// capturing its type and serialized payload.
+    /// </summary>
+    /// <param name="domainEvent">The domain event to convert to an outbox message.</param>
+    /// <param name="options">Optional JSON serialization options.</param>
+    /// <returns>A new outbox message containing the serialized domain event.</returns>
     public static OutboxMessage FromDomainEvent(object domainEvent, JsonSerializerOptions? options = null)
     {
-        if (domainEvent == null) throw new ArgumentNullException(nameof(domainEvent));
+        if (domainEvent == null)
+        {
+            throw new ArgumentNullException(nameof(domainEvent));
+        }
+
         return new OutboxMessage
         {
             EventType = domainEvent.GetType().AssemblyQualifiedName ?? domainEvent.GetType().FullName ?? string.Empty,
@@ -51,5 +84,3 @@ public class OutboxMessage
         };
     }
 }
-
-

@@ -2,6 +2,9 @@ using FluentValidation;
 
 namespace LiveEventService.Application.Features.Events.Event.Update;
 
+/// <summary>
+/// FluentValidation rules for <see cref="UpdateEventCommand"/>.
+/// </summary>
 public class UpdateEventCommandValidator : AbstractValidator<UpdateEventCommand>
 {
     public UpdateEventCommandValidator()

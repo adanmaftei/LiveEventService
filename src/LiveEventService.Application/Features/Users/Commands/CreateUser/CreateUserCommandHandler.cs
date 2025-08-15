@@ -6,11 +6,19 @@ using UserEntity = LiveEventService.Core.Users.User.User;
 
 namespace LiveEventService.Application.Features.Users.User.Create;
 
+/// <summary>
+/// Handles creation of users, enforcing unique email and mapping to DTO.
+/// </summary>
 public class CreateUserCommandHandler : ICommandHandler<CreateUserCommand, BaseResponse<UserDto>>
 {
     private readonly IUserRepository _userRepository;
     private readonly IMapper _mapper;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CreateUserCommandHandler"/> class.
+    /// </summary>
+    /// <param name="userRepository">The repository used to manage user data.</param>
+    /// <param name="mapper">The mapper used to map entities to DTOs.</param>
     public CreateUserCommandHandler(
         IUserRepository userRepository,
         IMapper mapper)
@@ -19,6 +27,7 @@ public class CreateUserCommandHandler : ICommandHandler<CreateUserCommand, BaseR
         _mapper = mapper;
     }
 
+    /// <inheritdoc />
     public async Task<BaseResponse<UserDto>> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
         // Check if email is already in use

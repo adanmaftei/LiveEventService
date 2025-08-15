@@ -10,6 +10,11 @@ using EventConfiguration = LiveEventService.Infrastructure.Events.EventConfigura
 
 namespace LiveEventService.Infrastructure.Data;
 
+/// <summary>
+/// Entity Framework Core DbContext for the LiveEvent domain.
+/// Handles entity configurations, field-level encryption, domain event outbox,
+/// and timestamp management.
+/// </summary>
 public class LiveEventDbContext : DbContext
 {
     private readonly IDomainEventDispatcher _domainEventDispatcher;
@@ -21,13 +26,32 @@ public class LiveEventDbContext : DbContext
         _encryptionService = encryptionService;
     }
 
+    /// <summary>
+    /// Gets set of events.
+    /// </summary>
     public DbSet<Event> Events => Set<Event>();
+
+    /// <summary>
+    /// Gets set of users.
+    /// </summary>
     public DbSet<UserEntity> Users => Set<UserEntity>();
+
+    /// <summary>
+    /// Gets set of event registrations.
+    /// </summary>
     public DbSet<EventRegistrationEntity> EventRegistrations => Set<EventRegistrationEntity>();
+
+    /// <summary>
+    /// Gets outbox messages for reliable, decoupled event publication.
+    /// </summary>
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
 
 
+    /// <summary>
+    /// Applies entity configurations, global filters, field encryptors, and the outbox mapping.
+    /// </summary>
+    /// <param name="modelBuilder">The model builder.</param>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -54,23 +78,23 @@ public class LiveEventDbContext : DbContext
         {
             entity.Property(u => u.Email)
                 .HasConversion(
-                    v => _encryptionService.EncryptNullable(v),
-                    v => _encryptionService.DecryptNullable(v));
+                    v => _encryptionService.EncryptNullable(v) ?? string.Empty,
+                    v => _encryptionService.DecryptNullable(v) ?? string.Empty);
 
             entity.Property(u => u.PhoneNumber)
                 .HasConversion(
-                    v => _encryptionService.EncryptNullable(v),
-                    v => _encryptionService.DecryptNullable(v));
+                    v => _encryptionService.EncryptNullable(v) ?? string.Empty,
+                    v => _encryptionService.DecryptNullable(v) ?? string.Empty);
 
             entity.Property(u => u.FirstName)
                 .HasConversion(
-                    v => _encryptionService.EncryptNullable(v),
-                    v => _encryptionService.DecryptNullable(v));
+                    v => _encryptionService.EncryptNullable(v) ?? string.Empty,
+                    v => _encryptionService.DecryptNullable(v) ?? string.Empty);
 
             entity.Property(u => u.LastName)
                 .HasConversion(
-                    v => _encryptionService.EncryptNullable(v),
-                    v => _encryptionService.DecryptNullable(v));
+                    v => _encryptionService.EncryptNullable(v) ?? string.Empty,
+                    v => _encryptionService.DecryptNullable(v) ?? string.Empty);
         });
 
         // Outbox table configuration
@@ -84,6 +108,12 @@ public class LiveEventDbContext : DbContext
         });
     }
 
+    /// <summary>
+    /// Persists changes and writes domain events to the outbox table as part of the same transaction.
+    /// After commit, in-process handlers are dispatched to preserve current behavior.
+    /// </summary>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The number of state entries written to the database.</returns>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         var entries = ChangeTracker
@@ -97,9 +127,17 @@ public class LiveEventDbContext : DbContext
             var entity = (Entity)entityEntry.Entity;
             if (entityEntry.State == EntityState.Added)
             {
-                typeof(Entity).GetProperty("CreatedAt")?.SetValue(entity, DateTime.UtcNow);
+                var createdAtProperty = typeof(Entity).GetProperty("CreatedAt");
+                if (createdAtProperty != null)
+                {
+                    createdAtProperty.SetValue(entity, DateTime.UtcNow);
+                }
             }
-            typeof(Entity).GetProperty("UpdatedAt")?.SetValue(entity, DateTime.UtcNow);
+            var updatedAtProperty = typeof(Entity).GetProperty("UpdatedAt");
+            if (updatedAtProperty != null)
+            {
+                updatedAtProperty.SetValue(entity, DateTime.UtcNow);
+            }
         }
 
         // Collect domain events BEFORE saving, to ensure atomic outbox write with state changes

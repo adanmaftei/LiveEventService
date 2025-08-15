@@ -6,7 +6,11 @@ using Microsoft.Extensions.Logging;
 namespace LiveEventService.Application.Common;
 
 /// <summary>
-/// MediatR-based domain event processor for background processing
+/// MediatR-based domain event processor for background processing.
+/// </summary>
+/// <summary>
+/// Default domain event processor that adapts domain events into MediatR notifications
+/// and publishes them via <see cref="IMediator"/>.
 /// </summary>
 public class MediatRDomainEventProcessor : IDomainEventProcessor
 {
@@ -14,6 +18,11 @@ public class MediatRDomainEventProcessor : IDomainEventProcessor
     private readonly ILogger<MediatRDomainEventProcessor> _logger;
     private readonly Dictionary<Type, Type> _eventToNotificationMap;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MediatRDomainEventProcessor"/> class.
+    /// </summary>
+    /// <param name="mediator">The MediatR mediator.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
     public MediatRDomainEventProcessor(IMediator mediator, ILogger<MediatRDomainEventProcessor> logger)
     {
         _mediator = mediator;
@@ -21,6 +30,12 @@ public class MediatRDomainEventProcessor : IDomainEventProcessor
         _eventToNotificationMap = CreateEventToNotificationMap();
     }
 
+    /// <summary>
+    /// Processes a domain event by mapping it to a MediatR notification and publishing it.
+    /// </summary>
+    /// <param name="domainEvent">The domain event to process.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task ProcessAsync(DomainEvent domainEvent, CancellationToken cancellationToken = default)
     {
         var eventType = domainEvent.GetType();
@@ -53,6 +68,11 @@ public class MediatRDomainEventProcessor : IDomainEventProcessor
         }
     }
 
+    /// <summary>
+    /// Returns true if this processor has a mapping for the specified event type.
+    /// </summary>
+    /// <param name="domainEventType">The type of domain event to check.</param>
+    /// <returns>True if the processor can handle the specified event type; otherwise false.</returns>
     public bool CanProcess(Type domainEventType)
     {
         return _eventToNotificationMap.ContainsKey(domainEventType);

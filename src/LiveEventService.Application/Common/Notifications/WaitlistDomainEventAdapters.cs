@@ -4,9 +4,10 @@ using LiveEventService.Core.Registrations.EventRegistration;
 
 namespace LiveEventService.Application.Common.Notifications;
 
-// Adapter classes to make waitlist domain events implement INotification
-// This follows the same pattern as EventRegistrationDomainEventAdapters
-
+/// <summary>
+/// Adapter notifications for waitlist-related domain events so they can be published via MediatR
+/// while keeping the domain model independent from infrastructure concerns.
+/// </summary>
 public class EventCapacityIncreasedNotification : INotification
 {
     public EventCapacityIncreasedDomainEvent DomainEvent { get; }

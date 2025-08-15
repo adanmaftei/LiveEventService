@@ -3,21 +3,48 @@ using Microsoft.Extensions.Caching.Distributed;
 
 namespace LiveEventService.API.Utilities;
 
+/// <summary>
+/// Contract for claiming idempotency keys to guard against duplicate request processing.
+/// Implementations may use a distributed cache for cross-instance coordination.
+/// </summary>
 public interface IIdempotencyStore
 {
+    /// <summary>
+    /// Attempts to claim an idempotency key for a specified time window.
+    /// </summary>
+    /// <param name="key">The idempotency key to claim.</param>
+    /// <param name="ttl">The time-to-live for the claim.</param>
+    /// <param name="ct">A token to observe while waiting for the task to complete.</param>
+    /// <returns>True if the key was successfully claimed; otherwise false.</returns>
     Task<bool> TryClaimAsync(string key, TimeSpan ttl, CancellationToken ct = default);
 }
 
+/// <summary>
+/// Default idempotency store using <see cref="IDistributedCache"/> when available,
+/// with an in-memory fallback for testing scenarios.
+/// </summary>
 public sealed class IdempotencyStore : IIdempotencyStore
 {
-    private readonly IDistributedCache? distributedCache;
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LocalClaims = new();
+    private readonly IDistributedCache? distributedCache;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="IdempotencyStore"/> class.
+    /// </summary>
+    /// <param name="distributedCache">Optional distributed cache used to coordinate claims across instances.</param>
     public IdempotencyStore(IDistributedCache? distributedCache = null)
     {
         this.distributedCache = distributedCache;
     }
 
+    /// <summary>
+    /// Attempts to claim an idempotency key for the given TTL.
+    /// Returns false if the key is already claimed.
+    /// </summary>
+    /// <param name="key">The idempotency key.</param>
+    /// <param name="ttl">The time-to-live for the claim.</param>
+    /// <param name="ct">A token to observe while waiting for the task to complete.</param>
+    /// <returns>True if the claim is acquired; otherwise false.</returns>
     public async Task<bool> TryClaimAsync(string key, TimeSpan ttl, CancellationToken ct = default)
     {
         // Prefer distributed cache when available
@@ -57,5 +84,3 @@ public sealed class IdempotencyStore : IIdempotencyStore
         return true;
     }
 }
-
-

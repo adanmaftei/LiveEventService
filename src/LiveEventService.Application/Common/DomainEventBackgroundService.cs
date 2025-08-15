@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace LiveEventService.Application.Common;
 
 /// <summary>
-/// Background service for processing domain events asynchronously
+/// Background service for processing domain events asynchronously.
 /// </summary>
 public class DomainEventBackgroundService : BackgroundService
 {
@@ -17,6 +17,13 @@ public class DomainEventBackgroundService : BackgroundService
     private readonly BackgroundProcessingOptions _options;
     private readonly SemaphoreSlim _semaphore;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DomainEventBackgroundService"/> class.
+    /// </summary>
+    /// <param name="messageQueue">Queue from which domain events are dequeued for processing.</param>
+    /// <param name="serviceProvider">Service provider used to resolve scoped processors.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
+    /// <param name="options">Options controlling concurrency and retry behavior.</param>
     public DomainEventBackgroundService(
         IMessageQueue messageQueue,
         IServiceProvider serviceProvider,
@@ -30,6 +37,7 @@ public class DomainEventBackgroundService : BackgroundService
         _semaphore = new SemaphoreSlim(_options.MaxConcurrency);
     }
 
+    /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Domain event background service started with max concurrency: {MaxConcurrency}",
@@ -67,6 +75,9 @@ public class DomainEventBackgroundService : BackgroundService
         _logger.LogInformation("Domain event background service stopped");
     }
 
+    /// <summary>
+    /// Worker loop that continuously dequeues and processes domain events.
+    /// </summary>
     private async Task ProcessEventsAsync(CancellationToken stoppingToken)
     {
         try
@@ -98,6 +109,9 @@ public class DomainEventBackgroundService : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Processes a single domain event by delegating to a matching <see cref="IDomainEventProcessor"/>.
+    /// </summary>
     private async Task ProcessDomainEventAsync(DomainEvent domainEvent, CancellationToken cancellationToken)
     {
         var eventType = domainEvent.GetType();
@@ -136,6 +150,9 @@ public class DomainEventBackgroundService : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Executes processing with retry semantics and optional exponential backoff.
+    /// </summary>
     private async Task ProcessWithRetryAsync(IDomainEventProcessor processor, DomainEvent domainEvent,
         CancellationToken cancellationToken)
     {
@@ -169,6 +186,7 @@ public class DomainEventBackgroundService : BackgroundService
         throw new InvalidOperationException($"Failed to process domain event {eventType.Name} after {_options.MaxRetryAttempts} attempts");
     }
 
+    /// <inheritdoc />
     public override void Dispose()
     {
         _semaphore?.Dispose();
@@ -177,27 +195,27 @@ public class DomainEventBackgroundService : BackgroundService
 }
 
 /// <summary>
-/// Configuration options for background processing
+/// Configuration options for background processing.
 /// </summary>
 public class BackgroundProcessingOptions
 {
     /// <summary>
-    /// Maximum number of concurrent domain event processing tasks
+    /// Gets or sets maximum number of concurrent domain event processing tasks.
     /// </summary>
     public int MaxConcurrency { get; set; } = 4;
 
     /// <summary>
-    /// Maximum number of retry attempts for failed processing
+    /// Gets or sets maximum number of retry attempts for failed processing.
     /// </summary>
     public int MaxRetryAttempts { get; set; } = 3;
 
     /// <summary>
-    /// Delay between retry attempts in seconds
+    /// Gets or sets delay between retry attempts in seconds.
     /// </summary>
     public int RetryDelaySeconds { get; set; } = 5;
 
     /// <summary>
-    /// Whether to use exponential backoff for retries
+    /// Gets or sets a value indicating whether whether to use exponential backoff for retries.
     /// </summary>
     public bool UseExponentialBackoff { get; set; } = true;
 }

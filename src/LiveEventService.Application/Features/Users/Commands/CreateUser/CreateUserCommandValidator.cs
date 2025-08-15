@@ -2,6 +2,9 @@ using FluentValidation;
 
 namespace LiveEventService.Application.Features.Users.User.Create;
 
+/// <summary>
+/// FluentValidation rules for <see cref="CreateUserCommand"/>.
+/// </summary>
 public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
 {
     public CreateUserCommandValidator()

@@ -269,7 +269,7 @@ public class EventGraphQLTests : BaseLiveEventsTests
         content.Should().NotContain("errors");
     }
 
-    private async Task<HttpResponseMessage> ExecuteGraphQLQuery(HttpClient client, string query)
+    private new async Task<HttpResponseMessage> ExecuteGraphQLQuery(HttpClient client, string query)
     {
         var request = new
         {

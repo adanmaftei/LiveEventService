@@ -76,4 +76,5 @@ public class UserMutations
 }
 
 public class CreateUserInput : CreateUserDto { }
+
 public class UpdateUserInput : UpdateUserDto { }

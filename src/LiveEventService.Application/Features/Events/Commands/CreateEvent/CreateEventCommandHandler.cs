@@ -7,12 +7,21 @@ using EventEntity = LiveEventService.Core.Events.Event;
 
 namespace LiveEventService.Application.Features.Events.Event.Create;
 
+/// <summary>
+/// Handles creation of events by validating the organizer, persisting the event, and mapping to DTO.
+/// </summary>
 public class CreateEventCommandHandler : ICommandHandler<CreateEventCommand, BaseResponse<EventDto>>
 {
     private readonly IEventRepository _eventRepository;
     private readonly IUserRepository _userRepository;
     private readonly IMapper _mapper;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CreateEventCommandHandler"/> class.
+    /// </summary>
+    /// <param name="eventRepository">The event repository for data access.</param>
+    /// <param name="userRepository">The user repository for organizer validation.</param>
+    /// <param name="mapper">The AutoMapper instance for object mapping.</param>
     public CreateEventCommandHandler(
         IEventRepository eventRepository,
         IUserRepository userRepository,
@@ -23,6 +32,7 @@ public class CreateEventCommandHandler : ICommandHandler<CreateEventCommand, Bas
         _mapper = mapper;
     }
 
+    /// <inheritdoc />
     public async Task<BaseResponse<EventDto>> Handle(CreateEventCommand request, CancellationToken cancellationToken)
     {
         // Verify organizer exists

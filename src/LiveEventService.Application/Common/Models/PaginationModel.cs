@@ -1,5 +1,8 @@
 namespace LiveEventService.Application.Common.Models;
 
+/// <summary>
+/// Simple pagination information used by list queries and responses.
+/// </summary>
 public class PaginationModel
 {
     public int PageNumber { get; set; } = 1;

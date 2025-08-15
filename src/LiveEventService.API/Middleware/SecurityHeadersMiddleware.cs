@@ -4,6 +4,10 @@ using Microsoft.Extensions.Options;
 
 namespace LiveEventService.API.Middleware;
 
+/// <summary>
+/// Adds a baseline set of security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy),
+/// a conservative Permissions-Policy, and an optional Content-Security-Policy (CSP) based on configuration.
+/// </summary>
 public sealed class SecurityHeadersMiddleware
 {
     private readonly RequestDelegate next;
@@ -11,6 +15,13 @@ public sealed class SecurityHeadersMiddleware
     private readonly IConfiguration configuration;
     private readonly SecurityOptions securityOptions;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SecurityHeadersMiddleware"/> class.
+    /// </summary>
+    /// <param name="next">The next middleware in the pipeline.</param>
+    /// <param name="environment">The hosting environment.</param>
+    /// <param name="configuration">Application configuration.</param>
+    /// <param name="options">Security options bound from configuration.</param>
     public SecurityHeadersMiddleware(RequestDelegate next, IWebHostEnvironment environment, IConfiguration configuration, IOptions<SecurityOptions> options)
     {
         this.next = next;
@@ -19,6 +30,11 @@ public sealed class SecurityHeadersMiddleware
         this.securityOptions = options.Value;
     }
 
+    /// <summary>
+    /// Applies headers on response start, then continues the pipeline.
+    /// </summary>
+    /// <param name="context">The HTTP context for the current request.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public Task InvokeAsync(HttpContext context)
     {
         context.Response.OnStarting(() =>
@@ -48,5 +64,3 @@ public sealed class SecurityHeadersMiddleware
         return next(context);
     }
 }
-
-

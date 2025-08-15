@@ -6,11 +6,19 @@ using LiveEventService.Application.Features.Users.Queries.ListUsers;
 
 namespace LiveEventService.Application.Features.Users.User.List;
 
+/// <summary>
+/// Handles listing users with filtering and pagination.
+/// </summary>
 public class ListUsersQueryHandler : IQueryHandler<ListUsersQuery, BaseResponse<UserListDto>>
 {
     private readonly IUserRepository _userRepository;
     private readonly IMapper _mapper;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ListUsersQueryHandler"/> class.
+    /// </summary>
+    /// <param name="userRepository">The user repository for data access.</param>
+    /// <param name="mapper">The AutoMapper instance for object mapping.</param>
     public ListUsersQueryHandler(
         IUserRepository userRepository,
         IMapper mapper)

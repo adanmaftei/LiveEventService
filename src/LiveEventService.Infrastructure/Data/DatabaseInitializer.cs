@@ -6,8 +6,17 @@ using Microsoft.Extensions.Logging;
 
 namespace LiveEventService.Infrastructure.Data;
 
+/// <summary>
+/// Provides helper to apply pending EF Core migrations and seed basic test data
+/// in development environments. Intended for local/demo scenarios.
+/// </summary>
 public static class DatabaseInitializer
 {
+    /// <summary>
+    /// Applies pending migrations and seeds a minimal set of users and events if the database is empty.
+    /// </summary>
+    /// <param name="services">Root service provider to resolve scoped services.</param>
+    /// <returns>A task that completes when initialization has finished.</returns>
     public static async Task InitializeDatabaseAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();

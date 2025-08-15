@@ -78,6 +78,6 @@ public class WaitlistedRegistrationsForEventSpecification : BaseSpecification<Co
     public WaitlistedRegistrationsForEventSpecification(Guid eventId)
     {
         Criteria = r => r.EventId == eventId && r.Status == RegistrationStatus.Waitlisted;
-        ApplyOrderBy(r => r.PositionInQueue);
+        ApplyOrderBy(r => r.PositionInQueue!);
     }
 }

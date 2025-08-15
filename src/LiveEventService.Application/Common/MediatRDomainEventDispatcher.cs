@@ -7,12 +7,22 @@ using Microsoft.Extensions.Logging;
 
 namespace LiveEventService.Application.Common;
 
+/// <summary>
+/// Dispatches domain events via MediatR, choosing synchronous or asynchronous processing
+/// based on event criticality. Non-critical events are queued through <see cref="IMessageQueue"/>.
+/// </summary>
 public class MediatRDomainEventDispatcher : IDomainEventDispatcher
 {
     private readonly IMediator _mediator;
     private readonly IMessageQueue _messageQueue;
     private readonly ILogger<MediatRDomainEventDispatcher> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MediatRDomainEventDispatcher"/> class.
+    /// </summary>
+    /// <param name="mediator">The MediatR mediator used for in-process publish.</param>
+    /// <param name="messageQueue">The message queue for asynchronous processing.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
     public MediatRDomainEventDispatcher(
         IMediator mediator,
         IMessageQueue messageQueue,
@@ -23,6 +33,7 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public async Task DispatchAndClearEventsAsync(IEnumerable<Entity> entities, CancellationToken cancellationToken = default)
     {
         foreach (var entity in entities)
@@ -37,6 +48,11 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
         }
     }
 
+    /// <summary>
+    /// Routes a single domain event for synchronous or asynchronous processing.
+    /// </summary>
+    /// <param name="domainEvent">The domain event to route.</param>
+    /// <param name="cancellationToken">A token to observe while waiting for the task to complete.</param>
     private async Task RouteDomainEventAsync(DomainEvent domainEvent, CancellationToken cancellationToken)
     {
         var eventType = domainEvent.GetType();
@@ -52,6 +68,11 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
         }
     }
 
+    /// <summary>
+    /// Determines whether the specified event must be processed synchronously.
+    /// </summary>
+    /// <param name="domainEvent">The domain event.</param>
+    /// <returns>True for critical events; otherwise false.</returns>
     private bool ShouldProcessSynchronously(DomainEvent domainEvent)
     {
         // Critical events that affect business logic should be processed synchronously
@@ -59,10 +80,15 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
         {
             EventRegistrationCancelledDomainEvent => true,    // Affects waitlist promotion
             EventCapacityIncreasedDomainEvent => true,        // Affects waitlist promotion
+            WaitlistRemovalDomainEvent => true,               // Must reindex positions immediately
+            WaitlistPositionChangedDomainEvent => true,       // Used for user notifications/read models
             _ => false                                        // All others can be async
         };
     }
 
+    /// <summary>
+    /// Publishes the event via MediatR in-process.
+    /// </summary>
     private async Task ProcessSynchronouslyAsync(DomainEvent domainEvent, CancellationToken cancellationToken)
     {
         var eventType = domainEvent.GetType();
@@ -87,6 +113,9 @@ public class MediatRDomainEventDispatcher : IDomainEventDispatcher
         }
     }
 
+    /// <summary>
+    /// Enqueues the event to the configured <see cref="IMessageQueue"/>; falls back to synchronous on failure.
+    /// </summary>
     private async Task ProcessAsynchronouslyAsync(DomainEvent domainEvent, CancellationToken cancellationToken)
     {
         var eventType = domainEvent.GetType();

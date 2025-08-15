@@ -23,5 +23,3 @@ public sealed class SerilogAuditLogger : IAuditLogger
         return Task.CompletedTask;
     }
 }
-
-

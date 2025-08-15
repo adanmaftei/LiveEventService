@@ -2,6 +2,9 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LiveEventService.Infrastructure.Migrations
 {
+    /// <summary>
+    /// Migration to add the outbox pattern table for reliable message processing.
+    /// </summary>
     public partial class AddOutbox : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -44,5 +47,3 @@ namespace LiveEventService.Infrastructure.Migrations
         }
     }
 }
-
-

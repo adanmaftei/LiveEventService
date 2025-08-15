@@ -13,8 +13,8 @@ public class EventRegistrationCreatedDomainEventHandler : INotificationHandler<E
     {
         _notifier = notifier;
     }
-    public async Task Handle(EventRegistrationCreatedNotification notification, CancellationToken cancellationToken)
+    public Task Handle(EventRegistrationCreatedNotification notification, CancellationToken cancellationToken)
     {
-        await _notifier.NotifyAsync(notification.DomainEvent.Registration, "created", cancellationToken);
+        return _notifier.NotifyAsync(notification.DomainEvent.Registration, "created", cancellationToken);
     }
 }

@@ -6,11 +6,19 @@ using LiveEventService.Core.Events;
 
 namespace LiveEventService.Application.Features.Events.Commands.UnpublishEvent;
 
+/// <summary>
+/// Handles unpublishing of events and returns the updated event DTO.
+/// </summary>
 public class UnpublishEventCommandHandler : ICommandHandler<UnpublishEventCommand, BaseResponse<EventDto>>
 {
     private readonly IEventRepository _eventRepository;
     private readonly IMapper _mapper;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UnpublishEventCommandHandler"/> class.
+    /// </summary>
+    /// <param name="eventRepository">The event repository for data access.</param>
+    /// <param name="mapper">The AutoMapper instance for object mapping.</param>
     public UnpublishEventCommandHandler(
         IEventRepository eventRepository,
         IMapper mapper)
@@ -19,6 +27,7 @@ public class UnpublishEventCommandHandler : ICommandHandler<UnpublishEventComman
         _mapper = mapper;
     }
 
+    /// <inheritdoc />
     public async Task<BaseResponse<EventDto>> Handle(UnpublishEventCommand request, CancellationToken cancellationToken)
     {
         var eventEntity = await _eventRepository.GetByIdAsync(request.EventId, cancellationToken);

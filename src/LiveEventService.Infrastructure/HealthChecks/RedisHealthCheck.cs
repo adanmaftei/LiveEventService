@@ -6,12 +6,23 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace LiveEventService.Infrastructure.HealthChecks;
 
+/// <summary>
+/// Checks connectivity to an optional Redis multiplexer when one is registered in DI.
+/// Skips in the testing environment.
+/// </summary>
 public sealed class RedisHealthCheck : IHealthCheck
 {
     private readonly IServiceProvider _services;
     private readonly IConfiguration _configuration;
     private readonly bool _isTesting;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RedisHealthCheck"/> class.
+    /// Creates a new health check instance.
+    /// </summary>
+    /// <param name="services">Service provider to access registered Redis connection multiplexer.</param>
+    /// <param name="configuration">Configuration for Redis settings.</param>
+    /// <param name="environment">Host environment to determine if running in testing mode.</param>
     public RedisHealthCheck(IServiceProvider services, IConfiguration configuration, IHostEnvironment environment)
     {
         _services = services;
@@ -53,5 +64,3 @@ public sealed class RedisHealthCheck : IHealthCheck
         }
     }
 }
-
-

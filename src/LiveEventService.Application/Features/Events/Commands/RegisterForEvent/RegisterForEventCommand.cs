@@ -7,25 +7,61 @@ using MediatR;
 
 namespace LiveEventService.Application.Features.Events.EventRegistration.Register;
 
+/// <summary>
+/// Command to register a user for an event; may auto-confirm or add to waitlist based on capacity.
+/// </summary>
 public class RegisterForEventCommand : IRequest<BaseResponse<EventRegistrationDto>>
 {
+    /// <summary>
+    /// Gets or sets identifier of the target event.
+    /// </summary>
     public Guid EventId { get; set; }
+
+    /// <summary>
+    /// Gets or sets identity ID of the registering user.
+    /// </summary>
     public string UserId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets optional registration notes supplied by the user.
+    /// </summary>
     public string? Notes { get; set; }
 }
 
+/// <summary>
+/// Command to cancel an existing event registration.
+/// </summary>
 public class CancelEventRegistrationCommand : IRequest<BaseResponse<bool>>
 {
+    /// <summary>
+    /// Gets or sets identifier of the registration to cancel.
+    /// </summary>
     public Guid RegistrationId { get; set; }
+
+    /// <summary>
+    /// Gets or sets identity ID of the requesting user.
+    /// </summary>
     public string UserId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether indicates whether the request is performed by an administrator.
+    /// </summary>
     public bool IsAdmin { get; set; } = false;
 }
 
+/// <summary>
+/// Handles cancellation of registrations, enforcing authorization and emitting domain events.
+/// </summary>
 public class CancelEventRegistrationCommandHandler : ICommandHandler<CancelEventRegistrationCommand, BaseResponse<bool>>
 {
     private readonly IRepository<EventRegistrationEntity> _registrationRepository;
     private readonly IUserRepository _userRepository;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CancelEventRegistrationCommandHandler"/> class.
+    /// </summary>
+    /// <param name="registrationRepository">The registration repository for data access.</param>
+    /// <param name="userRepository">The user repository for authorization checks.</param>
     public CancelEventRegistrationCommandHandler(
         IRepository<EventRegistrationEntity> registrationRepository,
         IUserRepository userRepository)

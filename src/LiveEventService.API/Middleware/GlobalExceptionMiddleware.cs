@@ -4,17 +4,32 @@ using FluentValidation;
 
 namespace LiveEventService.API.Middleware;
 
+/// <summary>
+/// Global exception handler for non-GraphQL endpoints.
+/// Converts unhandled exceptions to JSON Problem-like responses and logs details.
+/// Treats FluentValidation exceptions as 400, otherwise 500.
+/// </summary>
 public class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate next;
     private readonly ILogger<GlobalExceptionMiddleware> logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GlobalExceptionMiddleware"/> class.
+    /// </summary>
+    /// <param name="next">The next middleware in the pipeline.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
     public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
     {
         this.next = next;
         this.logger = logger;
     }
 
+    /// <summary>
+    /// Invokes the middleware pipeline, capturing and translating exceptions.
+    /// </summary>
+    /// <param name="context">The HTTP context for the current request.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InvokeAsync(HttpContext context)
     {
         try
@@ -28,7 +43,10 @@ public class GlobalExceptionMiddleware
         }
     }
 
-    private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    /// <summary>
+    /// Writes a JSON error response for the given exception.
+    /// </summary>
+    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
 
@@ -60,6 +78,6 @@ public class GlobalExceptionMiddleware
         }
 
         var jsonResponse = JsonSerializer.Serialize(response);
-        await context.Response.WriteAsync(jsonResponse);
+        return context.Response.WriteAsync(jsonResponse);
     }
 }

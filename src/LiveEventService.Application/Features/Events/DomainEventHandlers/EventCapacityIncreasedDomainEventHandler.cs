@@ -95,7 +95,7 @@ public class NextWaitlistedRegistrationSpecification : BaseSpecification<Core.Re
     public NextWaitlistedRegistrationSpecification(Guid eventId)
     {
         Criteria = r => r.EventId == eventId && r.Status == RegistrationStatus.Waitlisted;
-        ApplyOrderBy(r => r.PositionInQueue);
+        ApplyOrderBy(r => r.PositionInQueue!);
         ApplyPaging(0, 1);
     }
 }

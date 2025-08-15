@@ -30,6 +30,9 @@ using Serilog.Sinks.AwsCloudWatch;
 using StackExchange.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
+// Entry point and composition root for the Live Event Service API.
+// Configures hosting, observability, authentication/authorization,
+// output caching, rate limiting, GraphQL, and minimal API endpoints.
 var builder = WebApplication.CreateBuilder(args);
 var isTesting = builder.Environment.IsEnvironment("Testing");
 
@@ -51,17 +54,7 @@ builder.Host.UseSerilog((context, configuration) =>
     var isProd = context.HostingEnvironment.IsProduction();
     if (isProd && !isTesting)
     {
-        var aws = context.Configuration.GetSection("AWS").Get<LiveEventService.Infrastructure.Configuration.AwsOptions>() ?? new LiveEventService.Infrastructure.Configuration.AwsOptions();
-        var logGroup = aws.CloudWatch.LogGroup ?? "/live-event-service/logs";
-        var region = aws.CloudWatch.Region ?? aws.Region ?? "us-east-1";
-
-        var cwClient = new AmazonCloudWatchLogsClient(RegionEndpoint.GetBySystemName(region));
-        configuration.WriteTo.AmazonCloudWatch(
-            logGroup: logGroup,
-            logStreamPrefix: "live-event-service-",
-            cloudWatchClient: cwClient,
-            textFormatter: new JsonFormatter(),
-            createLogGroup: true);
+        configuration.WriteToCloudWatch(context.Configuration);
     }
 });
 
@@ -88,13 +81,26 @@ builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection("Se
 builder.Services.Configure<LiveEventService.Infrastructure.Configuration.AwsOptions>(builder.Configuration.GetSection("AWS"));
 builder.Services.Configure<RedisOptions>(opt =>
 {
-	opt.ConnectionString = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["ConnectionStrings:Redis"];
+    opt.ConnectionString = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["ConnectionStrings:Redis"];
 });
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection("Database"));
 
 // Add services to the container.
 builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddInfrastructureServices(builder.Configuration, isTesting);
+
+// Decide hosting-time domain event processing here (composition root)
+var bgRootOptions = builder.Configuration.GetSection("Performance:BackgroundProcessing").Get<LiveEventService.Application.Configuration.BackgroundProcessingRootOptions>() ?? new LiveEventService.Application.Configuration.BackgroundProcessingRootOptions();
+var useInProcess = bgRootOptions.UseInProcess && !isTesting;
+var useSqsForDomainEvents = builder.Configuration.GetSection("AWS:SQS").GetValue<bool>("UseSqsForDomainEvents");
+if (useSqsForDomainEvents)
+{
+    useInProcess = false;
+}
+if (useInProcess)
+{
+    builder.Services.AddHostedService<LiveEventService.Application.Common.DomainEventBackgroundService>();
+}
 
 // Output caching (public GETs)
 builder.Services.AddOutputCache(options =>
@@ -279,6 +285,18 @@ builder.Services.AddSwaggerGen(c =>
     {
         { securityScheme, Array.Empty<string>() }
     });
+
+    // Include XML comments for better schema and endpoint documentation
+    var apiXml = System.IO.Path.Combine(AppContext.BaseDirectory, "LiveEventService.API.xml");
+    if (System.IO.File.Exists(apiXml))
+    {
+        c.IncludeXmlComments(apiXml, includeControllerXmlComments: true);
+    }
+    var applicationXml = System.IO.Path.Combine(AppContext.BaseDirectory, "LiveEventService.Application.xml");
+    if (System.IO.File.Exists(applicationXml))
+    {
+        c.IncludeXmlComments(applicationXml, includeControllerXmlComments: true);
+    }
 });
 
 // ProblemDetails for standardized error responses
@@ -464,40 +482,40 @@ app.Use(async (context, next) =>
 app.UseSerilogRequestLogging(options =>
 {
     options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
-{
-    diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
-    diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
-    var ua = httpContext.Request.Headers.UserAgent.ToString();
-    diagnosticContext.Set("UserAgent", ua);
-    diagnosticContext.Set("RemoteIpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
-
-    // Add user identifiers when available
-    var user = httpContext.User;
-    if (user?.Identity?.IsAuthenticated == true)
     {
-        var nameId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                     ?? user.FindFirst("sub")?.Value
-                     ?? user.Identity?.Name;
-        var userName = user.Identity?.Name
-                       ?? user.FindFirst("cognito:username")?.Value
-                       ?? user.FindFirst("preferred_username")?.Value;
-        if (!string.IsNullOrEmpty(nameId))
+        diagnosticContext.Set("RequestHost", (object)(httpContext.Request.Host.Value ?? string.Empty));
+        diagnosticContext.Set("RequestScheme", (object)(httpContext.Request.Scheme ?? string.Empty));
+        var ua = httpContext.Request.Headers.UserAgent.ToString();
+        diagnosticContext.Set("UserAgent", (object)(ua ?? string.Empty));
+        diagnosticContext.Set("RemoteIpAddress", (object)(httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty));
+
+        // Add user identifiers when available
+        var user = httpContext.User;
+        if (user?.Identity?.IsAuthenticated == true)
         {
-            diagnosticContext.Set("UserId", nameId);
+            var nameId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                         ?? user.FindFirst("sub")?.Value
+                         ?? user.Identity?.Name;
+            var userName = user.Identity?.Name
+                           ?? user.FindFirst("cognito:username")?.Value
+                           ?? user.FindFirst("preferred_username")?.Value;
+            if (!string.IsNullOrEmpty(nameId))
+            {
+                diagnosticContext.Set("UserId", nameId);
+            }
+
+            if (!string.IsNullOrEmpty(userName))
+            {
+                diagnosticContext.Set("UserName", userName);
+            }
         }
 
-        if (!string.IsNullOrEmpty(userName))
+        // Add correlation ID if available
+        if (httpContext.Request.Headers.TryGetValue(CustomHeaderNames.CorrelationId, out var correlationId))
         {
-            diagnosticContext.Set("UserName", userName);
+            diagnosticContext.Set("CorrelationId", (object)correlationId.ToString());
         }
-    }
-
-    // Add correlation ID if available
-    if (httpContext.Request.Headers.TryGetValue(CustomHeaderNames.CorrelationId, out var correlationId))
-    {
-        diagnosticContext.Set("CorrelationId", correlationId.ToString());
-    }
-};
+    };
 });
 
 // Add global exception handling middleware (excluding GraphQL)

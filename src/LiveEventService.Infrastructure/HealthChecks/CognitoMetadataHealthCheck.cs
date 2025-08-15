@@ -4,12 +4,23 @@ using Microsoft.Extensions.Hosting;
 
 namespace LiveEventService.Infrastructure.HealthChecks;
 
+/// <summary>
+/// Verifies that AWS Cognito OIDC metadata for the configured user pool is reachable.
+/// Skips in the testing environment.
+/// </summary>
 public sealed class CognitoMetadataHealthCheck : IHealthCheck
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly bool _isTesting;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CognitoMetadataHealthCheck"/> class.
+    /// Creates a new health check instance.
+    /// </summary>
+    /// <param name="httpClientFactory">Factory for creating HTTP clients to check Cognito metadata.</param>
+    /// <param name="configuration">Configuration containing AWS region and user pool ID.</param>
+    /// <param name="environment">Host environment to determine if running in testing mode.</param>
     public CognitoMetadataHealthCheck(IHttpClientFactory httpClientFactory, IConfiguration configuration, IHostEnvironment environment)
     {
         _httpClientFactory = httpClientFactory;
@@ -47,5 +58,3 @@ public sealed class CognitoMetadataHealthCheck : IHealthCheck
         }
     }
 }
-
-

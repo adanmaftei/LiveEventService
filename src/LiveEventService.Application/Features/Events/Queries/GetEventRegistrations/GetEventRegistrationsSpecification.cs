@@ -3,8 +3,18 @@ using EventRegistrationEntity = LiveEventService.Core.Registrations.EventRegistr
 
 namespace LiveEventService.Application.Features.Events.Queries.GetEventRegistrations;
 
+/// <summary>
+/// Specification to filter, include related entities, and order event registrations.
+/// </summary>
 public class GetEventRegistrationsSpecification : BaseSpecification<EventRegistrationEntity>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GetEventRegistrationsSpecification"/> class.
+    /// Creates a specification for registrations for an event with optional status and user filters.
+    /// </summary>
+    /// <param name="eventId">The event ID to filter registrations by.</param>
+    /// <param name="status">Optional registration status to filter by.</param>
+    /// <param name="userId">Optional user ID to filter registrations by.</param>
     public GetEventRegistrationsSpecification(Guid eventId, string? status, Guid? userId)
     {
         Criteria = er =>

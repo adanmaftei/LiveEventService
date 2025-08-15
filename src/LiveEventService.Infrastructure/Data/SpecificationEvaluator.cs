@@ -3,8 +3,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LiveEventService.Infrastructure.Data;
 
+/// <summary>
+/// Translates an <see cref="ISpecification{T}"/> into an EF Core <see cref="IQueryable{T}"/>
+/// by applying criteria, includes, ordering, grouping, and paging.
+/// </summary>
+/// <typeparam name="T">The type of entity this evaluator works with.</typeparam>
 public static class SpecificationEvaluator<T> where T : Entity
 {
+    /// <summary>
+    /// Applies the specification to the provided base query.
+    /// </summary>
+    /// <param name="inputQuery">Base query over the entity set.</param>
+    /// <param name="specification">Specification to apply.</param>
+    /// <returns>The composed query.</returns>
     public static IQueryable<T> GetQuery(IQueryable<T> inputQuery, ISpecification<T> specification)
     {
         var query = inputQuery;

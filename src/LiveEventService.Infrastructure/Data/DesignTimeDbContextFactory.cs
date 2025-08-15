@@ -6,9 +6,17 @@ using Microsoft.Extensions.Configuration;
 
 namespace LiveEventService.Infrastructure.Data;
 
-// Design-time factory for EF Core tools to avoid building the full host
+/// <summary>
+/// Design-time factory for EF Core tools, allowing migrations and scaffolding
+/// without constructing the full application host.
+/// </summary>
 public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<LiveEventDbContext>
 {
+    /// <summary>
+    /// Creates a DbContext instance configured for design-time operations.
+    /// </summary>
+    /// <param name="args">Command-line arguments (unused).</param>
+    /// <returns>A configured <see cref="LiveEventDbContext"/>.</returns>
     public LiveEventDbContext CreateDbContext(string[] args)
     {
         // Build minimal configuration (prefer env vars; fall back to dev defaults)
@@ -35,11 +43,12 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Liv
         return new LiveEventDbContext(optionsBuilder.Options, dispatcher, encryption);
     }
 
+    /// <summary>
+    /// Minimal dispatcher used at design-time to satisfy the DbContext dependency.
+    /// </summary>
     private sealed class NoOpDomainEventDispatcher : IDomainEventDispatcher
     {
         public Task DispatchAndClearEventsAsync(IEnumerable<Entity> entitiesWithEvents, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 }
-
-

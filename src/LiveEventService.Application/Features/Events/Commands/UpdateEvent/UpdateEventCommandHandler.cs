@@ -6,12 +6,21 @@ using LiveEventService.Application.Common.Interfaces;
 
 namespace LiveEventService.Application.Features.Events.Event.Update;
 
+/// <summary>
+/// Handles updates to existing events, including optional publish state changes.
+/// </summary>
 public class UpdateEventCommandHandler : ICommandHandler<UpdateEventCommand, BaseResponse<EventDto>>
 {
     private readonly IEventRepository _eventRepository;
     private readonly IUserRepository _userRepository;
     private readonly IMapper _mapper;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UpdateEventCommandHandler"/> class.
+    /// </summary>
+    /// <param name="eventRepository">The event repository for data access.</param>
+    /// <param name="userRepository">The user repository for organizer data.</param>
+    /// <param name="mapper">The AutoMapper instance for object mapping.</param>
     public UpdateEventCommandHandler(
         IEventRepository eventRepository,
         IUserRepository userRepository,
@@ -22,6 +31,7 @@ public class UpdateEventCommandHandler : ICommandHandler<UpdateEventCommand, Bas
         _mapper = mapper;
     }
 
+    /// <inheritdoc />
     public async Task<BaseResponse<EventDto>> Handle(UpdateEventCommand request, CancellationToken cancellationToken)
     {
         var existingEvent = await _eventRepository.GetByIdAsync(request.EventId, cancellationToken);

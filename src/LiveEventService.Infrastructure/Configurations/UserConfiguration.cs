@@ -4,8 +4,16 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace LiveEventService.Infrastructure.Users;
 
+/// <summary>
+/// EF Core configuration for the <see cref="UserEntity"/> aggregate.
+/// Applies constraints, indexes, and relationships.
+/// </summary>
 public class UserConfiguration : IEntityTypeConfiguration<UserEntity>
 {
+    /// <summary>
+    /// Configures the <see cref="UserEntity"/> model.
+    /// </summary>
+    /// <param name="builder">The entity type builder for configuring the model.</param>
     public void Configure(EntityTypeBuilder<UserEntity> builder)
     {
         builder.ToTable("Users");
@@ -48,7 +56,7 @@ public class UserConfiguration : IEntityTypeConfiguration<UserEntity>
             .OnDelete(DeleteBehavior.Cascade);
 
         // Note: OrganizedEvents relationship is not configured via EF
-        // because Event.OrganizerId is a string (external identity) 
+        // because Event.OrganizerId is a string (external identity)
         // and User.Id is a Guid (internal ID)
     }
 }

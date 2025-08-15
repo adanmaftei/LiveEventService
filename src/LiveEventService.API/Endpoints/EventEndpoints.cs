@@ -12,6 +12,7 @@ using LiveEventService.Application.Features.Events.Event.List;
 using LiveEventService.Application.Features.Events.Event.Update;
 using LiveEventService.Application.Features.Events.EventRegistration.Get;
 using LiveEventService.Application.Features.Events.EventRegistration.Register;
+using LiveEventService.Application.Features.Events.EventRegistration;
 using LiveEventService.Core.Common;
 using LiveEventService.Core.Registrations.EventRegistration;
 using LiveEventService.Infrastructure.Telemetry;
@@ -22,8 +23,17 @@ using Microsoft.Extensions.Caching.Distributed;
 
 namespace LiveEventService.API.Events;
 
+/// <summary>
+/// Maps REST endpoints for managing events and registrations.
+/// Includes list/detail, CRUD, publishing, registration flows, waitlist views,
+/// and CSV export. Applies output caching, rate limits, idempotency, metrics, and auditing.
+/// </summary>
 public static class EventEndpoints
 {
+    /// <summary>
+    /// Registers all event-related minimal API endpoints on the provided route builder.
+    /// </summary>
+    /// <param name="endpoints">The endpoint route builder.</param>
     public static void MapEventEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/api/events", async (
@@ -58,7 +68,14 @@ public static class EventEndpoints
                 return Results.Ok(result);
             }
             return Results.BadRequest(new { result.Errors, result.Message });
-        }).CacheOutput(OutputCachePolicies.EventListPublic).AllowAnonymous() // No authentication required for public event list
+        })
+        .WithTags("Events")
+        .WithSummary("List events")
+        .WithDescription("Retrieves a paginated list of events with optional filters for publication status and upcoming status.")
+        .Produces<BaseResponse<EventListDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .CacheOutput(OutputCachePolicies.EventListPublic)
+        .AllowAnonymous()
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapGet("/api/events/{id:guid}", async (
@@ -84,12 +101,20 @@ public static class EventEndpoints
                 return Results.Ok(result);
             }
             return Results.NotFound(new { result.Errors });
-        }).CacheOutput(OutputCachePolicies.EventDetailPublic).AllowAnonymous() // No authentication required for public event details
+        })
+        .WithTags("Events")
+        .WithSummary("Get event by ID")
+        .WithDescription("Retrieves detailed information about a specific event by its ID.")
+        .Produces<BaseResponse<EventDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .CacheOutput(OutputCachePolicies.EventDetailPublic)
+        .AllowAnonymous()
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events", async (
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
+            [FromServices] IMetricRecorder metrics,
             [FromServices] Utilities.IIdempotencyStore idempo,
             [FromServices] IOutputCacheStore outputCacheStore,
             [FromBody] CreateEventCommand command,
@@ -111,7 +136,7 @@ public static class EventEndpoints
             var result = await mediator.Send(command);
             if (result.Success && result.Data?.Id is not null)
             {
-                AppMetrics.EventsCreated.Add(1);
+                metrics.RecordEventCreated();
 
                 // Evict output cache tags for event lists/details
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
@@ -130,12 +155,21 @@ public static class EventEndpoints
                 });
             }
             return result.Success ? Results.Created($"/api/events/{result.Data?.Id}", result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Events")
+        .WithSummary("Create a new event")
+        .WithDescription("Creates a new event. Requires admin authorization and supports idempotency via the 'Idempotency-Key' header.")
+        .Accepts<CreateEventCommand>("application/json")
+        .Produces<BaseResponse<EventDto>>(StatusCodes.Status201Created)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status409Conflict)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPut("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
+            [FromServices] IMetricRecorder metrics,
             [FromServices] IDistributedCache cache,
             [FromServices] IOutputCacheStore outputCacheStore,
             Guid id,
@@ -151,7 +185,7 @@ public static class EventEndpoints
             var result = await mediator.Send(command);
             if (result.Success)
             {
-                AppMetrics.EventsUpdated.Add(1);
+                metrics.RecordEventUpdated();
 
                 // Invalidate cache for this event
                 await cache.RemoveAsync($"event:{id}", httpContext.RequestAborted);
@@ -171,12 +205,20 @@ public static class EventEndpoints
                 });
             }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Events")
+        .WithSummary("Update an existing event")
+        .WithDescription("Updates an existing event by ID. Requires admin authorization and evicts relevant caches.")
+        .Accepts<UpdateEventCommand>("application/json")
+        .Produces<BaseResponse<EventDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapDelete("/api/events/{id:guid}", async (
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
+            [FromServices] IMetricRecorder metrics,
             [FromServices] IDistributedCache cache,
             [FromServices] IOutputCacheStore outputCacheStore,
             Guid id,
@@ -191,7 +233,7 @@ public static class EventEndpoints
             var result = await mediator.Send(command);
             if (result.Success)
             {
-                AppMetrics.EventsDeleted.Add(1);
+                metrics.RecordEventDeleted();
                 await cache.RemoveAsync($"event:{id}", httpContext.RequestAborted);
                 await cache.RemoveAsync($"event:{id}:graphql", httpContext.RequestAborted);
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
@@ -205,11 +247,18 @@ public static class EventEndpoints
                 });
             }
             return result.Success ? Results.NoContent() : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Events")
+        .WithSummary("Delete an event")
+        .WithDescription("Deletes an event by ID. Requires admin authorization and evicts relevant caches.")
+        .Produces(StatusCodes.Status204NoContent)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events/{eventId:guid}/register", async (
             [FromServices] IMediator mediator,
+            [FromServices] IMetricRecorder metrics,
             [FromServices] Utilities.IIdempotencyStore idempo,
             Guid eventId,
             [FromBody] RegisterForEventCommand command,
@@ -226,8 +275,19 @@ public static class EventEndpoints
             command.EventId = eventId;
             command.UserId = httpContext.User.Identity?.Name ?? string.Empty;
             var result = await mediator.Send(command);
+            if (result.Success)
+            {
+                metrics.RecordRegistrationCreated();
+            }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
         })
+        .WithTags("Event Registrations")
+        .WithSummary("Register for an event")
+        .WithDescription("Registers the current user for the specified event. Requires authentication and supports idempotency via the 'Idempotency-Key' header.")
+        .Accepts<RegisterForEventCommand>("application/json")
+        .Produces<BaseResponse<EventRegistrationDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status409Conflict)
         .RequireAuthorization()
         .RequireRateLimiting(PolicyNames.Registration);
 
@@ -247,7 +307,13 @@ public static class EventEndpoints
             };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Event Registrations")
+        .WithSummary("List registrations")
+        .WithDescription("Retrieves a paginated list of registrations for the specified event, optionally filtered by status.")
+        .Produces<BaseResponse<EventRegistrationListDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         // Admin CSV export of registrations
@@ -302,7 +368,13 @@ public static class EventEndpoints
                 }
                 return input;
             }
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Event Registrations")
+        .WithSummary("Export registrations as CSV")
+        .WithDescription("Exports all registrations for the specified event as a CSV file, optionally filtered by status.")
+        .Produces(StatusCodes.Status200OK, contentType: "text/csv")
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapGet("/api/events/{eventId:guid}/waitlist", async (
@@ -320,12 +392,19 @@ public static class EventEndpoints
             };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Event Registrations")
+        .WithSummary("View waitlist")
+        .WithDescription("Retrieves a paginated list of waitlisted registrations for the specified event.")
+        .Produces<BaseResponse<EventRegistrationListDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events/{eventId:guid}/registrations/{registrationId:guid}/confirm", async (
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
+            [FromServices] IMetricRecorder metrics,
             [FromServices] Utilities.IIdempotencyStore idempo,
             Guid eventId,
             Guid registrationId,
@@ -347,7 +426,7 @@ public static class EventEndpoints
             var result = await mediator.Send(command);
             if (result.Success)
             {
-                AppMetrics.RegistrationsCreated.Add(1);
+                metrics.RecordRegistrationCreated();
                 await audit.LogAsync(new AuditLogEntry
                 {
                     Action = "ConfirmRegistration",
@@ -358,12 +437,20 @@ public static class EventEndpoints
                 });
             }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Event Registrations")
+        .WithSummary("Confirm a registration")
+        .WithDescription("Confirms a waitlisted registration for the specified event. Requires admin authorization and supports idempotency via the 'Idempotency-Key' header.")
+        .Produces<BaseResponse<EventRegistrationDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status409Conflict)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events/{eventId:guid}/registrations/{registrationId:guid}/cancel", async (
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
+            [FromServices] IMetricRecorder metrics,
             [FromServices] Utilities.IIdempotencyStore idempo,
             Guid eventId,
             Guid registrationId,
@@ -386,7 +473,7 @@ public static class EventEndpoints
             var result = await mediator.Send(command);
             if (result.Success)
             {
-                AppMetrics.RegistrationsCancelled.Add(1);
+                metrics.RecordRegistrationCancelled();
                 await audit.LogAsync(new AuditLogEntry
                 {
                     Action = "CancelRegistration",
@@ -397,12 +484,20 @@ public static class EventEndpoints
                 });
             }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Event Registrations")
+        .WithSummary("Cancel a registration")
+        .WithDescription("Cancels a registration for the specified event. Requires admin authorization and supports idempotency via the 'Idempotency-Key' header.")
+        .Produces<BaseResponse<bool>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status409Conflict)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/events/{eventId:guid}/publish", async (
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
+            [FromServices] IMetricRecorder metrics,
             [FromServices] IDistributedCache cache,
             [FromServices] IOutputCacheStore outputCacheStore,
             Guid eventId,
@@ -417,7 +512,7 @@ public static class EventEndpoints
             var result = await mediator.Send(command);
             if (result.Success)
             {
-                AppMetrics.EventsPublished.Add(1);
+                metrics.RecordEventPublished();
                 await cache.RemoveAsync($"event:{eventId}", httpContext.RequestAborted);
                 await cache.RemoveAsync($"event:{eventId}:graphql", httpContext.RequestAborted);
                 await outputCacheStore.EvictByTagAsync(OutputCacheTags.Events, ct);
@@ -431,11 +526,18 @@ public static class EventEndpoints
                 });
             }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        })
+        .WithTags("Events")
+        .WithSummary("Publish an event")
+        .WithDescription("Publishes the specified event, making it visible to the public. Requires admin authorization.")
+        .Produces<BaseResponse<EventDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin);
 
         endpoints.MapPost("/api/events/{eventId:guid}/unpublish", async (
             [FromServices] IMediator mediator,
             [FromServices] IAuditLogger audit,
+            [FromServices] IMetricRecorder metrics,
             [FromServices] IDistributedCache cache,
             [FromServices] IOutputCacheStore outputCacheStore,
             Guid eventId,
@@ -450,7 +552,7 @@ public static class EventEndpoints
             var result = await mediator.Send(command);
             if (result.Success)
             {
-                AppMetrics.EventsUnpublished.Add(1);
+                metrics.RecordEventUnpublished();
                 await cache.RemoveAsync($"event:{eventId}", httpContext.RequestAborted);
                 await cache.RemoveAsync($"event:{eventId}:graphql", httpContext.RequestAborted);
                 await outputCacheStore.EvictByTagAsync(OutputCachePolicies.EventListPublic, ct);
@@ -464,6 +566,12 @@ public static class EventEndpoints
                 });
             }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin);
+        })
+        .WithTags("Events")
+        .WithSummary("Unpublish an event")
+        .WithDescription("Unpublishes the specified event, hiding it from the public. Requires admin authorization.")
+        .Produces<BaseResponse<EventDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin);
     }
 }

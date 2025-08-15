@@ -7,6 +7,10 @@ using Microsoft.Extensions.Logging;
 
 namespace LiveEventService.Infrastructure.Messaging;
 
+/// <summary>
+/// Amazon SQS-based implementation of <see cref="IMessageQueue"/> used to publish domain events.
+/// Resolves or creates the target queue at startup; enqueue serializes events to JSON.
+/// </summary>
 public sealed class SqsMessageQueue : IMessageQueue, IDisposable
 {
     private readonly IAmazonSQS _sqs;
@@ -17,6 +21,13 @@ public sealed class SqsMessageQueue : IMessageQueue, IDisposable
         WriteIndented = false
     };
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqsMessageQueue"/> class.
+    /// Initializes the producer and resolves or creates the SQS queue.
+    /// </summary>
+    /// <param name="sqs">Amazon SQS client.</param>
+    /// <param name="configuration">Application configuration (reads queue name from AWS:SQS:QueueName).</param>
+    /// <param name="logger">Logger instance.</param>
     public SqsMessageQueue(IAmazonSQS sqs, IConfiguration configuration, ILogger<SqsMessageQueue> logger)
     {
         _sqs = sqs;
@@ -74,6 +85,7 @@ public sealed class SqsMessageQueue : IMessageQueue, IDisposable
         throw lastException ?? new Exception($"Failed to resolve or create SQS queue '{queueName}'");
     }
 
+    /// <inheritdoc />
     public async Task EnqueueAsync(DomainEvent domainEvent, CancellationToken cancellationToken = default)
     {
         if (domainEvent is null) throw new ArgumentNullException(nameof(domainEvent));
@@ -95,11 +107,15 @@ public sealed class SqsMessageQueue : IMessageQueue, IDisposable
     }
 
     // Not used in SQS producer mode; worker will poll. Kept to satisfy interface.
+
+    /// <inheritdoc />
     public Task<DomainEvent?> DequeueAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<DomainEvent?>(null);
 
+    /// <inheritdoc />
     public int GetQueueLength() => 0; // Not supported cheaply; could use ApproximateNumberOfMessages
 
+    /// <inheritdoc />
     public bool IsEmpty() => false;
 
     public void Dispose()
@@ -112,4 +128,3 @@ public sealed class SqsMessageQueue : IMessageQueue, IDisposable
         public string Payload { get; set; } = string.Empty;
     }
 }
-

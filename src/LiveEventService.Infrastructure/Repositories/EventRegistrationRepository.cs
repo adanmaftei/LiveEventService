@@ -4,13 +4,21 @@ using EventRegistrationEntity = LiveEventService.Core.Registrations.EventRegistr
 
 namespace LiveEventService.Infrastructure.Registrations;
 
+/// <summary>
+/// Repository for <see cref="EventRegistrationEntity"/> with safeguards for navigation properties
+/// and atomic assignment of waitlist positions using PostgreSQL advisory locks.
+/// </summary>
 public class EventRegistrationRepository : RepositoryBase<EventRegistrationEntity>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventRegistrationRepository"/> class.
+    /// </summary>
+    /// <param name="dbContext">The database context for data access.</param>
     public EventRegistrationRepository(LiveEventDbContext dbContext) : base(dbContext)
     {
     }
 
-    public override async Task<EventRegistrationEntity> AddAsync(EventRegistrationEntity entity, CancellationToken cancellationToken = default)
+    public override Task<EventRegistrationEntity> AddAsync(EventRegistrationEntity entity, CancellationToken cancellationToken = default)
     {
         // Ensure existing navigations are not re-inserted by EF Core
         if (entity.Event != null)
@@ -37,7 +45,7 @@ public class EventRegistrationRepository : RepositoryBase<EventRegistrationEntit
             {
                 // Use EF execution strategy to ensure the entire transactional unit is retried as a whole
                 var strategy = _dbContext.Database.CreateExecutionStrategy();
-                return await strategy.ExecuteAsync(async () =>
+                return strategy.ExecuteAsync(async () =>
                 {
                     await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
@@ -64,10 +72,10 @@ public class EventRegistrationRepository : RepositoryBase<EventRegistrationEntit
             }
         }
 
-        return await base.AddAsync(entity, cancellationToken);
+        return base.AddAsync(entity, cancellationToken);
     }
 
-    public override async Task UpdateAsync(EventRegistrationEntity entity, CancellationToken cancellationToken = default)
+    public override Task UpdateAsync(EventRegistrationEntity entity, CancellationToken cancellationToken = default)
     {
         // Protect against accidental updates to navigations during registration updates
         if (entity.Event != null)
@@ -79,7 +87,6 @@ public class EventRegistrationRepository : RepositoryBase<EventRegistrationEntit
             _dbContext.Entry(entity.User).State = EntityState.Unchanged;
         }
 
-        await base.UpdateAsync(entity, cancellationToken);
+        return base.UpdateAsync(entity, cancellationToken);
     }
 }
-

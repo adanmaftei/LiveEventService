@@ -2,6 +2,9 @@ using Microsoft.Extensions.Caching.Distributed;
 
 namespace LiveEventService.API.Middleware;
 
+/// <summary>
+/// No-op <see cref="IDistributedCache"/> used in testing to avoid external cache dependencies.
+/// </summary>
 public sealed class DisabledDistributedCache : IDistributedCache
 {
     public byte[]? Get(string key) => null;
@@ -13,5 +16,3 @@ public sealed class DisabledDistributedCache : IDistributedCache
     public void Set(string key, byte[] value, DistributedCacheEntryOptions options) { }
     public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default) => Task.CompletedTask;
 }
-
-

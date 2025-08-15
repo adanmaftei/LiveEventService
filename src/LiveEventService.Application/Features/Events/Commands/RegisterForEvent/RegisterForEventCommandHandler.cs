@@ -8,6 +8,9 @@ using IUserRepository = LiveEventService.Core.Users.User.IUserRepository;
 
 namespace LiveEventService.Application.Features.Events.EventRegistration.Register;
 
+/// <summary>
+/// Handles user registration for events, including capacity checks and waitlist placement.
+/// </summary>
 public class RegisterForEventCommandHandler : ICommandHandler<RegisterForEventCommand, BaseResponse<EventRegistrationDto>>
 {
     private readonly IEventRepository _eventRepository;
@@ -15,6 +18,13 @@ public class RegisterForEventCommandHandler : ICommandHandler<RegisterForEventCo
     private readonly IRepository<EventRegistrationEntity> _registrationRepository;
     private readonly IMapper _mapper;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RegisterForEventCommandHandler"/> class.
+    /// </summary>
+    /// <param name="eventRepository">The event repository for event validation and capacity checks.</param>
+    /// <param name="userRepository">The user repository for user validation.</param>
+    /// <param name="registrationRepository">The registration repository for persisting registrations.</param>
+    /// <param name="mapper">The AutoMapper instance for object mapping.</param>
     public RegisterForEventCommandHandler(
         IEventRepository eventRepository,
         IUserRepository userRepository,
@@ -27,6 +37,7 @@ public class RegisterForEventCommandHandler : ICommandHandler<RegisterForEventCo
         _mapper = mapper;
     }
 
+    /// <inheritdoc />
     public async Task<BaseResponse<EventRegistrationDto>> Handle(
         RegisterForEventCommand request,
         CancellationToken cancellationToken)

@@ -56,5 +56,3 @@ public class EventAdminQueries
         return sb.ToString();
     }
 }
-
-

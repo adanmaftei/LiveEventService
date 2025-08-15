@@ -4,10 +4,17 @@ using LiveEventService.Application.Common.Interfaces;
 
 namespace LiveEventService.Application.Features.Users.User.Erase;
 
+/// <summary>
+/// Handles user erasure requests, supporting hard delete or anonymization/deactivation.
+/// </summary>
 public class EraseUserCommandHandler : ICommandHandler<EraseUserCommand, BaseResponse<bool>>
 {
     private readonly IUserRepository _userRepository;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EraseUserCommandHandler"/> class.
+    /// </summary>
+    /// <param name="userRepository">The user repository for data access.</param>
     public EraseUserCommandHandler(IUserRepository userRepository)
     {
         _userRepository = userRepository;
@@ -39,5 +46,3 @@ public class EraseUserCommandHandler : ICommandHandler<EraseUserCommand, BaseRes
         return BaseResponse<bool>.Succeeded(true);
     }
 }
-
-

@@ -2,6 +2,10 @@ using System.Diagnostics.Metrics;
 
 namespace LiveEventService.Infrastructure.Telemetry;
 
+/// <summary>
+/// Central registry of application metrics exposed via System.Diagnostics.Metrics.
+/// Counters and gauges are used by the API and background services for observability.
+/// </summary>
 public static class AppMetrics
 {
     public const string MeterName = "LiveEventService.Metrics";
@@ -92,5 +96,3 @@ public static class AppMetrics
         s_redisConnectivityProvider = provider;
     }
 }
-
-

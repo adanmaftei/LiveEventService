@@ -3,6 +3,10 @@ using LiveEventService.Application.Features.Events.Event;
 
 namespace LiveEventService.API.GraphQL.Types;
 
+/// <summary>
+/// GraphQL type definition for Event entities.
+/// Provides field descriptions and custom resolvers for event data.
+/// </summary>
 public class EventType : ObjectType<EventDto>
 {
     protected override void Configure(IObjectTypeDescriptor<EventDto> descriptor)
@@ -50,6 +54,7 @@ public class EventType : ObjectType<EventDto>
             .Description("The date and time when the event was last updated");
 
         // Organizer name resolved via DataLoader to batch across selection sets
+        // This field uses a DataLoader to efficiently batch user lookups across multiple events
         descriptor
             .Field("organizerName")
             .Type<StringType>()

@@ -3,9 +3,10 @@ using LiveEventService.Core.Registrations.EventRegistration;
 
 namespace LiveEventService.Application.Common.Notifications;
 
-// Adapter classes to make domain events implement INotification
-// This keeps the Core layer pure while enabling MediatR integration
-
+/// <summary>
+/// Adapter notifications that wrap domain events so they can be published via MediatR
+/// without coupling the Core layer to MediatR abstractions.
+/// </summary>
 public class EventRegistrationCreatedNotification : INotification
 {
     public EventRegistrationCreatedDomainEvent DomainEvent { get; }

@@ -4,15 +4,23 @@ using LiveEventService.Application.Common.Interfaces;
 
 namespace LiveEventService.Application.Features.Events.Event.Delete;
 
+/// <summary>
+/// Handles deletion of events, ensuring authorization and no dependent registrations exist.
+/// </summary>
 public class DeleteEventCommandHandler : ICommandHandler<DeleteEventCommand, BaseResponse<bool>>
 {
     private readonly IEventRepository _eventRepository;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DeleteEventCommandHandler"/> class.
+    /// </summary>
+    /// <param name="eventRepository">The event repository for data access.</param>
     public DeleteEventCommandHandler(IEventRepository eventRepository)
     {
         _eventRepository = eventRepository;
     }
 
+    /// <inheritdoc />
     public async Task<BaseResponse<bool>> Handle(DeleteEventCommand request, CancellationToken cancellationToken)
     {
         var existingEvent = await _eventRepository.GetByIdAsync(request.EventId, cancellationToken);

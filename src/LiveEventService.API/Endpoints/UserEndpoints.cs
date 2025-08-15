@@ -15,8 +15,16 @@ using Microsoft.Extensions.Caching.Distributed;
 
 namespace LiveEventService.API.Users;
 
+/// <summary>
+/// Maps REST endpoints for user management: query, self profile, CRUD, export and erasure.
+/// Enforces role-based access controls and rate limits; leverages cache for profile reads.
+/// </summary>
 public static class UserEndpoints
 {
+    /// <summary>
+    /// Registers all user-related minimal API endpoints on the provided route builder.
+    /// </summary>
+    /// <param name="endpoints">The endpoint route builder.</param>
     public static void MapUserEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/api/users", async (
@@ -33,7 +41,13 @@ public static class UserEndpoints
             };
             var result = await mediator.Send(query);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Users")
+        .WithSummary("List users")
+        .WithDescription("Retrieves a paginated list of users, optionally filtered by active status. Admin only.")
+        .Produces<BaseResponse<UserListDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapGet("/api/users/me", async (
@@ -57,7 +71,13 @@ public static class UserEndpoints
                 return Results.Ok(result);
             }
             return Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization()
+        })
+        .WithTags("Users")
+        .WithSummary("Get current user profile")
+        .WithDescription("Retrieves the authenticated user's profile, with caching.")
+        .Produces<BaseResponse<UserDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization()
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapGet("/api/users/{id}", async (
@@ -80,7 +100,13 @@ public static class UserEndpoints
                 return Results.Ok(result);
             }
             return Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Users")
+        .WithSummary("Get user by ID")
+        .WithDescription("Retrieves a user profile by ID. Admin only.")
+        .Produces<BaseResponse<UserDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPost("/api/users", async (
@@ -89,7 +115,14 @@ public static class UserEndpoints
         {
             var result = await mediator.Send(command);
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Users")
+        .WithSummary("Create user")
+        .WithDescription("Creates a new user. Admin only.")
+        .Accepts<CreateUserCommand>("application/json")
+        .Produces<BaseResponse<UserDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
 
         endpoints.MapPut("/api/users/{id}", async (
@@ -119,7 +152,15 @@ public static class UserEndpoints
                 await cache.RemoveAsync($"user:{id}", httpContext.RequestAborted);
             }
             return result.Success ? Results.Ok(result) : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization()
+        })
+        .WithTags("Users")
+        .WithSummary("Update user")
+        .WithDescription("Updates a user. Users can update themselves; admins can update any user.")
+        .Accepts<UpdateUserCommand>("application/json")
+        .Produces<BaseResponse<UserDto>>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status403Forbidden)
+        .RequireAuthorization()
         .RequireRateLimiting(PolicyNames.General);
 
         // User data export (DSAR) - user can export their own data; admin can export any
@@ -142,7 +183,14 @@ public static class UserEndpoints
             }
             var bytes = Encoding.UTF8.GetBytes(result.Data.Json);
             return Results.File(bytes, "application/json", $"user-{id}-export.json");
-        }).RequireAuthorization()
+        })
+        .WithTags("Users")
+        .WithSummary("Export user data")
+        .WithDescription("Exports user data in JSON format for the specified user. Users can export themselves; admins can export any user.")
+        .Produces(StatusCodes.Status200OK, contentType: "application/json")
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status403Forbidden)
+        .RequireAuthorization()
         .RequireRateLimiting(PolicyNames.General);
 
         // User erasure (DSAR) - admin only; optional self-delete could be policy-dependent
@@ -152,7 +200,13 @@ public static class UserEndpoints
         {
             var result = await mediator.Send(new EraseUserCommand { UserId = id, HardDelete = false });
             return result.Success ? Results.NoContent() : Results.BadRequest(new { result.Errors });
-        }).RequireAuthorization(RoleNames.Admin)
+        })
+        .WithTags("Users")
+        .WithSummary("Erase user")
+        .WithDescription("Erases a user (policy-based soft delete). Admin only.")
+        .Produces(StatusCodes.Status204NoContent)
+        .Produces(StatusCodes.Status400BadRequest)
+        .RequireAuthorization(RoleNames.Admin)
         .RequireRateLimiting(PolicyNames.General);
     }
 }

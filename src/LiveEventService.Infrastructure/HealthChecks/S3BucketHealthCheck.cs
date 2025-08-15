@@ -5,11 +5,20 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace LiveEventService.Infrastructure.HealthChecks;
 
+/// <summary>
+/// Validates that the configured S3 bucket is reachable by attempting to list objects.
+/// </summary>
 public sealed class S3BucketHealthCheck : IHealthCheck
 {
     private readonly IAmazonS3 _s3Client;
     private readonly string? _bucketName;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="S3BucketHealthCheck"/> class.
+    /// Creates a new health check instance.
+    /// </summary>
+    /// <param name="s3Client">The AWS S3 client for bucket operations.</param>
+    /// <param name="configuration">Configuration containing the S3 bucket name.</param>
     public S3BucketHealthCheck(IAmazonS3 s3Client, IConfiguration configuration)
     {
         _s3Client = s3Client;
@@ -43,5 +52,3 @@ public sealed class S3BucketHealthCheck : IHealthCheck
         }
     }
 }
-
-

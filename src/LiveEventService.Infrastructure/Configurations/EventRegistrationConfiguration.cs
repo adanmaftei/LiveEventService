@@ -4,8 +4,16 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace LiveEventService.Infrastructure.Registrations;
 
+/// <summary>
+/// EF Core configuration for the <see cref="EventRegistrationEntity"/> aggregate.
+/// Configures table mapping, relationships, and useful indexes.
+/// </summary>
 public class EventRegistrationConfiguration : IEntityTypeConfiguration<EventRegistrationEntity>
 {
+    /// <summary>
+    /// Configures the <see cref="EventRegistrationEntity"/> model.
+    /// </summary>
+    /// <param name="builder">The entity type builder for configuring the model.</param>
     public void Configure(EntityTypeBuilder<EventRegistrationEntity> builder)
     {
         builder.ToTable("EventRegistrations");

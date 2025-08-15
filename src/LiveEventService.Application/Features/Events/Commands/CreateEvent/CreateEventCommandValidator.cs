@@ -2,6 +2,9 @@ using FluentValidation;
 
 namespace LiveEventService.Application.Features.Events.Event.Create;
 
+/// <summary>
+/// FluentValidation rules for <see cref="CreateEventCommand"/>.
+/// </summary>
 public class CreateEventCommandValidator : AbstractValidator<CreateEventCommand>
 {
     public CreateEventCommandValidator()

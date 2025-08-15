@@ -8,11 +8,19 @@ using EventRegistrationEntity = LiveEventService.Core.Registrations.EventRegistr
 
 namespace LiveEventService.Application.Features.Events.Commands.ConfirmRegistration;
 
+/// <summary>
+/// Handles confirmation of event registrations and returns the updated registration DTO.
+/// </summary>
 public class ConfirmRegistrationCommandHandler : ICommandHandler<ConfirmRegistrationCommand, BaseResponse<EventRegistrationDto>>
 {
     private readonly IRepository<EventRegistrationEntity> _registrationRepository;
     private readonly IMapper _mapper;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ConfirmRegistrationCommandHandler"/> class.
+    /// </summary>
+    /// <param name="registrationRepository">The registration repository for data access.</param>
+    /// <param name="mapper">The AutoMapper instance for object mapping.</param>
     public ConfirmRegistrationCommandHandler(
         IRepository<EventRegistrationEntity> registrationRepository,
         IMapper mapper)
@@ -21,6 +29,7 @@ public class ConfirmRegistrationCommandHandler : ICommandHandler<ConfirmRegistra
         _mapper = mapper;
     }
 
+    /// <inheritdoc />
     public async Task<BaseResponse<EventRegistrationDto>> Handle(ConfirmRegistrationCommand request, CancellationToken cancellationToken)
     {
         var registration = await _registrationRepository.GetByIdAsync(request.RegistrationId, cancellationToken);

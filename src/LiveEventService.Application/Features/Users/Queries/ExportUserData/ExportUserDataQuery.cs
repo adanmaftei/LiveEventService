@@ -12,5 +12,3 @@ public class ExportUserDataResult
 {
     public string Json { get; set; } = string.Empty;
 }
-
-

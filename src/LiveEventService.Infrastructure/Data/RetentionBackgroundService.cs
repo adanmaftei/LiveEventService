@@ -7,12 +7,23 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace LiveEventService.Infrastructure.Data;
 
+/// <summary>
+/// Periodic background job that enforces data retention rules such as anonymizing
+/// inactive users and removing old cancelled registrations.
+/// </summary>
 public sealed class RetentionBackgroundService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<RetentionBackgroundService> _logger;
     private readonly RetentionOptions _options;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RetentionBackgroundService"/> class.
+    /// Creates a new background service instance.
+    /// </summary>
+    /// <param name="serviceProvider">The service provider for creating scoped services.</param>
+    /// <param name="logger">The logger for recording service events.</param>
+    /// <param name="options">The retention configuration options.</param>
     public RetentionBackgroundService(IServiceProvider serviceProvider,
         ILogger<RetentionBackgroundService> logger,
         IOptions<RetentionOptions> options)
@@ -22,6 +33,7 @@ public sealed class RetentionBackgroundService : BackgroundService
         _options = options.Value;
     }
 
+    /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!_options.Enabled)
@@ -61,6 +73,9 @@ public sealed class RetentionBackgroundService : BackgroundService
         _logger.LogInformation("Data retention service stopped");
     }
 
+    /// <summary>
+    /// Executes one pass of the retention logic.
+    /// </summary>
     private async Task RunOnceAsync(CancellationToken ct)
     {
         using var scope = _serviceProvider.CreateScope();
@@ -113,6 +128,9 @@ public sealed class RetentionBackgroundService : BackgroundService
     }
 }
 
+/// <summary>
+/// Configuration for data retention background job.
+/// </summary>
 public sealed class RetentionOptions
 {
     public bool Enabled { get; set; } = false;
@@ -120,5 +138,3 @@ public sealed class RetentionOptions
     public int UsersRetentionDays { get; set; } = 0;
     public int CancelledRegistrationsRetentionDays { get; set; } = 0;
 }
-
-
