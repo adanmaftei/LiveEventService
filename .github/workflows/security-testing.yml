@@ -24,6 +24,9 @@ jobs:
       with:
         dotnet-version: '9.0.x'
 
+    - name: Restore dependencies
+      run: dotnet restore
+
     # Run security audit for NuGet packages
     - name: Run NuGet security audit
       run: |
