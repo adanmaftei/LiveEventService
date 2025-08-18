@@ -161,6 +161,7 @@ jobs:
     - name: Notify status
       if: always()
       uses: rtCamp/action-slack-notify@v2
+      continue-on-error: true
       env:
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
         SLACK_TITLE: "Deployment ${{ job.status }}"
